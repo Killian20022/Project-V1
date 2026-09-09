@@ -224,7 +224,7 @@ body.dark .feedback.no { background:#7f1d1d; color:#fecaca; }
   <div class="page" id="dico">
     <button class="btn btn-ghost" onclick="go('home')" style="margin-bottom:18px;">← Accueil</button>
     <h2 class="title">📖 Dictionnaire</h2>
-    <p class="sub">Cherche un mot anglais : définition, prononciation audio et exemples</p>
+    <p class="sub">Cherche un mot anglais : définition et prononciation</p>
     <div class="card" style="margin-bottom:20px;">
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <input class="text-input" id="dicoInput" placeholder="Ex: apple, run, beautiful..." style="flex:1;min-width:200px;" onkeydown="if(event.key==='Enter')searchWord()">
@@ -470,45 +470,40 @@ function showDaily(){ const t=new Date().toDateString(); if(S.lastDaily===t)retu
   document.getElementById('dailyOverlay').classList.add('show'); S.lastDaily=t; save(); }
 function closeDaily(){ document.getElementById('dailyOverlay').classList.remove('show'); }
 
-/* ============ DICTIONNAIRE avec API principale + secours (Datamuse) ============ */
+/* ============ DICTIONNAIRE via Datamuse (fonctionne chez toi !) ============ */
 let savedWords=JSON.parse(localStorage.getItem('eq_words')||'[]');
 async function searchWord(){
   const word=document.getElementById('dicoInput').value.trim().toLowerCase();
   const box=document.getElementById('dicoResult'); if(!word)return;
   box.innerHTML=`<div class="card">⏳ Recherche de « ${word} »...</div>`;
-  // Essai 1 : dictionaryapi.dev
-  try{
-    const res=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
-    if(res.ok){ const data=await res.json(); renderDicoEntry(data[0], word, box); return; }
-  }catch(e){}
-  // Essai 2 (secours) : Datamuse
   try{
     const res=await fetch(`https://api.datamuse.com/words?sp=${encodeURIComponent(word)}&md=d&max=1`);
-    if(res.ok){ const data=await res.json();
-      if(data.length && data[0].defs && data[0].defs.length){
-        const defs=data[0].defs.map(d=>d.replace(/^\w+\t/,''));
-        const already=savedWords.some(w=>w.word===word);
-        box.innerHTML=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><div style="font-size:28px;font-weight:800;">${word}</div><div style="display:flex;gap:8px;"><button class="audio-btn" style="margin:0;" onclick="speak('${word}')">🔊 Écouter</button><button class="btn ${already?'btn-ghost':'btn-primary'}" id="saveBtn" onclick="saveWord('${word}','','${defs[0].replace(/'/g,'').replace(/"/g,'')}')">${already?'✓ Sauvegardé':'⭐ Sauvegarder'}</button></div></div>${defs.slice(0,3).map(d=>`<div style="margin:10px 0;padding:12px;background:var(--surface-2);border-radius:10px;">${d}</div>`).join('')}</div>`;
-        return;
-      }
+    const data=await res.json();
+    if(data.length && data[0].defs && data[0].defs.length){
+      const defs=data[0].defs.map(d=>d.replace(/^\w+\t/,''));
+      const already=savedWords.some(w=>w.word===word);
+      box.innerHTML=`<div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div style="font-size:28px;font-weight:800;">${word}</div>
+          <div style="display:flex;gap:8px;">
+            <button class="audio-btn" style="margin:0;" onclick="speak('${word}')">🔊 Écouter</button>
+            <button class="btn ${already?'btn-ghost':'btn-primary'}" id="saveBtn" onclick="saveWord('${word}','','${defs[0].replace(/'/g,'').replace(/"/g,'')}')">${already?'✓ Sauvegardé':'⭐ Sauvegarder'}</button>
+          </div>
+        </div>
+        ${defs.slice(0,5).map(d=>`<div style="margin:10px 0;padding:12px;background:var(--surface-2);border-radius:10px;">${d}</div>`).join('')}
+      </div>`;
+    } else {
+      box.innerHTML=`<div class="card">😕 Aucune définition pour « ${word} ». Vérifie l'orthographe.<br><br>🔊 <button class="mini-audio" onclick="speak('${word}')">Écouter la prononciation</button></div>`;
     }
-  }catch(e){}
-  box.innerHTML=`<div class="card">😕 Impossible de trouver « ${word} » pour l'instant. Le service est peut-être temporairement indisponible. Réessaie plus tard.<br><br>🔊 Tu peux quand même <button class="mini-audio" onclick="speak('${word}')">écouter la prononciation</button>.</div>`;
+  }catch(e){
+    box.innerHTML=`<div class="card">⚠️ Erreur de connexion. Réessaie.</div>`;
+  }
 }
-function renderDicoEntry(entry, word, box){
-  const phon=(entry.phonetics.find(p=>p.text)||{}).text||'';
-  const audioUrl=(entry.phonetics.find(p=>p.audio)||{}).audio||'';
-  let mh=''; entry.meanings.slice(0,3).forEach(m=>{ const def=m.definitions[0];
-    mh+=`<div style="margin:10px 0;padding:12px;background:var(--surface-2);border-radius:10px;"><div style="font-size:12px;text-transform:uppercase;color:var(--primary);font-weight:700;">${m.partOfSpeech}</div><div style="margin-top:4px;">${def.definition}</div>${def.example?`<div style="color:var(--text-soft);font-size:13px;margin-top:6px;">💬 « ${def.example} »</div>`:''}</div>`; });
-  const already=savedWords.some(w=>w.word===word);
-  box.innerHTML=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><div><div style="font-size:28px;font-weight:800;">${entry.word}</div><div style="color:var(--text-soft);">${phon}</div></div><div style="display:flex;gap:8px;"><button class="audio-btn" style="margin:0;" onclick="playAudio('${audioUrl}','${word}')">🔊 Écouter</button><button class="btn ${already?'btn-ghost':'btn-primary'}" id="saveBtn" onclick="saveWord('${word}','${phon.replace(/'/g,'')}','${(entry.meanings[0].definitions[0].definition||'').replace(/'/g,'').replace(/"/g,'')}')">${already?'✓ Sauvegardé':'⭐ Sauvegarder'}</button></div></div>${mh}</div>`;
-}
-function playAudio(url,word){ if(url){ new Audio(url).play().catch(()=>speak(word)); } else speak(word); }
 function saveWord(word,phon,def){ if(savedWords.some(w=>w.word===word))return; savedWords.push({word,phon,def}); localStorage.setItem('eq_words',JSON.stringify(savedWords));
   const b=document.getElementById('saveBtn'); if(b){b.textContent='✓ Sauvegardé'; b.className='btn btn-ghost';} toast(`⭐ « ${word} » ajouté !`); renderSavedWords(); }
 function removeWord(word){ savedWords=savedWords.filter(w=>w.word!==word); localStorage.setItem('eq_words',JSON.stringify(savedWords)); renderSavedWords(); }
 function renderSavedWords(){ const box=document.getElementById('savedWords'),cnt=document.getElementById('savedCount'); cnt.textContent=`${savedWords.length} mot${savedWords.length>1?'s':''} sauvegardé${savedWords.length>1?'s':''}`; box.innerHTML='';
-  savedWords.forEach(w=>{ const c=document.createElement('div'); c.className='card'; c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:start;gap:8px;"><div><div style="font-weight:700;">${w.word}</div><div style="font-size:12px;color:var(--text-soft);">${w.phon}</div></div><div style="display:flex;gap:4px;"><button class="mini-audio" onclick="playAudio('','${w.word}')">🔊</button><button class="mini-audio" style="background:var(--danger);" onclick="removeWord('${w.word}')">🗑️</button></div></div><div style="font-size:13px;color:var(--text-soft);margin-top:8px;">${w.def}</div>`; box.appendChild(c); });
+  savedWords.forEach(w=>{ const c=document.createElement('div'); c.className='card'; c.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:start;gap:8px;"><div><div style="font-weight:700;">${w.word}</div></div><div style="display:flex;gap:4px;"><button class="mini-audio" onclick="speak('${w.word}')">🔊</button><button class="mini-audio" style="background:var(--danger);" onclick="removeWord('${w.word}')">🗑️</button></div></div><div style="font-size:13px;color:var(--text-soft);margin-top:8px;">${w.def}</div>`; box.appendChild(c); });
   document.getElementById('quizFromWordsBtn').style.display=savedWords.length>=4?'block':'none'; }
 function quizFromSavedWords(){ if(savedWords.length<4){toast("Sauvegarde au moins 4 mots");return;}
   const list=savedWords.map(w=>{ const wrong=savedWords.filter(x=>x.word!==w.word).sort(()=>Math.random()-.5).slice(0,3); const opts=[...wrong.map(x=>x.word),w.word].sort(()=>Math.random()-.5);
