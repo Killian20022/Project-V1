@@ -51,9 +51,12 @@ p.sub { color:var(--text-soft); margin-bottom:20px; font-size:14px; }
 .level-prog-txt { font-size:12px; color:var(--accent); font-weight:600; margin-top:5px; }
 .mod-card { cursor:pointer; text-align:center; border:2px solid var(--border); transition:transform .2s,border-color .2s; }
 .mod-card:hover { transform:translateY(-4px); border-color:var(--primary); }
+.mod-card.auto { border-color:#f59e0b; }
+.mod-card.auto:hover { border-color:#d97706; }
 .mod-icon { font-size:40px; margin-bottom:8px; }
 .mod-name { font-weight:700; font-size:15px; }
 .mod-count { color:var(--text-soft); font-size:12px; margin-top:4px; }
+.auto-tag { display:inline-block; font-size:10px; background:#f59e0b; color:#fff; padding:2px 8px; border-radius:10px; margin-top:6px; font-weight:700; }
 .ex-wrap { max-width:640px; margin:0 auto; }
 .ex-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:13px; color:var(--text-soft); font-weight:600; }
 .bar { height:8px; background:var(--surface-2); border-radius:5px; overflow:hidden; margin-bottom:18px; }
@@ -122,6 +125,9 @@ body.dark .feedback.no { background:#7f1d1d; color:#fecaca; }
 .exp-fr { font-size:13px; color:var(--text-soft); }
 .mini-audio { background:var(--primary); color:#fff; border:none; border-radius:8px; padding:6px 10px; cursor:pointer; }
 .hint { font-size:13px; color:var(--text-soft); background:var(--surface-2); padding:10px 14px; border-radius:10px; margin-bottom:16px; }
+.loader { text-align:center; padding:40px; }
+.spinner { border:4px solid var(--surface-2); border-top:4px solid var(--primary); border-radius:50%; width:44px; height:44px; animation:spin 1s linear infinite; margin:0 auto 16px; }
+@keyframes spin { to { transform:rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -176,7 +182,7 @@ body.dark .feedback.no { background:#7f1d1d; color:#fecaca; }
     </div>
     <div id="learnModules" style="display:none;">
       <h2 class="title" id="modTitle">Modules</h2>
-      <p class="sub">Choisis un type d'exercice</p>
+      <p class="sub">Choisis un type d'exercice (🟠 = généré automatiquement, contenu infini)</p>
       <div class="grid cols" id="modGrid"></div>
       <button class="btn btn-ghost" onclick="backToLevels()" style="margin-top:18px;">← Niveaux</button>
     </div>
@@ -195,6 +201,7 @@ body.dark .feedback.no { background:#7f1d1d; color:#fecaca; }
       </div>
       <button class="btn btn-ghost" onclick="quitExercise()" style="margin-top:16px;">✕ Quitter</button>
     </div>
+    <div id="exLoader" style="display:none;"><div class="loader"><div class="spinner"></div><p>⏳ Génération des exercices en cours...</p></div></div>
     <div class="result card" id="exResult" style="display:none;">
       <h2 class="title">Terminé ! 🎉</h2>
       <div class="score" id="resScore">0/10</div>
@@ -241,6 +248,16 @@ body.dark .feedback.no { background:#7f1d1d; color:#fecaca; }
   </div>
 </div>
 <script>
+/* ===== LISTES DE VOCABULAIRE PAR NIVEAU (CECRL) - enrichis-les librement ===== */
+const VOCAB = {
+  A1:["apple","dog","house","water","red","book","table","school","friend","happy","big","small","eat","drink","run","cat","milk","door","hand","sun","car","tree","chair","bread","name","family","mother","father","day","night"],
+  A2:["yesterday","weather","travel","market","kitchen","garden","holiday","letter","money","shop","doctor","teacher","student","weekend","breakfast","dinner","clothes","shoes","music","picture","story","question","answer","people","country","language","summer","winter","morning","evening"],
+  B1:["experience","decision","opinion","develop","achieve","suggest","improve","environment","government","society","culture","business","technology","education","health","future","success","problem","solution","project","research","result","system","process","community","industry","economy","science","knowledge","challenge"],
+  B2:["consequence","significant","approach","establish","perspective","influence","strategy","efficient","reliable","complex","analyze","evaluate","demonstrate","contribute","emphasize","maintain","assumption","framework","hypothesis","phenomenon","priority","resource","tendency","variety","adequate","controversial","fundamental","substantial","comprehensive","distinguish"],
+  C1:["nevertheless","inevitable","ambiguous","coherent","elaborate","implicit","meticulous","pragmatic","profound","subtle","versatile","advocate","alleviate","compelling","comprehensive","discrepancy","eloquent","inherent","nuance","paradigm","plausible","predominant","reciprocal","resilient","scrutiny","spontaneous","tangible","ubiquitous","viable","vulnerable"],
+  C2:["quintessential","juxtaposition","ephemeral","idiosyncratic","surreptitious","cacophony","serendipity","perfunctory","obfuscate","magnanimous","laconic","insidious","fastidious","equivocal","disparate","circumlocution","belligerent","assiduous","antithesis","abstruse","vociferous","truculent","recalcitrant","punctilious","perspicacious","ostentatious","nefarious","mellifluous","loquacious","inexorable"]
+};
+
 const DB = {
   expressions: [
     {en:"Break the ice", fr:"Briser la glace"},{en:"Piece of cake", fr:"Du gâteau (très facile)"},
@@ -256,8 +273,7 @@ const DB = {
         {type:'qcm',q:"Complete: 'I ___ a student.'",options:["am","is","are","be"],correct:0,exp:"'I am'."},
         {type:'qcm',q:"'rouge' en anglais ?",options:["blue","green","red","black"],correct:2,exp:"'Red' = rouge."},
         {type:'qcm',q:"Complete: 'She ___ happy.'",options:["am","is","are","be"],correct:1,exp:"'She is'."},
-        {type:'qcm',q:"'Merci' en anglais ?",options:["Please","Sorry","Hello","Thank you"],correct:3,exp:"'Thank you'."},
-        {type:'qcm',q:"How many days in a week?",options:["five","six","seven","eight"],correct:2,exp:"Seven = 7."}
+        {type:'qcm',q:"'Merci' en anglais ?",options:["Please","Sorry","Hello","Thank you"],correct:3,exp:"'Thank you'."}
       ],
       fill:[
         {type:'fill',q:"Complète : 'My name ___ Tom.'",answer:"is",exp:"'is'."},
@@ -267,92 +283,70 @@ const DB = {
       order:[
         {type:'order',q:"Remets dans l'ordre :",tokens:["I","like","apples"],answer:"I like apples",exp:"Sujet+verbe+complément."},
         {type:'order',q:"Remets dans l'ordre :",tokens:["She","is","my","sister"],answer:"She is my sister",exp:"Structure be."}
-      ],
-      listen:[
-        {type:'listen',q:"Écoute et choisis :",audio:"apple",options:["apple","table","water","house"],correct:0,exp:"'apple'."},
-        {type:'listen',q:"Écoute et choisis :",audio:"dog",options:["cat","dog","cow","bird"],correct:1,exp:"'dog'."}
-      ],
-      speak:[
-        {type:'speak',q:"Prononce ce mot :",target:"hello",exp:"Bien articulé !"},
-        {type:'speak',q:"Prononce cette phrase :",target:"I am happy",exp:"Super !"}
       ]
     }},
     A2:{name:"Élémentaire",desc:"Passé simple, quantités, questions",color:"lvl-A2",modules:{
       qcm:[
         {type:'qcm',q:"Past of 'go' ?",options:["goed","went","gone","going"],correct:1,exp:"'went'."},
         {type:'qcm',q:"Complete: 'There ___ some milk.'",options:["is","are","am","be"],correct:0,exp:"'is'."},
-        {type:'qcm',q:"'hier' ?",options:["tomorrow","today","yesterday","now"],correct:2,exp:"'yesterday'."},
-        {type:'qcm',q:"Complete: 'How ___ apples?'",options:["much","many","some","any"],correct:1,exp:"'many'."}
+        {type:'qcm',q:"'hier' ?",options:["tomorrow","today","yesterday","now"],correct:2,exp:"'yesterday'."}
       ],
       fill:[
         {type:'fill',q:"Complète : 'I ___ to school yesterday.'",answer:"went",exp:"Passé de go."},
         {type:'fill',q:"Complète : 'We ___ dinner at 7.'",answer:"had",exp:"Passé de have."}
       ],
-      order:[{type:'order',q:"Remets dans l'ordre :",tokens:["Did","you","see","the","film"],answer:"Did you see the film",exp:"Question passé."}],
-      listen:[{type:'listen',q:"Écoute :",audio:"yesterday",options:["today","yesterday","tomorrow","tonight"],correct:1,exp:"'yesterday'."}],
-      speak:[{type:'speak',q:"Prononce :",target:"I went to the market",exp:"Bien joué !"}]
+      order:[{type:'order',q:"Remets dans l'ordre :",tokens:["Did","you","see","the","film"],answer:"Did you see the film",exp:"Question passé."}]
     }},
     B1:{name:"Intermédiaire",desc:"Present perfect, futur, conditionnel",color:"lvl-B1",modules:{
       qcm:[
         {type:'qcm',q:"Complete: 'I have ___ here for 3 years.'",options:["live","lived","living","lives"],correct:1,exp:"Present perfect."},
-        {type:'qcm',q:"'If it rains, I ___ stay home.'",options:["will","would","did","have"],correct:0,exp:"First conditional."},
-        {type:'qcm',q:"'She is ___ than me.'",options:["tall","taller","tallest","more tall"],correct:1,exp:"Comparatif."}
+        {type:'qcm',q:"'If it rains, I ___ stay home.'",options:["will","would","did","have"],correct:0,exp:"First conditional."}
       ],
       fill:[
         {type:'fill',q:"Complète : 'I have never ___ sushi.'",answer:"eaten",exp:"Participe de eat."},
         {type:'fill',q:"Complète : 'They will ___ tomorrow.'",answer:"arrive",exp:"Futur will."}
       ],
-      order:[{type:'order',q:"Remets dans l'ordre :",tokens:["I","have","already","finished","it"],answer:"I have already finished it",exp:"Present perfect."}],
-      listen:[{type:'listen',q:"Écoute :",audio:"I would like a coffee",options:["I would like a coffee","I like a coffee","I liked a coffee","I want coffee"],correct:0,exp:"Conditionnel poli."}],
-      speak:[{type:'speak',q:"Prononce :",target:"I have been to London",exp:"Excellent !"}]
+      order:[{type:'order',q:"Remets dans l'ordre :",tokens:["I","have","already","finished","it"],answer:"I have already finished it",exp:"Present perfect."}]
     }},
     B2:{name:"Avancé",desc:"Passif, discours rapporté, nuances",color:"lvl-B2",modules:{
       qcm:[
         {type:'qcm',q:"Passive: 'The book ___ by many people.'",options:["is read","reads","reading","read"],correct:0,exp:"Passif présent."},
-        {type:'qcm',q:"Reported: 'He said he ___ tired.'",options:["is","was","be","been"],correct:1,exp:"Concordance."},
         {type:'qcm',q:"'Despite ___ late, he came.'",options:["being","be","was","is"],correct:0,exp:"Despite + -ing."}
       ],
       fill:[
         {type:'fill',q:"Complète : 'The house ___ built in 1900.'",answer:"was",exp:"Passif passé."},
         {type:'fill',q:"Complète : 'I wish I ___ more time.'",answer:"had",exp:"Wish + prétérit."}
       ],
-      order:[{type:'order',q:"Remets dans l'ordre :",tokens:["The","letter","was","written","yesterday"],answer:"The letter was written yesterday",exp:"Voix passive."}],
-      listen:[{type:'listen',q:"Écoute :",audio:"The results were announced this morning",options:["The results were announced this morning","The results are announced","The result was announced","Results announced today"],correct:0,exp:"Passif passé."}],
-      speak:[{type:'speak',q:"Prononce :",target:"The decision was made carefully",exp:"Très bien !"}]
+      order:[{type:'order',q:"Remets dans l'ordre :",tokens:["The","letter","was","written","yesterday"],answer:"The letter was written yesterday",exp:"Voix passive."}]
     }},
     C1:{name:"Autonome",desc:"Idiomes, registre soutenu",color:"lvl-C1",modules:{
       qcm:[
         {type:'qcm',q:"'To bite the bullet' means:",options:["to eat fast","to face a hard situation","to shoot","to be angry"],correct:1,exp:"Affronter une difficulté."},
-        {type:'qcm',q:"Formal word for 'buy':",options:["get","grab","purchase","take"],correct:2,exp:"'purchase'."},
-        {type:'qcm',q:"'Had I known, I ___ come.'",options:["would have","will","would","had"],correct:0,exp:"3e conditionnel inversé."}
+        {type:'qcm',q:"Formal word for 'buy':",options:["get","grab","purchase","take"],correct:2,exp:"'purchase'."}
       ],
       fill:[
         {type:'fill',q:"Idiome : 'It's a piece of ___.'",answer:"cake",exp:"Piece of cake."},
         {type:'fill',q:"'Not only ___ he late, but rude too.'",answer:"was",exp:"Inversion."}
       ],
-      order:[{type:'order',q:"Remets dans l'ordre :",tokens:["Rarely","have","I","seen","such","talent"],answer:"Rarely have I seen such talent",exp:"Inversion."}],
-      listen:[{type:'listen',q:"Écoute :",audio:"It cost an arm and a leg",options:["It cost an arm and a leg","It was very cheap","It cost a little","I lost my arm"],correct:0,exp:"Coûter cher."}],
-      speak:[{type:'speak',q:"Prononce :",target:"Once in a blue moon",exp:"Parfait !"}]
+      order:[{type:'order',q:"Remets dans l'ordre :",tokens:["Rarely","have","I","seen","such","talent"],answer:"Rarely have I seen such talent",exp:"Inversion."}]
     }},
     C2:{name:"Maîtrise",desc:"Subtilités, style natif",color:"lvl-C2",modules:{
       qcm:[
         {type:'qcm',q:"'To throw in the towel' means:",options:["to clean","to give up","to win","to fight"],correct:1,exp:"Abandonner."},
-        {type:'qcm',q:"Synonym of 'happy' (formal):",options:["glad","elated","okay","fine"],correct:1,exp:"'elated'."},
-        {type:'qcm',q:"'Were it not for you, I ___ failed.'",options:["would have","will have","had","have"],correct:0,exp:"Conditionnel soutenu."}
+        {type:'qcm',q:"Synonym of 'happy' (formal):",options:["glad","elated","okay","fine"],correct:1,exp:"'elated'."}
       ],
       fill:[
         {type:'fill',q:"'She spoke with great ___.' (eloquent→nom)",answer:"eloquence",exp:"'eloquence'."},
         {type:'fill',q:"Idiome : 'To cut ___.' (bâcler)",answer:"corners",exp:"Cut corners."}
       ],
-      order:[{type:'order',q:"Remets dans l'ordre :",tokens:["Little","did","she","know","the","truth"],answer:"Little did she know the truth",exp:"Inversion emphatique."}],
-      listen:[{type:'listen',q:"Écoute :",audio:"The nuances of the argument were subtle",options:["The nuances of the argument were subtle","The argument was simple","There were no nuances","The nuance was clear"],correct:0,exp:"Registre soutenu."}],
-      speak:[{type:'speak',q:"Prononce :",target:"Her eloquence was truly remarkable",exp:"Impressionnant !"}]
+      order:[{type:'order',q:"Remets dans l'ordre :",tokens:["Little","did","she","know","the","truth"],answer:"Little did she know the truth",exp:"Inversion emphatique."}]
     }}
   },
   modules:[
     {key:'qcm',icon:'✅',name:'Choix multiples'},{key:'fill',icon:'✍️',name:'Compléter'},
-    {key:'order',icon:'🔀',name:'Remettre en ordre'},{key:'listen',icon:'🎧',name:'Compréhension orale'},
-    {key:'speak',icon:'🎤',name:'Expression orale'}
+    {key:'order',icon:'🔀',name:'Remettre en ordre'},
+    {key:'vocab',icon:'📚',name:'Vocabulaire',auto:true},{key:'listen',icon:'🎧',name:'Compréhension orale',auto:true},
+    {key:'speak',icon:'🎤',name:'Expression orale',auto:true}
   ],
   unlocks:[
     {id:1,name:"Petite maison",emoji:"🏠",req:20},{id:2,name:"Écureuil",emoji:"🐿️",req:40},
@@ -392,16 +386,60 @@ function renderHome(){ document.getElementById('streakBig').textContent=S.streak
   const lg=document.getElementById('homeLevels'); lg.innerHTML=''; LEVEL_ORDER.forEach((lv,idx)=> lg.appendChild(levelCard(lv,idx,()=>{go('learn');openLevel(lv);}))); }
 function levelCard(lv,idx,onClick){ const L=DB.levels[lv],p=levelProgress(lv); const c=document.createElement('div'); c.className='card level-card'; c.onclick=onClick;
   c.innerHTML=`<div class="level-badge ${L.color}">${lv}</div><div class="level-name">${L.name}</div><div class="level-desc">${L.desc}</div><div class="level-prog"><div class="level-prog-fill" style="width:${p}%"></div></div><div class="level-prog-txt">${p}% complété</div>`; return c; }
-function levelProgress(lv){ const m=Object.keys(DB.levels[lv].modules); const d=m.filter(x=>S.completed.includes(lv+'-'+x)).length; return Math.round(d/m.length*100); }
+function levelProgress(lv){ const m=Object.keys(DB.levels[lv].modules).concat(['vocab','listen','speak']); const uniq=[...new Set(m)]; const d=uniq.filter(x=>S.completed.includes(lv+'-'+x)).length; return Math.round(d/uniq.length*100); }
 function renderLearnLevels(){ document.getElementById('learnLevels').style.display='block'; document.getElementById('learnModules').style.display='none';
   const g=document.getElementById('learnLevelGrid'); g.innerHTML=''; LEVEL_ORDER.forEach((lv,idx)=>g.appendChild(levelCard(lv,idx,()=>openLevel(lv)))); }
 function openLevel(lv){ EX.level=lv; document.getElementById('learnLevels').style.display='none'; document.getElementById('learnModules').style.display='block';
   document.getElementById('modTitle').textContent=`${lv} — ${DB.levels[lv].name}`; const g=document.getElementById('modGrid'); g.innerHTML='';
-  DB.modules.forEach(m=>{ const list=DB.levels[lv].modules[m.key]; if(!list||!list.length) return; const done=S.completed.includes(lv+'-'+m.key);
-    const c=document.createElement('div'); c.className='card mod-card'; c.onclick=()=>startExercise(lv,m.key); c.innerHTML=`<div class="mod-icon">${m.icon}</div><div class="mod-name">${m.name} ${done?'✅':''}</div><div class="mod-count">${list.length} questions</div>`; g.appendChild(c); }); }
+  DB.modules.forEach(m=>{
+    const isAuto=m.auto; const staticList=DB.levels[lv].modules[m.key];
+    if(!isAuto && (!staticList||!staticList.length)) return;
+    const done=S.completed.includes(lv+'-'+m.key);
+    const c=document.createElement('div'); c.className='card mod-card'+(isAuto?' auto':''); c.onclick=()=>startExercise(lv,m.key);
+    c.innerHTML=`<div class="mod-icon">${m.icon}</div><div class="mod-name">${m.name} ${done?'✅':''}</div>`+(isAuto?`<div class="auto-tag">🟠 AUTO</div>`:`<div class="mod-count">${staticList.length} questions</div>`);
+    g.appendChild(c);
+  }); }
 function backToLevels(){ renderLearnLevels(); }
-function startExercise(lv,modKey){ EX={level:lv,mod:modKey,list:[...DB.levels[lv].modules[modKey]],i:0,correct:0,combo:0,maxCombo:0}; go('exercise');
-  document.getElementById('exResult').style.display='none'; document.querySelector('#exercise .ex-wrap').style.display='block'; document.getElementById('exModName').textContent=`${lv} · ${DB.modules.find(m=>m.key===modKey).name}`; renderQ(); }
+
+/* === Génération auto via Datamuse === */
+function shuffle(a){ return a.sort(()=>Math.random()-.5); }
+async function fetchDef(word){
+  try{ const r=await fetch(`https://api.datamuse.com/words?sp=${encodeURIComponent(word)}&md=d&max=1`); const d=await r.json();
+    if(d.length&&d[0].defs&&d[0].defs.length){ return d[0].defs[0].replace(/^\w+\t/,''); } }catch(e){}
+  return null;
+}
+async function generateVocab(lv, kind){
+  const pool=shuffle([...VOCAB[lv]]).slice(0,8);
+  const items=[];
+  for(const w of pool){ const def=await fetchDef(w); if(def) items.push({word:w,def}); if(items.length>=6) break; }
+  if(items.length<4){ return null; }
+  if(kind==='vocab'){
+    return items.map(it=>{ const wrong=shuffle(items.filter(x=>x.word!==it.word)).slice(0,3).map(x=>x.word); const opts=shuffle([it.word,...wrong]);
+      return {type:'qcm',q:`Quel mot correspond à : "${it.def}" ?`,options:opts,correct:opts.indexOf(it.word),exp:`Réponse : « ${it.word} ».`}; });
+  }
+  if(kind==='listen'){
+    return items.map(it=>{ const wrong=shuffle(items.filter(x=>x.word!==it.word)).slice(0,3).map(x=>x.word); const opts=shuffle([it.word,...wrong]);
+      return {type:'listen',q:"Écoute le mot et choisis :",audio:it.word,options:opts,correct:opts.indexOf(it.word),exp:`C'était « ${it.word} ».`}; });
+  }
+  if(kind==='speak'){
+    return items.map(it=>({type:'speak',q:"Prononce ce mot :",target:it.word,exp:`Définition : ${it.def}`}));
+  }
+}
+async function startExercise(lv,modKey){
+  const auto=DB.modules.find(m=>m.key===modKey)?.auto;
+  if(auto){
+    go('exercise'); document.getElementById('exResult').style.display='none'; document.querySelector('#exercise .ex-wrap').style.display='none'; document.getElementById('exLoader').style.display='block';
+    const list=await generateVocab(lv,modKey);
+    document.getElementById('exLoader').style.display='none';
+    if(!list){ toast("⚠️ Génération impossible (connexion ?)"); go('learn'); return; }
+    EX={level:lv,mod:modKey,list,i:0,correct:0,combo:0,maxCombo:0};
+    document.querySelector('#exercise .ex-wrap').style.display='block';
+    document.getElementById('exModName').textContent=`${lv} · ${DB.modules.find(m=>m.key===modKey).name}`; renderQ(); return;
+  }
+  EX={level:lv,mod:modKey,list:[...DB.levels[lv].modules[modKey]],i:0,correct:0,combo:0,maxCombo:0}; go('exercise');
+  document.getElementById('exResult').style.display='none'; document.getElementById('exLoader').style.display='none'; document.querySelector('#exercise .ex-wrap').style.display='block';
+  document.getElementById('exModName').textContent=`${lv} · ${DB.modules.find(m=>m.key===modKey).name}`; renderQ();
+}
 function renderQ(){ const q=EX.list[EX.i]; if(!q){ finishExercise(); return; }
   document.getElementById('exProgress').textContent=`${EX.i+1} / ${EX.list.length}`; document.getElementById('exBar').style.width=(EX.i/EX.list.length*100)+'%';
   document.getElementById('exCombo').textContent=EX.combo>=2?`🔥 Combo x${EX.combo}`:'';
@@ -469,8 +507,6 @@ function showDaily(){ const t=new Date().toDateString(); if(S.lastDaily===t)retu
   todaysExpr().forEach((e,i)=>{ const r=document.createElement('div'); r.className='exp-row'; r.innerHTML=`<div><div class="exp-en">${i+1}. ${e.en}</div><div class="exp-fr">${e.fr}</div></div><button class="mini-audio" onclick="speak('${e.en.replace(/'/g,"\\'")}')">🔊</button>`; box.appendChild(r); });
   document.getElementById('dailyOverlay').classList.add('show'); S.lastDaily=t; save(); }
 function closeDaily(){ document.getElementById('dailyOverlay').classList.remove('show'); }
-
-/* ============ DICTIONNAIRE via Datamuse (fonctionne chez toi !) ============ */
 let savedWords=JSON.parse(localStorage.getItem('eq_words')||'[]');
 async function searchWord(){
   const word=document.getElementById('dicoInput').value.trim().toLowerCase();
@@ -482,22 +518,9 @@ async function searchWord(){
     if(data.length && data[0].defs && data[0].defs.length){
       const defs=data[0].defs.map(d=>d.replace(/^\w+\t/,''));
       const already=savedWords.some(w=>w.word===word);
-      box.innerHTML=`<div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-          <div style="font-size:28px;font-weight:800;">${word}</div>
-          <div style="display:flex;gap:8px;">
-            <button class="audio-btn" style="margin:0;" onclick="speak('${word}')">🔊 Écouter</button>
-            <button class="btn ${already?'btn-ghost':'btn-primary'}" id="saveBtn" onclick="saveWord('${word}','','${defs[0].replace(/'/g,'').replace(/"/g,'')}')">${already?'✓ Sauvegardé':'⭐ Sauvegarder'}</button>
-          </div>
-        </div>
-        ${defs.slice(0,5).map(d=>`<div style="margin:10px 0;padding:12px;background:var(--surface-2);border-radius:10px;">${d}</div>`).join('')}
-      </div>`;
-    } else {
-      box.innerHTML=`<div class="card">😕 Aucune définition pour « ${word} ». Vérifie l'orthographe.<br><br>🔊 <button class="mini-audio" onclick="speak('${word}')">Écouter la prononciation</button></div>`;
-    }
-  }catch(e){
-    box.innerHTML=`<div class="card">⚠️ Erreur de connexion. Réessaie.</div>`;
-  }
+      box.innerHTML=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><div style="font-size:28px;font-weight:800;">${word}</div><div style="display:flex;gap:8px;"><button class="audio-btn" style="margin:0;" onclick="speak('${word}')">🔊 Écouter</button><button class="btn ${already?'btn-ghost':'btn-primary'}" id="saveBtn" onclick="saveWord('${word}','','${defs[0].replace(/'/g,'').replace(/"/g,'')}')">${already?'✓ Sauvegardé':'⭐ Sauvegarder'}</button></div></div>${defs.slice(0,5).map(d=>`<div style="margin:10px 0;padding:12px;background:var(--surface-2);border-radius:10px;">${d}</div>`).join('')}</div>`;
+    } else { box.innerHTML=`<div class="card">😕 Aucune définition pour « ${word} ».<br><br>🔊 <button class="mini-audio" onclick="speak('${word}')">Écouter la prononciation</button></div>`; }
+  }catch(e){ box.innerHTML=`<div class="card">⚠️ Erreur de connexion. Réessaie.</div>`; }
 }
 function saveWord(word,phon,def){ if(savedWords.some(w=>w.word===word))return; savedWords.push({word,phon,def}); localStorage.setItem('eq_words',JSON.stringify(savedWords));
   const b=document.getElementById('saveBtn'); if(b){b.textContent='✓ Sauvegardé'; b.className='btn btn-ghost';} toast(`⭐ « ${word} » ajouté !`); renderSavedWords(); }
@@ -508,7 +531,7 @@ function renderSavedWords(){ const box=document.getElementById('savedWords'),cnt
 function quizFromSavedWords(){ if(savedWords.length<4){toast("Sauvegarde au moins 4 mots");return;}
   const list=savedWords.map(w=>{ const wrong=savedWords.filter(x=>x.word!==w.word).sort(()=>Math.random()-.5).slice(0,3); const opts=[...wrong.map(x=>x.word),w.word].sort(()=>Math.random()-.5);
     return {type:'qcm',q:`Quel mot signifie : "${w.def}" ?`,options:opts,correct:opts.indexOf(w.word),exp:`C'était « ${w.word} ».`}; }).sort(()=>Math.random()-.5);
-  EX={level:'DICO',mod:'qcm',list,i:0,correct:0,combo:0,maxCombo:0}; go('exercise'); document.getElementById('exResult').style.display='none'; document.querySelector('#exercise .ex-wrap').style.display='block';
+  EX={level:'DICO',mod:'qcm',list,i:0,correct:0,combo:0,maxCombo:0}; go('exercise'); document.getElementById('exResult').style.display='none'; document.getElementById('exLoader').style.display='none'; document.querySelector('#exercise .ex-wrap').style.display='block';
   document.getElementById('exModName').textContent='Quiz · Mes mots'; renderQ(); }
 window.addEventListener('load',()=>{ load(); renderHome(); showDaily(); });
 </script>
