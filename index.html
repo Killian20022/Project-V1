@@ -144,6 +144,52 @@ h2.title{font-family:'Sora';font-size:26px;font-weight:700;letter-spacing:-.6px;
 .tex-fr{color:var(--text-soft);font-size:13.5px;margin-top:2px;}
 .mini-audio{background:var(--surface-3);border:1px solid var(--border-lit);color:var(--accent);width:38px;height:38px;border-radius:10px;cursor:pointer;font-size:15px;flex-shrink:0;transition:.2s;}
 .mini-audio:hover{background:var(--accent);color:#04121a;}
+
+/* ===== Thème clair ===== */
+body.light{--bg:#eef3f8;--bg-2:#e4ecf4;--surface:#ffffff;--surface-2:#f3f7fb;--surface-3:#e6edf3;--text:#0e2029;--text-soft:#48606e;--text-dim:#8aa0ac;--border:#dce6ee;--border-lit:#c2d4de;--accent-glow:rgba(56,180,230,.22);}
+body.light::before{opacity:.45;}
+body.light .nav{background:rgba(255,255,255,.82);}
+body.light .botnav{background:rgba(255,255,255,.95);}
+/* ===== Accueil enrichi ===== */
+.dash{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:36px;}
+@media(max-width:560px){.dash{grid-template-columns:1fr;}}
+.dash-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 18px;display:flex;align-items:center;gap:14px;transition:.25s cubic-bezier(.22,1,.36,1);position:relative;}
+.dash-card.cont{cursor:pointer;}
+.dash-card:hover{transform:translateY(-3px);border-color:var(--border-lit);}
+.goal-ring{width:60px;height:60px;flex-shrink:0;}
+.gr-bg{fill:none;stroke:var(--surface-3);stroke-width:7;}
+.gr-fg{fill:none;stroke:var(--accent);stroke-width:7;stroke-linecap:round;transition:stroke-dashoffset .7s cubic-bezier(.22,1,.36,1);}
+.goal-txt{position:absolute;left:18px;top:50%;transform:translateY(-50%);width:60px;text-align:center;pointer-events:none;}
+.goal-n{font-family:'Sora';font-weight:800;font-size:16px;line-height:1;}
+.goal-l{font-size:8.5px;color:var(--text-dim);margin-top:1px;}
+.cont-ic{width:46px;height:46px;border-radius:50%;background:var(--grad);color:#04121a;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;box-shadow:0 6px 16px -6px var(--accent-glow);}
+.dash-t{font-family:'Sora';font-weight:700;font-size:15px;}
+.dash-s{font-size:12.5px;color:var(--text-soft);margin-top:3px;line-height:1.35;}
+/* ===== Barre du bas (mobile) ===== */
+.botnav{display:none;}
+@media(max-width:640px){
+ .botnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:120;background:rgba(11,19,25,.94);backdrop-filter:blur(16px);border-top:1px solid var(--border);justify-content:space-around;padding:7px 2px calc(7px + env(safe-area-inset-bottom,0px));}
+ .botnav-item{flex:1;background:none;border:none;color:var(--text-dim);display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;font-weight:700;cursor:pointer;padding:3px 1px;font-family:inherit;transition:.2s;}
+ .botnav-item .bn-ic{font-size:19px;line-height:1;filter:grayscale(.3);}
+ .botnav-item.active{color:var(--accent);}
+ .botnav-item.active .bn-ic{filter:none;transform:translateY(-1px);}
+ .wrap{padding-bottom:82px;}
+ .tabs{display:none;}
+ .nav{padding:12px 16px;}
+ .nav-stats{gap:6px;}
+ .nav-stats .chip{padding:6px 9px;font-size:12px;}
+ .hero{padding:36px 22px;}
+}
+/* ===== Micro-animations ===== */
+.btn{transition:transform .12s ease,filter .2s,background .2s;}
+.btn:active{transform:translateY(1px) scale(.985);}
+.opt{transition:transform .15s,background .2s,border-color .2s;}
+.opt:active{transform:scale(.99);}
+.opt.correct{animation:okpop .4s cubic-bezier(.22,1.5,.5,1);}
+@keyframes okpop{0%{transform:scale(1);}40%{transform:scale(1.04);}100%{transform:scale(1);}}
+.feedback.show{animation:fbin .32s cubic-bezier(.22,1,.36,1);}
+@keyframes fbin{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+.level-card::after{pointer-events:none;}
 </style>
 </head>
 <body>
@@ -173,10 +219,14 @@ h2.title{font-family:'Sora';font-size:26px;font-weight:700;letter-spacing:-.6px;
       <span class="hero-eyebrow">A1 → C2 · CEFR</span>
       <h1>Maîtrise l'anglais,<br><span>un défi à la fois.</span></h1>
       <p>Des exercices variés, une progression mesurée et une forêt à faire grandir. Simple, élégant, efficace.</p>
-      <div class="hero-cta"><button class="btn btn-primary" onclick="go('learn')">Commencer à apprendre</button><button class="btn btn-ghost" onclick="go('map')">Voir ma forêt</button></div>
+      <div class="hero-cta"><button class="btn btn-primary" onclick="continueLesson()">Continuer →</button><button class="btn btn-ghost" onclick="go('map')">Voir mon île</button></div>
       <div class="hero-mini"><div><div class="n" id="heroP">0</div><div class="l">Points gagnés</div></div><div><div class="n" id="heroS">0</div><div class="l">Jours de série</div></div><div><div class="n">6</div><div class="l">Niveaux CEFR</div></div></div>
     </div>
     <div class="streak-strip"><span class="streak-flame">🔥</span><div><div class="big"><span id="streakBig">0</span> jours consécutifs</div><div class="small">Reviens chaque jour pour entretenir ta série.</div></div></div>
+    <div class="dash">
+      <div class="dash-card goal"><svg class="goal-ring" viewBox="0 0 80 80"><circle class="gr-bg" cx="40" cy="40" r="34"></circle><circle class="gr-fg" id="goalArc" cx="40" cy="40" r="34" transform="rotate(-90 40 40)"></circle></svg><div class="goal-txt"><div class="goal-n" id="goalNum">0</div><div class="goal-l">/ 50 XP</div></div><div class="dash-info"><div class="dash-t">Objectif du jour</div><div class="dash-s" id="goalMsg">Fais une leçon</div></div></div>
+      <div class="dash-card cont" onclick="continueLesson()"><div class="cont-ic">▶</div><div class="dash-info"><div class="dash-t">Continuer</div><div class="dash-s" id="contMsg">Ta prochaine leçon</div></div></div>
+    </div>
     <h2 class="title">Expressions du jour</h2><p class="sub">Écoute la prononciation pour bien les retenir</p>
     <div class="grid cols" id="homeExpr" style="margin-bottom:44px;"></div>
     <h2 class="title">Choisis ton niveau</h2><p class="sub">Du débutant à la maîtrise, selon le Cadre Européen</p>
@@ -227,6 +277,13 @@ h2.title{font-family:'Sora';font-size:26px;font-weight:700;letter-spacing:-.6px;
     <div class="card" style="margin-top:26px;"><h2 class="title" style="font-size:18px;margin-bottom:4px;">Mes cartes</h2><p class="sub" id="savedCount" style="margin-bottom:16px;">0 mot sauvegardé</p><div id="savedWords" class="grid cols"></div><button class="btn btn-primary full" id="quizFromWordsBtn" style="display:none;margin-top:16px;" onclick="quizFromSavedWords()">Quiz sur mes mots</button></div>
   </div>
 </div>
+<nav class="botnav">
+  <button class="botnav-item active" data-page="home" onclick="go('home')"><span class="bn-ic">⌂</span><span>Accueil</span></button>
+  <button class="botnav-item" data-page="learn" onclick="go('learn')"><span class="bn-ic">📖</span><span>Apprendre</span></button>
+  <button class="botnav-item" data-page="map" onclick="go('map')"><span class="bn-ic">🌳</span><span>Île</span></button>
+  <button class="botnav-item" data-page="shop" onclick="go('shop')"><span class="bn-ic">🛒</span><span>Boutique</span></button>
+  <button class="botnav-item" data-page="badges" onclick="go('badges')"><span class="bn-ic">🏆</span><span>Trophées</span></button>
+</nav>
 <script>
 const SENTENCES = {
 A1:[
@@ -3329,16 +3386,31 @@ const LESSONS_PER_LEVEL=10;
 let S={points:0,streak:0,lastActive:null,lastDaily:null,unlocks:[],badges:[],completed:[],dark:true,maxLevelIdx:0,lessons:{},coins:0,island:[]};
 let EX={level:null,mod:null,list:[],i:0,correct:0,combo:0,maxCombo:0,hearts:5,xp:0,mode:null,lessonIdx:0,dead:false};
 function save(){ localStorage.setItem('eq_v4',JSON.stringify(S)); }
-function load(){ const d=localStorage.getItem('eq_v4'); if(d) S={...S,...JSON.parse(d)}; updateStreak(); refresh(); }
+function load(){ const d=localStorage.getItem('eq_v4'); if(d) S={...S,...JSON.parse(d)}; ensureDaily(); applyTheme(); updateStreak(); refresh(); }
 function updateStreak(){ const t=new Date().toDateString(); if(S.lastActive!==t){ const y=new Date();y.setDate(y.getDate()-1); S.streak=(S.lastActive===y.toDateString())?S.streak+1:1; S.lastActive=t; save(); } if(S.streak>=3) award('streak3'); }
-function toggleTheme(){ toast("Thème glacier — élégant et unique ❄️"); }
+function applyTheme(){ document.body.classList.toggle('light', S.dark===false); const b=document.getElementById('themeBtn'); if(b) b.textContent=(S.dark===false)?'☀':'☾'; }
+function toggleTheme(){ S.dark=(S.dark===false)?true:false; applyTheme(); save(); }
+/* ===== sons (WebAudio, sans fichier) ===== */
+let _actx=null; function _ac(){ try{ _actx=_actx||new (window.AudioContext||window.webkitAudioContext)(); return _actx; }catch(e){ return null; } }
+function playSound(type){ if(S.sound===false) return; const ac=_ac(); if(!ac) return; const now=ac.currentTime;
+  function tone(f,t0,dur,vol,wave){ const o=ac.createOscillator(),g=ac.createGain(); o.type=wave||'sine'; o.frequency.value=f; o.connect(g); g.connect(ac.destination); g.gain.setValueAtTime(0,now+t0); g.gain.linearRampToValueAtTime(vol,now+t0+0.02); g.gain.exponentialRampToValueAtTime(0.0001,now+t0+dur); o.start(now+t0); o.stop(now+t0+dur+0.02); }
+  if(type==='ok'){ tone(660,0,0.12,0.16); tone(880,0.09,0.16,0.16); }
+  else if(type==='no'){ tone(200,0,0.22,0.14,'sawtooth'); }
+  else if(type==='win'){ tone(523,0,0.14,0.15); tone(659,0.12,0.14,0.15); tone(784,0.24,0.22,0.16); }
+}
+/* ===== objectif du jour ===== */
+const DAILY_GOAL=50;
+function ensureDaily(){ const t=new Date().toDateString(); if(S.dailyDate!==t){ S.dailyDate=t; S.dailyXP=0; } }
+/* ===== reprendre ===== */
+function continueTarget(){ for(const lv of LEVEL_ORDER){ const done=S.lessons[lv]||0; if(done<LESSONS_PER_LEVEL) return {lv,idx:done}; } return {lv:'C2',idx:LESSONS_PER_LEVEL-1}; }
+function continueLesson(){ const t=continueTarget(); openLesson(t.lv,t.idx); }
 function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2600); }
 function speak(text){ if('speechSynthesis' in window){ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.lang='en-US'; u.rate=.9; speechSynthesis.speak(u); } else toast("Audio non disponible"); }
 function shuffle(a){ return [...a].sort(()=>Math.random()-.5); }
-function go(page){ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active')); document.getElementById(page).classList.add('active'); document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+function go(page){ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active')); const pg=document.getElementById(page); if(pg)pg.classList.add('active'); document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); document.querySelectorAll('.botnav-item').forEach(b=>b.classList.toggle('active', b.dataset.page===page)); if(typeof refresh==='function')refresh();
   if(page==='home'){ renderHome(); document.querySelectorAll('.tab')[0]?.classList.add('active'); } if(page==='learn'){ renderLearnLevels(); } if(page==='map'){ startIsland(); } if(page==='shop'){ renderShop(); } if(page==='badges'){ renderBadges(); } if(page==='dico'){ renderSavedWords(); } }
 function todaysExpr(){ const s=new Date().getDate()+new Date().getMonth()*31; return [0,1,2].map(k=>DB.expressions[(s+k)%DB.expressions.length]); }
-function renderHome(){ document.getElementById('streakBig').textContent=S.streak; document.getElementById('heroP').textContent=S.points; document.getElementById('heroS').textContent=S.streak; const box=document.getElementById('homeExpr'); box.innerHTML='';
+function renderHome(){ document.getElementById('streakBig').textContent=S.streak; document.getElementById('heroP').textContent=S.points; document.getElementById('heroS').textContent=S.streak; ensureDaily(); const _c=2*Math.PI*34, _g=Math.min(1,(S.dailyXP||0)/DAILY_GOAL); const _a=document.getElementById('goalArc'); if(_a){_a.style.strokeDasharray=_c; _a.style.strokeDashoffset=_c*(1-_g);} const _gn=document.getElementById('goalNum'); if(_gn)_gn.textContent=S.dailyXP||0; const _gm=document.getElementById('goalMsg'); if(_gm)_gm.textContent=((S.dailyXP||0)>=DAILY_GOAL)?'Objectif atteint ! 🎉':('Encore '+(DAILY_GOAL-(S.dailyXP||0))+' XP'); const _ct=continueTarget(); const _cm=document.getElementById('contMsg'); if(_cm){ const _l=(CURRICULUM[_ct.lv]||[])[_ct.idx]; _cm.textContent=_ct.lv+' · Leçon '+(_ct.idx+1)+(_l?(' · '+_l.title):''); } const box=document.getElementById('homeExpr'); box.innerHTML='';
   todaysExpr().forEach(e=>{ const c=document.createElement('div'); c.className='card'; c.innerHTML=`<div class="exp-en">${e.en}</div><div class="exp-fr">${e.fr}</div><button class="mini-audio" style="margin-top:12px;" onclick="speak('${e.en.replace(/'/g,"\\'")}')">♪ Écouter</button>`; box.appendChild(c); });
   const lg=document.getElementById('homeLevels'); lg.innerHTML=''; LEVEL_ORDER.forEach((lv)=> lg.appendChild(levelCard(lv,()=>{go('learn');openLevel(lv);}))); }
 function levelCard(lv,onClick){ const L=DB.levelInfo[lv],p=levelProgress(lv); const c=document.createElement('div'); c.className='card level-card'; c.onclick=onClick; c.innerHTML=`<div class="level-badge ${L.color}">${lv}</div><div class="level-name">${L.name}</div><div class="level-desc">${L.desc}</div><div class="level-prog"><div class="level-prog-fill" style="width:${p}%"></div></div><div class="level-prog-txt">${p}% · ${SENTENCES[lv].length} phrases</div>`; return c; }
@@ -3403,8 +3475,8 @@ function recordSpeech(q,body,mic){ const SR=window.SpeechRecognition||window.web
   rec.onerror=()=>{ mic.classList.remove('rec'); mic.textContent='◉ Parler'; res.innerHTML="Micro indisponible."; if(!document.getElementById('fbBtn')){const b=document.createElement('button');b.id='fbBtn';b.className='btn btn-primary full';b.textContent="J'ai répété ✓";b.onclick=()=>markGood(q,true);body.appendChild(b);} }; rec.start(); }
 function markGood(q,oral){ if(oral)award('oral'); grade(true,q); }
 function grade(ok,q,extra=''){ const fb=document.getElementById('qFeedback'); fb.classList.add('show');
-  if(ok){ EX.correct++; EX.combo++; EX.maxCombo=Math.max(EX.maxCombo,EX.combo); const bonus=EX.combo>=2?(EX.combo-1)*5:0; const e=10+bonus; S.points+=e; EX.xp+=e; fb.classList.add('ok'); fb.innerHTML=`✓ Correct — +${e} XP ${bonus?`(combo +${bonus})`:''}<br>${q.exp||''}${extra}`; if(EX.combo>=5)award('combo5');
-  } else { EX.combo=0; fb.classList.add('no'); if(EX.mode==='lesson'){ EX.hearts=Math.max(0,EX.hearts-1); updateHearts(); if(EX.hearts<=0) EX.dead=true; } fb.innerHTML=`✕ Pas tout à fait. ${q.exp||''}${extra}`+((EX.mode==='lesson'&&EX.dead)?'<br><strong>Plus de cœurs !</strong>':''); }
+  if(ok){ playSound('ok'); EX.correct++; EX.combo++; EX.maxCombo=Math.max(EX.maxCombo,EX.combo); const bonus=EX.combo>=2?(EX.combo-1)*5:0; const e=10+bonus; S.points+=e; EX.xp+=e; ensureDaily(); S.dailyXP=(S.dailyXP||0)+e; fb.classList.add('ok'); fb.innerHTML=`✓ Correct — +${e} XP ${bonus?`(combo +${bonus})`:''}<br>${q.exp||''}${extra}`; if(EX.combo>=5)award('combo5');
+  } else { playSound('no'); EX.combo=0; fb.classList.add('no'); if(EX.mode==='lesson'){ EX.hearts=Math.max(0,EX.hearts-1); updateHearts(); if(EX.hearts<=0) EX.dead=true; } fb.innerHTML=`✕ Pas tout à fait. ${q.exp||''}${extra}`+((EX.mode==='lesson'&&EX.dead)?'<br><strong>Plus de cœurs !</strong>':''); }
   document.getElementById('exCombo').textContent=EX.combo>=2?`Combo ×${EX.combo}`:''; const nb=document.getElementById('qNext'); nb.style.display='block'; nb.textContent=(EX.mode==='lesson'&&EX.dead)?'Voir le résultat →':'Continuer →'; award('p100'); checkUnlocks(); save(); refresh(); }
 function nextQ(){ if(EX.dead){ showLessonFail(); return; } EX.i++; renderQ(); }
 function quitExercise(){ go('learn'); }
@@ -3417,7 +3489,7 @@ function checkUnlocks(){ return null; }
 function renderUnlocks(){ const box=document.getElementById('unlockList'); box.innerHTML=''; DB.unlocks.forEach(u=>{ const on=S.unlocks.includes(u.id); const d=document.createElement('div'); d.className='unlock-item'+(on?'':' locked'); d.innerHTML=`<div class="unlock-emoji">${u.emoji}</div><div class="unlock-info"><div class="unlock-name">${u.name}</div><div class="unlock-req">${on?'Débloqué':u.req+' pts requis'}</div></div><div class="unlock-tag ${on?'on':'off'}">${on?'✓':(u.req-S.points)+' pts'}</div>`; box.appendChild(d); }); }
 function showLessonReward(){ document.querySelector('#exercise .ex-wrap').style.display='none'; document.getElementById('exResult').style.display='none'; const lv=EX.level, idx=EX.lessonIdx; const cur=S.lessons[lv]||0; const firstTime=(idx===cur); if(firstTime && cur<LESSONS_PER_LEVEL){ S.lessons[lv]=cur+1; } const li=LEVEL_ORDER.indexOf(lv); if(li>S.maxLevelIdx)S.maxLevelIdx=li; const pct=Math.round(EX.correct/EX.list.length*100); const bon=ownedBonuses(); const accBonus=(pct===100?10:(pct>=70?5:0)); const coinsEarned=15+accBonus+(firstTime?10:0)+bon.coins; S.coins=(S.coins||0)+coinsEarned; if(bon.xp){ S.points+=bon.xp; EX.xp+=bon.xp; } award('first'); const nu=checkUnlocks(); save(); refresh(); const hasNext=(idx+1)<LESSONS_PER_LEVEL; const box=document.getElementById('lessonEnd'); box.style.display='block';
   box.innerHTML=`<div class="reward-confetti" id="confetti"></div><div class="reward-emoji">${pct===100?'🏆':(pct>=70?'🎉':'💪')}</div><h2 class="title" style="margin-bottom:4px;">Leçon ${idx+1} terminée !</h2><p class="sub" style="margin-bottom:18px;">${pct===100?'Sans faute, impressionnant.':(pct>=70?'Beau travail.':'Continue à t\'entraîner.')}</p><div class="reward-stats"><div class="rstat coin"><div class="rstat-n">🪙 +${coinsEarned}</div><div class="rstat-l">Pièces</div></div><div class="rstat"><div class="rstat-n">+${EX.xp}</div><div class="rstat-l">XP</div></div><div class="rstat"><div class="rstat-n">${pct}%</div><div class="rstat-l">Précision</div></div><div class="rstat"><div class="rstat-n">×${EX.maxCombo}</div><div class="rstat-l">Combo max</div></div><div class="rstat"><div class="rstat-n">${EX.hearts>0?'♥'.repeat(EX.hearts):'—'}</div><div class="rstat-l">Cœurs</div></div></div>${nu?`<div class="card" style="margin-top:16px;"><div style="font-size:40px;">${nu.emoji}</div><strong>Débloqué : ${nu.name}</strong></div>`:''}<div style="display:flex;gap:10px;margin-top:22px;">${hasNext?`<button class="btn btn-primary" style="flex:1;" onclick="startLesson('${lv}',${idx+1})">Leçon suivante →</button>`:''}<button class="btn ${hasNext?'btn-ghost':'btn-primary'}" style="flex:1;" onclick="openLevel('${lv}')">Parcours</button></div>`;
-  launchConfetti(); }
+  launchConfetti(); playSound('win'); }
 function showLessonFail(){ document.querySelector('#exercise .ex-wrap').style.display='none'; document.getElementById('exResult').style.display='none'; save(); refresh(); const lv=EX.level, idx=EX.lessonIdx; const box=document.getElementById('lessonEnd'); box.style.display='block';
   box.innerHTML=`<div class="reward-emoji">💔</div><h2 class="title" style="margin-bottom:4px;">Plus de cœurs</h2><p class="sub" style="margin-bottom:18px;">Tu as réussi ${EX.correct}/${EX.list.length} avant de manquer de cœurs. Réessaie !</p><div style="display:flex;gap:10px;margin-top:6px;"><button class="btn btn-primary" style="flex:1;" onclick="startLesson('${lv}',${idx})">Réessayer</button><button class="btn btn-ghost" style="flex:1;" onclick="openLevel('${lv}')">Parcours</button></div>`; }
 function launchConfetti(){ const c=document.getElementById('confetti'); if(!c)return; c.innerHTML=''; const cols=['#38d6e6','#4fb8ff','#3ddc97','#f5c451','#ff8a4c','#6d8bff']; for(let i=0;i<48;i++){ const pc=document.createElement('i'); pc.className='confetti-piece'; pc.style.left=(Math.random()*100)+'%'; pc.style.background=cols[i%cols.length]; pc.style.animationDelay=(Math.random()*0.5)+'s'; pc.style.animationDuration=(1.6+Math.random()*1.2)+'s'; c.appendChild(pc); } setTimeout(()=>{ if(c) c.innerHTML=''; },3400); }
