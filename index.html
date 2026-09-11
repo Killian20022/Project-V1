@@ -218,6 +218,16 @@ body.light .botnav{background:rgba(255,255,255,.95);}
 #heroPet{position:absolute;right:26px;bottom:20px;width:150px;height:150px;image-rendering:pixelated;pointer-events:none;z-index:2;filter:drop-shadow(0 8px 18px rgba(0,0,0,.35));}
 @media(max-width:820px){#heroPet{width:110px;height:110px;right:10px;bottom:10px;opacity:.9;}}
 @media(max-width:520px){#heroPet{display:none;}}
+
+/* ===== Feedback clic (cases dynamiques) ===== */
+.level-card,.lesson-node,.shop-card,.dash-card,.mod-card,.opt,.teach-ex{transition:transform .18s cubic-bezier(.34,1.6,.5,1),box-shadow .25s,border-color .25s,background .25s;}
+.level-card:active,.shop-card:active,.dash-card:active,.mod-card:active,.teach-ex:active{transform:scale(.955);}
+.lesson-node:not(.locked):active .lesson-bubble{transform:scale(.9);}
+.opt:active{transform:scale(.97);}
+@keyframes tapPop{0%{transform:scale(.94);}55%{transform:scale(1.035);}100%{transform:scale(1);}}
+.tapped{animation:tapPop .3s cubic-bezier(.34,1.56,.6,1);}
+.lesson-node.tapped .lesson-bubble{animation:tapPop .3s cubic-bezier(.34,1.56,.6,1);}
+.opt.tapped{animation:tapPop .26s ease;}
 </style>
 </head>
 <body>
@@ -3664,7 +3674,7 @@ function resizeWalkers(){ const cv=document.getElementById('walkers'); if(!cv)re
 async function startWalkers(){ const cv=document.getElementById('walkers'); if(!cv)return; if(!walkersReady){ await Promise.all(walkerCharDefs().map(d=>loadImg(d.sheet))); walkersReady=true; } resizeWalkers(); if(!walkerRAF){ walkerRAF=true; walkerLastTS=performance.now(); walkerSpawnT=600; requestAnimationFrame(walkerLoop); } }
 function spawnWalker(){ const cv=document.getElementById('walkers'); if(!cv)return; const pool=walkerPool(); const def=pool[Math.floor(Math.random()*pool.length)]; const dir=Math.random()<0.5?1:-1; const sc=def.scale*1.35; const w=def.fw*sc; const speed=rnd(20,36); walkers.push({def,dir,sc,w,x:dir>0?-w-4:cv.width+4,y:cv.height-3,speed,fi:0,animT:0}); }
 function walkerLoop(ts){ const cv=document.getElementById('walkers'); if(!cv){ walkerRAF=false; return; } const dt=Math.min(60,ts-walkerLastTS); walkerLastTS=ts; const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false; ctx.clearRect(0,0,cv.width,cv.height);
-  walkerSpawnT-=dt; if(walkerSpawnT<=0 && walkers.length<3){ spawnWalker(); walkerSpawnT=rnd(2600,6500); }
+  walkerSpawnT-=dt; if(walkerSpawnT<=0 && walkers.length<4){ spawnWalker(); walkerSpawnT=rnd(1800,4600); }
   walkers.forEach(wk=>{ wk.x+=wk.dir*wk.speed*dt/1000; wk.animT+=dt; if(wk.animT>150){ wk.animT=0; wk.fi=(wk.fi+1)%wk.def.walk.length; } const idx=wk.def.walk[wk.fi%wk.def.walk.length]; const h=wk.def.fh*wk.sc; shadow(ctx,wk.x+wk.w/2,wk.y,wk.w*0.42); drawSprite(ctx,wk.def.sheet,wk.def.fw,wk.def.fh,idx,wk.x,wk.y-h,wk.sc,wk.dir<0); });
   walkers=walkers.filter(wk=> wk.x>-wk.w-12 && wk.x<cv.width+wk.w+12);
   requestAnimationFrame(walkerLoop); }
@@ -3674,6 +3684,8 @@ let heroPetRAF=false, heroPetLast=0, heroPetAnimT=0, heroPetFi=0, heroDef=null;
 function startHeroPet(){ const cv=document.getElementById('heroPet'); if(!cv)return; heroDef=walkerPool()[0]; loadImg(heroDef.sheet).then(()=>{ if(!heroPetRAF){ heroPetRAF=true; heroPetLast=performance.now(); requestAnimationFrame(heroPetLoop);} }); }
 function heroPetLoop(ts){ const cv=document.getElementById('heroPet'); const home=document.getElementById('home'); if(!cv||!home||!home.classList.contains('active')){ heroPetRAF=false; return; } const dt=Math.min(60,ts-heroPetLast); heroPetLast=ts; const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false; ctx.clearRect(0,0,cv.width,cv.height); const def=heroDef||SHOP_MAP['chicken']; const frames=(def.idle&&def.idle.length)?def.idle:[0]; heroPetAnimT+=dt; if(heroPetAnimT>420){ heroPetAnimT=0; heroPetFi=(heroPetFi+1)%frames.length; } const idx=frames[heroPetFi%frames.length]; const sc=Math.min(96/def.fw,96/def.fh); const w=def.fw*sc,h=def.fh*sc; const bob=Math.sin(ts/480)*4; const cx=cv.width/2, by=cv.height-16+bob; shadow(ctx,cx,cv.height-12,w*0.42); drawSprite(ctx,def.sheet,def.fw,def.fh,idx,cx-w/2,by-h,sc,false); requestAnimationFrame(heroPetLoop); }
 function countUp(id,target){ const el=document.getElementById(id); if(!el)return; target=+target||0; if(target<=0){el.textContent=0;return;} let cur=0; const step=Math.max(1,Math.ceil(target/28)); const iv=setInterval(()=>{ cur+=step; if(cur>=target){cur=target;clearInterval(iv);} el.textContent=cur; },22); }
+/* ===== Feedback tactile au clic ===== */
+document.addEventListener('pointerdown',function(e){ const el=e.target.closest('.opt,.shop-card,.dash-card,.lesson-node,.level-card,.mod-card,.teach-ex,.chip'); if(!el)return; el.classList.remove('tapped'); void el.offsetWidth; el.classList.add('tapped'); setTimeout(()=>el.classList.remove('tapped'),320); },{passive:true});
 function drawCloud(ctx,x,y){ ctx.save(); ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.beginPath(); ctx.arc(x,y,8,0,7); ctx.arc(x+10,y-4,11,0,7); ctx.arc(x+22,y,8,0,7); ctx.arc(x+11,y+4,12,0,7); ctx.fill(); ctx.restore(); }
 function award(id){ if(S.badges.includes(id))return; let ok=false; switch(id){ case 'first':ok=S.completed.length>=1;break; case 'combo5':ok=EX.maxCombo>=5;break; case 'p100':ok=S.points>=100;break; case 'streak3':ok=S.streak>=3;break; case 'perfect':ok=true;break; case 'oral':ok=true;break; case 'b2':ok=S.maxLevelIdx>=3;break; case 'unlock6':ok=S.unlocks.length>=6;break; } if(ok){ S.badges.push(id); toast(`Trophée : ${DB.badges.find(x=>x.id===id).nm}`); save(); } }
 function renderBadges(){ const g=document.getElementById('badgeGrid'); g.innerHTML=''; DB.badges.forEach(b=>{ const on=S.badges.includes(b.id); const c=document.createElement('div'); c.className='card badge'+(on?' on':''); c.innerHTML=`<div class="badge-ic">${b.ic}</div><div class="badge-nm">${b.nm}</div><div class="badge-ds">${b.ds}</div>`; g.appendChild(c); }); }
