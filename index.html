@@ -228,6 +228,33 @@ body.light .botnav{background:rgba(255,255,255,.95);}
 .tapped{animation:tapPop .3s cubic-bezier(.34,1.56,.6,1);}
 .lesson-node.tapped .lesson-bubble{animation:tapPop .3s cubic-bezier(.34,1.56,.6,1);}
 .opt.tapped{animation:tapPop .26s ease;}
+
+/* ===== Trophées ===== */
+.troph-summary{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,rgba(245,196,81,.14),rgba(255,138,76,.06));border:1px solid var(--border);border-radius:18px;padding:18px 20px;margin-bottom:26px;}
+.ts-badge{font-size:40px;filter:drop-shadow(0 0 12px rgba(245,196,81,.4));}
+.ts-num{font-family:'Sora';font-size:26px;font-weight:800;}
+.ts-num span{color:var(--text-dim);font-size:17px;}
+.ts-l{font-size:13px;color:var(--text-soft);margin:2px 0 10px;}
+.ts-bar{height:8px;background:var(--surface-3);border-radius:6px;overflow:hidden;}
+.ts-fill{height:100%;background:linear-gradient(90deg,#f5c451,#ff8a4c);border-radius:6px;transition:width .6s cubic-bezier(.22,1,.36,1);}
+.troph-cat{font-family:'Sora';font-weight:700;font-size:16px;margin:22px 0 12px;color:var(--text);}
+.troph-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
+.troph{display:flex;gap:13px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 15px;transition:.25s;}
+.troph.off{opacity:.62;}
+.troph.on{border-color:var(--border-lit);}
+.troph.on.t-bronze{box-shadow:inset 3px 0 0 #cd7f32;}
+.troph.on.t-silver{box-shadow:inset 3px 0 0 #b8c2cc;}
+.troph.on.t-gold{box-shadow:inset 3px 0 0 #f5c451;}
+.troph-ic{font-size:30px;flex-shrink:0;width:40px;text-align:center;}
+.troph.off .troph-ic{filter:grayscale(1);opacity:.6;font-size:22px;}
+.troph-info{flex:1;min-width:0;}
+.troph-nm{font-weight:700;font-size:14.5px;}
+.troph-ds{font-size:12px;color:var(--text-soft);margin:1px 0 7px;line-height:1.3;}
+.troph-pbar{height:5px;background:var(--surface-3);border-radius:4px;overflow:hidden;}
+.troph-pfill{height:100%;background:var(--grad);border-radius:4px;}
+.troph.on .troph-pfill{background:linear-gradient(90deg,#f5c451,#ff8a4c);}
+.troph-prog{font-size:11px;color:var(--text-dim);font-weight:600;margin-top:5px;}
+.troph.on .troph-prog{color:var(--ok);}
 </style>
 </head>
 <body>
@@ -305,7 +332,7 @@ body.light .botnav{background:rgba(255,255,255,.95);}
   </div>
   <div class="page" id="badges">
     <button class="btn btn-ghost" onclick="go('home')" style="margin-bottom:22px;">← Accueil</button>
-    <h2 class="title">Tes trophées</h2><p class="sub">Débloque-les en progressant</p><div class="grid cols" id="badgeGrid" style="margin-top:18px;"></div>
+    <h2 class="title">Tes trophées</h2><p class="sub">Débloque des succès en progressant, jouant chaque jour et peuplant ton île</p><div id="badgeGrid" style="margin-top:18px;"></div>
   </div>
   <div class="page" id="dico">
     <button class="btn btn-ghost" onclick="go('home')" style="margin-bottom:22px;">← Accueil</button>
@@ -3422,10 +3449,10 @@ C2:[
 ],
 };
 const LESSONS_PER_LEVEL=10;
-let S={points:0,streak:0,lastActive:null,lastDaily:null,unlocks:[],badges:[],completed:[],dark:true,maxLevelIdx:0,lessons:{},coins:0,island:[]};
+let S={points:0,streak:0,lastActive:null,lastDaily:null,unlocks:[],badges:[],completed:[],dark:true,maxLevelIdx:0,lessons:{},coins:0,island:[],stats:{correct:0,perfect:0,bestCombo:0,coinsEarned:0},trophies:[]};
 let EX={level:null,mod:null,list:[],i:0,correct:0,combo:0,maxCombo:0,hearts:5,xp:0,mode:null,lessonIdx:0,dead:false};
 function save(){ localStorage.setItem('eq_v4',JSON.stringify(S)); }
-function load(){ const d=localStorage.getItem('eq_v4'); if(d) S={...S,...JSON.parse(d)}; ensureDaily(); applyTheme(); updateStreak(); refresh(); startWalkers(); }
+function load(){ const d=localStorage.getItem('eq_v4'); if(d) S={...S,...JSON.parse(d)}; ensureDaily(); ensureStats(); checkTrophies(true); applyTheme(); updateStreak(); refresh(); startWalkers(); }
 function updateStreak(){ const t=new Date().toDateString(); if(S.lastActive!==t){ const y=new Date();y.setDate(y.getDate()-1); S.streak=(S.lastActive===y.toDateString())?S.streak+1:1; S.lastActive=t; save(); } if(S.streak>=3) award('streak3'); }
 function applyTheme(){ document.body.classList.toggle('light', S.dark===false); const b=document.getElementById('themeBtn'); if(b) b.textContent=(S.dark===false)?'☀':'☾'; }
 function toggleTheme(){ S.dark=(S.dark===false)?true:false; applyTheme(); save(); }
@@ -3533,9 +3560,9 @@ function recordSpeech(q,body,mic){ const SR=window.SpeechRecognition||window.web
   rec.onerror=()=>{ mic.classList.remove('rec'); mic.textContent='◉ Parler'; res.innerHTML="Micro indisponible."; if(!document.getElementById('fbBtn')){const b=document.createElement('button');b.id='fbBtn';b.className='btn btn-primary full';b.textContent="J'ai répété ✓";b.onclick=()=>markGood(q,true);body.appendChild(b);} }; rec.start(); }
 function markGood(q,oral){ if(oral)award('oral'); grade(true,q); }
 function grade(ok,q,extra=''){ const fb=document.getElementById('qFeedback'); fb.classList.add('show');
-  if(ok){ playSound('ok'); EX.correct++; EX.combo++; EX.maxCombo=Math.max(EX.maxCombo,EX.combo); const bonus=EX.combo>=2?(EX.combo-1)*5:0; const e=10+bonus; S.points+=e; EX.xp+=e; ensureDaily(); S.dailyXP=(S.dailyXP||0)+e; fb.classList.add('ok'); fb.innerHTML=`✓ Correct — +${e} XP ${bonus?`(combo +${bonus})`:''}<br>${q.exp||''}${extra}`; if(EX.combo>=5)award('combo5');
+  if(ok){ playSound('ok'); EX.correct++; EX.combo++; EX.maxCombo=Math.max(EX.maxCombo,EX.combo); const bonus=EX.combo>=2?(EX.combo-1)*5:0; const e=10+bonus; S.points+=e; EX.xp+=e; ensureDaily(); S.dailyXP=(S.dailyXP||0)+e; ensureStats(); S.stats.correct++; S.stats.bestCombo=Math.max(S.stats.bestCombo||0,EX.combo); fb.classList.add('ok'); fb.innerHTML=`✓ Correct — +${e} XP ${bonus?`(combo +${bonus})`:''}<br>${q.exp||''}${extra}`; if(EX.combo>=5)award('combo5');
   } else { playSound('no'); EX.combo=0; fb.classList.add('no'); if(EX.mode==='lesson'){ EX.hearts=Math.max(0,EX.hearts-1); updateHearts(); if(EX.hearts<=0) EX.dead=true; } fb.innerHTML=`✕ Pas tout à fait. ${q.exp||''}${extra}`+((EX.mode==='lesson'&&EX.dead)?'<br><strong>Plus de cœurs !</strong>':''); }
-  document.getElementById('exCombo').textContent=EX.combo>=2?`Combo ×${EX.combo}`:''; const nb=document.getElementById('qNext'); nb.style.display='block'; nb.textContent=(EX.mode==='lesson'&&EX.dead)?'Voir le résultat →':'Continuer →'; award('p100'); checkUnlocks(); save(); refresh(); }
+  document.getElementById('exCombo').textContent=EX.combo>=2?`Combo ×${EX.combo}`:''; const nb=document.getElementById('qNext'); nb.style.display='block'; nb.textContent=(EX.mode==='lesson'&&EX.dead)?'Voir le résultat →':'Continuer →'; checkTrophies(); save(); refresh(); }
 function nextQ(){ if(EX.dead){ showLessonFail(); return; } EX.i++; renderQ(); }
 function quitExercise(){ go('learn'); }
 function finishExercise(){ if(EX.mode==='lesson'){ return showLessonReward(); } document.querySelector('#exercise .ex-wrap').style.display='none'; const box=document.getElementById('exResult'); box.style.display='block'; const pct=Math.round(EX.correct/EX.list.length*100); document.getElementById('resScore').textContent=`${EX.correct}/${EX.list.length}`;
@@ -3545,7 +3572,7 @@ function finishExercise(){ if(EX.mode==='lesson'){ return showLessonReward(); } 
   const nu=checkUnlocks(); document.getElementById('resExtra').innerHTML=nu?`<div class="card" style="margin-top:16px;"><div style="font-size:40px;">${nu.emoji}</div><strong>Débloqué : ${nu.name}</strong></div>`:''; save(); refresh(); }
 function checkUnlocks(){ return null; }
 function renderUnlocks(){ const box=document.getElementById('unlockList'); box.innerHTML=''; DB.unlocks.forEach(u=>{ const on=S.unlocks.includes(u.id); const d=document.createElement('div'); d.className='unlock-item'+(on?'':' locked'); d.innerHTML=`<div class="unlock-emoji">${u.emoji}</div><div class="unlock-info"><div class="unlock-name">${u.name}</div><div class="unlock-req">${on?'Débloqué':u.req+' pts requis'}</div></div><div class="unlock-tag ${on?'on':'off'}">${on?'✓':(u.req-S.points)+' pts'}</div>`; box.appendChild(d); }); }
-function showLessonReward(){ document.querySelector('#exercise .ex-wrap').style.display='none'; document.getElementById('exResult').style.display='none'; const lv=EX.level, idx=EX.lessonIdx; const cur=S.lessons[lv]||0; const firstTime=(idx===cur); if(firstTime && cur<LESSONS_PER_LEVEL){ S.lessons[lv]=cur+1; } const li=LEVEL_ORDER.indexOf(lv); if(li>S.maxLevelIdx)S.maxLevelIdx=li; const pct=Math.round(EX.correct/EX.list.length*100); const bon=ownedBonuses(); const accBonus=(pct===100?10:(pct>=70?5:0)); const coinsEarned=15+accBonus+(firstTime?10:0)+bon.coins; S.coins=(S.coins||0)+coinsEarned; if(bon.xp){ S.points+=bon.xp; EX.xp+=bon.xp; } award('first'); const nu=checkUnlocks(); save(); refresh(); const hasNext=(idx+1)<LESSONS_PER_LEVEL; const box=document.getElementById('lessonEnd'); box.style.display='block';
+function showLessonReward(){ document.querySelector('#exercise .ex-wrap').style.display='none'; document.getElementById('exResult').style.display='none'; const lv=EX.level, idx=EX.lessonIdx; const cur=S.lessons[lv]||0; const firstTime=(idx===cur); if(firstTime && cur<LESSONS_PER_LEVEL){ S.lessons[lv]=cur+1; } const li=LEVEL_ORDER.indexOf(lv); if(li>S.maxLevelIdx)S.maxLevelIdx=li; const pct=Math.round(EX.correct/EX.list.length*100); const bon=ownedBonuses(); const accBonus=(pct===100?10:(pct>=70?5:0)); const coinsEarned=15+accBonus+(firstTime?10:0)+bon.coins; S.coins=(S.coins||0)+coinsEarned; if(bon.xp){ S.points+=bon.xp; EX.xp+=bon.xp; } ensureStats(); S.stats.coinsEarned=(S.stats.coinsEarned||0)+coinsEarned; if(pct===100)S.stats.perfect=(S.stats.perfect||0)+1; S.stats.bestCombo=Math.max(S.stats.bestCombo||0,EX.maxCombo); const nu=checkUnlocks(); checkTrophies(); save(); refresh(); const hasNext=(idx+1)<LESSONS_PER_LEVEL; const box=document.getElementById('lessonEnd'); box.style.display='block';
   box.innerHTML=`<div class="reward-confetti" id="confetti"></div><div class="reward-emoji">${pct===100?'🏆':(pct>=70?'🎉':'💪')}</div><h2 class="title" style="margin-bottom:4px;">Leçon ${idx+1} terminée !</h2><p class="sub" style="margin-bottom:18px;">${pct===100?'Sans faute, impressionnant.':(pct>=70?'Beau travail.':'Continue à t\'entraîner.')}</p><div class="reward-stats"><div class="rstat coin"><div class="rstat-n"><span class="coin-ic"></span> +${coinsEarned}</div><div class="rstat-l">Pièces</div></div><div class="rstat"><div class="rstat-n">+${EX.xp}</div><div class="rstat-l">XP</div></div><div class="rstat"><div class="rstat-n">${pct}%</div><div class="rstat-l">Précision</div></div><div class="rstat"><div class="rstat-n">×${EX.maxCombo}</div><div class="rstat-l">Combo max</div></div><div class="rstat"><div class="rstat-n">${EX.hearts>0?'♥'.repeat(EX.hearts):'—'}</div><div class="rstat-l">Cœurs</div></div></div>${nu?`<div class="card" style="margin-top:16px;"><div style="font-size:40px;">${nu.emoji}</div><strong>Débloqué : ${nu.name}</strong></div>`:''}<div style="display:flex;gap:10px;margin-top:22px;">${hasNext?`<button class="btn btn-primary" style="flex:1;" onclick="startLesson('${lv}',${idx+1})">Leçon suivante →</button>`:''}<button class="btn ${hasNext?'btn-ghost':'btn-primary'}" style="flex:1;" onclick="openLevel('${lv}')">Parcours</button></div>`;
   launchConfetti(); playSound('win'); }
 function showLessonFail(){ document.querySelector('#exercise .ex-wrap').style.display='none'; document.getElementById('exResult').style.display='none'; save(); refresh(); const lv=EX.level, idx=EX.lessonIdx; const box=document.getElementById('lessonEnd'); box.style.display='block';
@@ -3597,7 +3624,7 @@ function buyItem(id){
   if((S.island||[]).includes(id)){ toast('Déjà possédé'); return; }
   if((S.coins||0)<it.price){ toast('Pas assez de pièces'); return; }
   S.coins-=it.price; if(!S.island)S.island=[]; S.island.push(id);
-  save(); refresh(); renderShop(); rebuildIsland();
+  checkTrophies(); save(); refresh(); renderShop(); rebuildIsland();
   toast(`${it.name} acheté !`);
 }
 
@@ -3687,8 +3714,53 @@ function countUp(id,target){ const el=document.getElementById(id); if(!el)return
 /* ===== Feedback tactile au clic ===== */
 document.addEventListener('pointerdown',function(e){ const el=e.target.closest('.opt,.shop-card,.dash-card,.lesson-node,.level-card,.mod-card,.teach-ex,.chip'); if(!el)return; el.classList.remove('tapped'); void el.offsetWidth; el.classList.add('tapped'); setTimeout(()=>el.classList.remove('tapped'),320); },{passive:true});
 function drawCloud(ctx,x,y){ ctx.save(); ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.beginPath(); ctx.arc(x,y,8,0,7); ctx.arc(x+10,y-4,11,0,7); ctx.arc(x+22,y,8,0,7); ctx.arc(x+11,y+4,12,0,7); ctx.fill(); ctx.restore(); }
-function award(id){ if(S.badges.includes(id))return; let ok=false; switch(id){ case 'first':ok=S.completed.length>=1;break; case 'combo5':ok=EX.maxCombo>=5;break; case 'p100':ok=S.points>=100;break; case 'streak3':ok=S.streak>=3;break; case 'perfect':ok=true;break; case 'oral':ok=true;break; case 'b2':ok=S.maxLevelIdx>=3;break; case 'unlock6':ok=S.unlocks.length>=6;break; } if(ok){ S.badges.push(id); toast(`Trophée : ${DB.badges.find(x=>x.id===id).nm}`); save(); } }
-function renderBadges(){ const g=document.getElementById('badgeGrid'); g.innerHTML=''; DB.badges.forEach(b=>{ const on=S.badges.includes(b.id); const c=document.createElement('div'); c.className='card badge'+(on?' on':''); c.innerHTML=`<div class="badge-ic">${b.ic}</div><div class="badge-nm">${b.nm}</div><div class="badge-ds">${b.ds}</div>`; g.appendChild(c); }); }
+function award(id){}
+function ensureStats(){ if(!S.stats)S.stats={correct:0,perfect:0,bestCombo:0,coinsEarned:0}; if(!S.trophies)S.trophies=[]; }
+function lessonsDone(){ return Object.values(S.lessons||{}).reduce((a,b)=>a+(b||0),0); }
+function stat(k){ return (S.stats&&S.stats[k])||0; }
+const TROPHIES=[
+ {id:'first',c:'Progression',t:'bronze',ic:'🎓',nm:'Premiers pas',ds:'Terminer ta 1re leçon',p:S=>lessonsDone(),g:1},
+ {id:'vol10',c:'Progression',t:'bronze',ic:'⭐',nm:'Sur la lancée',ds:'Terminer 10 leçons',p:S=>lessonsDone(),g:10},
+ {id:'vol25',c:'Progression',t:'silver',ic:'⭐',nm:'Marathonien',ds:'Terminer 25 leçons',p:S=>lessonsDone(),g:25},
+ {id:'a1',c:'Progression',t:'bronze',ic:'🏅',nm:'A1 en poche',ds:'Terminer le niveau A1',p:S=>(S.lessons.A1||0),g:10},
+ {id:'a2',c:'Progression',t:'silver',ic:'🏅',nm:'A2 en poche',ds:'Terminer le niveau A2',p:S=>(S.lessons.A2||0),g:10},
+ {id:'b1',c:'Progression',t:'silver',ic:'🏅',nm:'B1 en poche',ds:'Terminer le niveau B1',p:S=>(S.lessons.B1||0),g:10},
+ {id:'b2',c:'Progression',t:'gold',ic:'🏅',nm:'B2 en poche',ds:'Terminer le niveau B2',p:S=>(S.lessons.B2||0),g:10},
+ {id:'c1',c:'Progression',t:'gold',ic:'🏅',nm:'C1 en poche',ds:'Terminer le niveau C1',p:S=>(S.lessons.C1||0),g:10},
+ {id:'c2',c:'Progression',t:'gold',ic:'👑',nm:'Maîtrise C2',ds:'Terminer le niveau C2',p:S=>(S.lessons.C2||0),g:10},
+ {id:'grad',c:'Progression',t:'gold',ic:'🏆',nm:'Diplômé',ds:'Terminer les 60 leçons',p:S=>lessonsDone(),g:60},
+ {id:'st3',c:'Assiduité',t:'bronze',ic:'🔥',nm:'Régulier',ds:'3 jours de série',p:S=>S.streak||0,g:3},
+ {id:'st7',c:'Assiduité',t:'silver',ic:'🔥',nm:'Sérieux',ds:'7 jours de série',p:S=>S.streak||0,g:7},
+ {id:'st14',c:'Assiduité',t:'silver',ic:'🔥',nm:'Dévoué',ds:'14 jours de série',p:S=>S.streak||0,g:14},
+ {id:'st30',c:'Assiduité',t:'gold',ic:'🔥',nm:'Inarrêtable',ds:'30 jours de série',p:S=>S.streak||0,g:30},
+ {id:'st100',c:'Assiduité',t:'gold',ic:'⭐',nm:'Légende',ds:'100 jours de série',p:S=>S.streak||0,g:100},
+ {id:'xp100',c:'Expérience',t:'bronze',ic:'✨',nm:'Débutant',ds:'Atteindre 100 XP',p:S=>S.points||0,g:100},
+ {id:'xp500',c:'Expérience',t:'silver',ic:'✨',nm:'Appliqué',ds:'Atteindre 500 XP',p:S=>S.points||0,g:500},
+ {id:'xp1000',c:'Expérience',t:'silver',ic:'💫',nm:'Assidu',ds:'Atteindre 1 000 XP',p:S=>S.points||0,g:1000},
+ {id:'xp5000',c:'Expérience',t:'gold',ic:'💎',nm:'Expert',ds:'Atteindre 5 000 XP',p:S=>S.points||0,g:5000},
+ {id:'xp10000',c:'Expérience',t:'gold',ic:'👑',nm:'Virtuose',ds:'Atteindre 10 000 XP',p:S=>S.points||0,g:10000},
+ {id:'perf1',c:'Performance',t:'bronze',ic:'🎯',nm:'Sans faute',ds:'1 leçon parfaite (100%)',p:S=>stat('perfect'),g:1},
+ {id:'perf10',c:'Performance',t:'gold',ic:'🎯',nm:'Perfectionniste',ds:'10 leçons parfaites',p:S=>stat('perfect'),g:10},
+ {id:'cb5',c:'Performance',t:'bronze',ic:'⚡',nm:'Combo x5',ds:'Enchaîner 5 bonnes réponses',p:S=>stat('bestCombo'),g:5},
+ {id:'cb10',c:'Performance',t:'silver',ic:'⚡',nm:'Combo x10',ds:'Enchaîner 10 bonnes réponses',p:S=>stat('bestCombo'),g:10},
+ {id:'cb20',c:'Performance',t:'gold',ic:'⚡',nm:'Combo x20',ds:'Enchaîner 20 bonnes réponses',p:S=>stat('bestCombo'),g:20},
+ {id:'cor100',c:'Performance',t:'silver',ic:'📚',nm:'Studieux',ds:'100 bonnes réponses',p:S=>stat('correct'),g:100},
+ {id:'cor1000',c:'Performance',t:'gold',ic:'📖',nm:'Érudit',ds:'1 000 bonnes réponses',p:S=>stat('correct'),g:1000},
+ {id:'buy1',c:'Île & Boutique',t:'bronze',ic:'🛒',nm:'Premier achat',ds:'Acheter 1 objet',p:S=>(S.island||[]).length,g:1},
+ {id:'farm',c:'Île & Boutique',t:'silver',ic:'🐔',nm:'Basse-cour',ds:'Posséder poule + vache',p:S=>['chicken','cow'].filter(x=>(S.island||[]).includes(x)).length,g:2},
+ {id:'collec',c:'Île & Boutique',t:'gold',ic:'🐄',nm:'Collectionneur',ds:'Posséder les 3 personnages',p:S=>['chicken','cow','farmer'].filter(x=>(S.island||[]).includes(x)).length,g:3},
+ {id:'island',c:'Île & Boutique',t:'gold',ic:'🏆',nm:'Île complète',ds:'Posséder tous les objets',p:S=>(S.island||[]).length,g:SHOP.length},
+ {id:'coin2k',c:'Île & Boutique',t:'silver',ic:'💰',nm:'Économe',ds:'Gagner 2 000 pièces',p:S=>stat('coinsEarned'),g:2000},
+ {id:'coin10k',c:'Île & Boutique',t:'gold',ic:'💰',nm:'Fortune',ds:'Gagner 10 000 pièces',p:S=>stat('coinsEarned'),g:10000},
+];
+function checkTrophies(silent){ ensureStats(); let n=0; TROPHIES.forEach(tr=>{ if(tr.p(S)>=tr.g && !S.trophies.includes(tr.id)){ S.trophies.push(tr.id); if(!silent) toast('🏆 '+tr.nm); n++; } }); if(n)save(); }
+function renderBadges(){ ensureStats(); const total=TROPHIES.length; const unlocked=TROPHIES.filter(tr=>tr.p(S)>=tr.g).length; const cats={}; TROPHIES.forEach(tr=>{(cats[tr.c]=cats[tr.c]||[]).push(tr);});
+  let html=`<div class="troph-summary"><div class="ts-badge">🏆</div><div style="flex:1;"><div class="ts-num">${unlocked} <span>/ ${total}</span></div><div class="ts-l">trophées débloqués</div><div class="ts-bar"><div class="ts-fill" style="width:${Math.round(unlocked/total*100)}%"></div></div></div></div>`;
+  for(const cat in cats){ html+=`<div class="troph-cat">${cat}</div><div class="troph-grid">`;
+    cats[cat].forEach(tr=>{ const cur=Math.min(tr.p(S),tr.g); const on=cur>=tr.g; const pct=Math.round(cur/tr.g*100);
+      html+=`<div class="troph ${on?('on t-'+tr.t):'off'}"><div class="troph-ic">${on?tr.ic:'🔒'}</div><div class="troph-info"><div class="troph-nm">${tr.nm}</div><div class="troph-ds">${tr.ds}</div><div class="troph-pbar"><div class="troph-pfill" style="width:${pct}%"></div></div><div class="troph-prog">${on?'✓ Débloqué':(cur+' / '+tr.g)}</div></div></div>`; });
+    html+=`</div>`; }
+  document.getElementById('badgeGrid').innerHTML=html; }
 function refresh(){ document.getElementById('sPoints').textContent=S.points; document.getElementById('sStreak').textContent=S.streak; const su=document.getElementById('sCoins'); if(su)su.textContent=S.coins||0; document.getElementById('sLevel').textContent=LEVEL_ORDER[Math.min(S.maxLevelIdx,5)]; const hp=document.getElementById('heroP'),hs=document.getElementById('heroS'); if(hp)hp.textContent=S.points; if(hs)hs.textContent=S.streak; }
 function showDaily(){ const t=new Date().toDateString(); if(S.lastDaily===t)return; const box=document.getElementById('dailyBox'); box.innerHTML=''; todaysExpr().forEach((e,i)=>{ const r=document.createElement('div'); r.className='exp-row'; r.innerHTML=`<div><div class="exp-en">${i+1}. ${e.en}</div><div class="exp-fr">${e.fr}</div></div><button class="mini-audio" onclick="speak('${e.en.replace(/'/g,"\\'")}')">♪</button>`; box.appendChild(r); }); document.getElementById('dailyOverlay').classList.add('show'); S.lastDaily=t; save(); }
 function closeDaily(){ document.getElementById('dailyOverlay').classList.remove('show'); }
