@@ -190,6 +190,10 @@ body.light .botnav{background:rgba(255,255,255,.95);}
 .feedback.show{animation:fbin .32s cubic-bezier(.22,1,.36,1);}
 @keyframes fbin{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
 .level-card::after{pointer-events:none;}
+
+/* ===== Pièce (icône CSS, sans emoji) ===== */
+.coin-ic{display:inline-block;width:1em;height:1em;border-radius:50%;background:radial-gradient(circle at 34% 30%,#ffe9a8,#f5c451 55%,#e0a72e);box-shadow:inset 0 0 0 1px rgba(170,120,20,.55),inset 0 -2px 2px rgba(150,100,10,.3);vertical-align:-0.13em;position:relative;margin-right:1px;}
+.coin-ic::after{content:"";position:absolute;inset:24%;border-radius:50%;border:1px solid rgba(150,100,10,.35);}
 </style>
 </head>
 <body>
@@ -199,7 +203,7 @@ body.light .botnav{background:rgba(255,255,255,.95);}
     <div class="chip streak">Série <b id="sStreak">0</b></div>
     <div class="chip gold">Points <b id="sPoints">0</b></div>
     <div class="chip">Niveau <b id="sLevel">A1</b></div>
-    <div class="chip coins">🪙 <b id="sCoins">0</b></div>
+    <div class="chip coins"><span class="coin-ic"></span> <b id="sCoins">0</b></div>
     <button class="icon-btn" id="themeBtn" onclick="toggleTheme()">◐</button>
   </div>
 </div>
@@ -257,12 +261,12 @@ body.light .botnav{background:rgba(255,255,255,.95);}
     <button class="btn btn-ghost" onclick="go('home')" style="margin-bottom:16px;">← Accueil</button>
     <h2 class="title">Ton île</h2><p class="sub">Achète des personnages et des décors en boutique pour peupler ton île. <span style="font-size:11px;opacity:.6;">Assets : Sprout Lands by Cup Nooble</span></p>
     <div class="island-card"><canvas id="mapCanvas" width="352" height="240"></canvas></div>
-    <button class="btn btn-primary" style="margin-top:16px;" onclick="go('shop')">🪙 Ouvrir la boutique</button>
+    <button class="btn btn-primary" style="margin-top:16px;" onclick="go('shop')"><span class="coin-ic"></span> Ouvrir la boutique</button>
   </div>
   <div class="page" id="shop">
     <button class="btn btn-ghost" onclick="go('map')" style="margin-bottom:16px;">← Île</button>
     <h2 class="title">Boutique</h2><p class="sub">Dépense les pièces gagnées en leçon. Les personnages donnent un bonus permanent.</p>
-    <div class="shop-head">Solde : 🪙 <b id="shopCoins">0</b> pièces</div>
+    <div class="shop-head">Solde : <span class="coin-ic"></span> <b id="shopCoins">0</b> pièces</div>
     <div class="shop-grid" id="shopGrid"></div>
   </div>
   <div class="page" id="badges">
@@ -3488,7 +3492,7 @@ function finishExercise(){ if(EX.mode==='lesson'){ return showLessonReward(); } 
 function checkUnlocks(){ return null; }
 function renderUnlocks(){ const box=document.getElementById('unlockList'); box.innerHTML=''; DB.unlocks.forEach(u=>{ const on=S.unlocks.includes(u.id); const d=document.createElement('div'); d.className='unlock-item'+(on?'':' locked'); d.innerHTML=`<div class="unlock-emoji">${u.emoji}</div><div class="unlock-info"><div class="unlock-name">${u.name}</div><div class="unlock-req">${on?'Débloqué':u.req+' pts requis'}</div></div><div class="unlock-tag ${on?'on':'off'}">${on?'✓':(u.req-S.points)+' pts'}</div>`; box.appendChild(d); }); }
 function showLessonReward(){ document.querySelector('#exercise .ex-wrap').style.display='none'; document.getElementById('exResult').style.display='none'; const lv=EX.level, idx=EX.lessonIdx; const cur=S.lessons[lv]||0; const firstTime=(idx===cur); if(firstTime && cur<LESSONS_PER_LEVEL){ S.lessons[lv]=cur+1; } const li=LEVEL_ORDER.indexOf(lv); if(li>S.maxLevelIdx)S.maxLevelIdx=li; const pct=Math.round(EX.correct/EX.list.length*100); const bon=ownedBonuses(); const accBonus=(pct===100?10:(pct>=70?5:0)); const coinsEarned=15+accBonus+(firstTime?10:0)+bon.coins; S.coins=(S.coins||0)+coinsEarned; if(bon.xp){ S.points+=bon.xp; EX.xp+=bon.xp; } award('first'); const nu=checkUnlocks(); save(); refresh(); const hasNext=(idx+1)<LESSONS_PER_LEVEL; const box=document.getElementById('lessonEnd'); box.style.display='block';
-  box.innerHTML=`<div class="reward-confetti" id="confetti"></div><div class="reward-emoji">${pct===100?'🏆':(pct>=70?'🎉':'💪')}</div><h2 class="title" style="margin-bottom:4px;">Leçon ${idx+1} terminée !</h2><p class="sub" style="margin-bottom:18px;">${pct===100?'Sans faute, impressionnant.':(pct>=70?'Beau travail.':'Continue à t\'entraîner.')}</p><div class="reward-stats"><div class="rstat coin"><div class="rstat-n">🪙 +${coinsEarned}</div><div class="rstat-l">Pièces</div></div><div class="rstat"><div class="rstat-n">+${EX.xp}</div><div class="rstat-l">XP</div></div><div class="rstat"><div class="rstat-n">${pct}%</div><div class="rstat-l">Précision</div></div><div class="rstat"><div class="rstat-n">×${EX.maxCombo}</div><div class="rstat-l">Combo max</div></div><div class="rstat"><div class="rstat-n">${EX.hearts>0?'♥'.repeat(EX.hearts):'—'}</div><div class="rstat-l">Cœurs</div></div></div>${nu?`<div class="card" style="margin-top:16px;"><div style="font-size:40px;">${nu.emoji}</div><strong>Débloqué : ${nu.name}</strong></div>`:''}<div style="display:flex;gap:10px;margin-top:22px;">${hasNext?`<button class="btn btn-primary" style="flex:1;" onclick="startLesson('${lv}',${idx+1})">Leçon suivante →</button>`:''}<button class="btn ${hasNext?'btn-ghost':'btn-primary'}" style="flex:1;" onclick="openLevel('${lv}')">Parcours</button></div>`;
+  box.innerHTML=`<div class="reward-confetti" id="confetti"></div><div class="reward-emoji">${pct===100?'🏆':(pct>=70?'🎉':'💪')}</div><h2 class="title" style="margin-bottom:4px;">Leçon ${idx+1} terminée !</h2><p class="sub" style="margin-bottom:18px;">${pct===100?'Sans faute, impressionnant.':(pct>=70?'Beau travail.':'Continue à t\'entraîner.')}</p><div class="reward-stats"><div class="rstat coin"><div class="rstat-n"><span class="coin-ic"></span> +${coinsEarned}</div><div class="rstat-l">Pièces</div></div><div class="rstat"><div class="rstat-n">+${EX.xp}</div><div class="rstat-l">XP</div></div><div class="rstat"><div class="rstat-n">${pct}%</div><div class="rstat-l">Précision</div></div><div class="rstat"><div class="rstat-n">×${EX.maxCombo}</div><div class="rstat-l">Combo max</div></div><div class="rstat"><div class="rstat-n">${EX.hearts>0?'♥'.repeat(EX.hearts):'—'}</div><div class="rstat-l">Cœurs</div></div></div>${nu?`<div class="card" style="margin-top:16px;"><div style="font-size:40px;">${nu.emoji}</div><strong>Débloqué : ${nu.name}</strong></div>`:''}<div style="display:flex;gap:10px;margin-top:22px;">${hasNext?`<button class="btn btn-primary" style="flex:1;" onclick="startLesson('${lv}',${idx+1})">Leçon suivante →</button>`:''}<button class="btn ${hasNext?'btn-ghost':'btn-primary'}" style="flex:1;" onclick="openLevel('${lv}')">Parcours</button></div>`;
   launchConfetti(); playSound('win'); }
 function showLessonFail(){ document.querySelector('#exercise .ex-wrap').style.display='none'; document.getElementById('exResult').style.display='none'; save(); refresh(); const lv=EX.level, idx=EX.lessonIdx; const box=document.getElementById('lessonEnd'); box.style.display='block';
   box.innerHTML=`<div class="reward-emoji">💔</div><h2 class="title" style="margin-bottom:4px;">Plus de cœurs</h2><p class="sub" style="margin-bottom:18px;">Tu as réussi ${EX.correct}/${EX.list.length} avant de manquer de cœurs. Réessaie !</p><div style="display:flex;gap:10px;margin-top:6px;"><button class="btn btn-primary" style="flex:1;" onclick="startLesson('${lv}',${idx})">Réessayer</button><button class="btn btn-ghost" style="flex:1;" onclick="openLevel('${lv}')">Parcours</button></div>`; }
@@ -3528,7 +3532,7 @@ function renderShop(){
     loadImg(it.kind==='char'?it.sheet:it.img).then(paint); paint();
     const bonus=it.bonus?`<div class="shop-bonus">${it.blurb}</div>`:'<div class="shop-bonus decor">Décoration</div>';
     const btn=owned?`<div class="shop-owned">✓ Possédé</div>`
-      :`<button class="btn btn-primary full shop-buy${afford?'':' off'}" ${afford?'':'disabled'} onclick="buyItem('${it.id}')">🪙 ${it.price}</button>`;
+      :`<button class="btn btn-primary full shop-buy${afford?'':' off'}" ${afford?'':'disabled'} onclick="buyItem('${it.id}')"><span class="coin-ic"></span> ${it.price}</button>`;
     card.appendChild(cv);
     const info=document.createElement('div'); info.innerHTML=`<div class="shop-name">${it.name}</div>${bonus}${btn}`;
     card.appendChild(info); g.appendChild(card);
