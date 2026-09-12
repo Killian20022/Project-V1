@@ -68,6 +68,28 @@ h3,
   text-shadow: 0 0 24px hsl(196 100% 60% / 0.45);
 }
 
+/* Animations de l'île */
+@keyframes eq-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+@keyframes eq-sway {
+  0%, 100% { transform: rotate(-2.5deg); }
+  50% { transform: rotate(2.5deg); }
+}
+@keyframes eq-drift {
+  from { transform: translateX(-10px); }
+  to { transform: translateX(40px); }
+}
+@keyframes eq-shimmer {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+.eq-bob { animation: eq-bob 2.4s ease-in-out infinite; }
+.eq-sway { animation: eq-sway 4.5s ease-in-out infinite; transform-origin: bottom center; }
+.eq-drift { animation: eq-drift 14s ease-in-out infinite alternate; }
+.eq-shimmer { animation: eq-shimmer 3s ease-in-out infinite; }
+
 /* Barres de défilement */
 ::-webkit-scrollbar {
   width: 10px;
