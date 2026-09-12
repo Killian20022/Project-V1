@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Flame, Star, Coins, Volume2 } from 'lucide-react';
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser } from '@clerk/clerk-react';
 import { Button } from '@/components/ui/button';
 import { Walkers } from '@/components/Walkers';
 import { VoiceSettings } from '@/components/VoiceSettings';
@@ -15,18 +15,24 @@ const NAV: { label: string; page: Page }[] = [
   { label: 'Dictionnaire', page: 'dictionary' },
 ];
 
+const DEV_EMAIL = 'killianlopez20@gmail.com';
+
 export function Layout({
   page,
   onNavigate,
   state,
   children,
+  onAddCoins,
 }: {
   page: Page;
   onNavigate: (page: Page) => void;
   state: GameState;
   children: ReactNode;
+  onAddCoins?: () => void;
 }) {
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const { user } = useUser();
+  const isDev = user?.primaryEmailAddress?.emailAddress === DEV_EMAIL;
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-border/60 bg-background/70 backdrop-blur">
@@ -61,6 +67,11 @@ export function Layout({
             <span className="flex items-center gap-1 rounded-full bg-secondary px-3 py-1" title="Pièces">
               <Coins className="text-amber-400" /> {state.coins}
             </span>
+            {isDev && onAddCoins && (
+              <Button size="sm" variant="secondary" onClick={onAddCoins} title="Dev : +1000 pièces">
+                <Coins className="text-amber-400" /> +1000
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={() => setVoiceOpen(true)} title="Réglages de la voix" aria-label="Réglages de la voix">
               <Volume2 />
             </Button>

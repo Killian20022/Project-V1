@@ -157,7 +157,12 @@ export default function App() {
   }
 
   return (
-    <Layout page={page} onNavigate={navigate} state={state}>
+    <Layout
+      page={page}
+      onNavigate={navigate}
+      state={state}
+      onAddCoins={() => setState((current) => ({ ...current, coins: current.coins + 1000 }))}
+    >
       {content}
     </Layout>
   );
