@@ -2,6 +2,7 @@ import { Lock, Check, Play, ChevronLeft, GraduationCap, BookText } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LEVELS, LEVEL_INFO, LESSONS_PER_LEVEL, lessonsFor } from '@/lib/content';
+import { Character } from '@/components/Character';
 import type { GameState, Lesson, Level } from '../types';
 
 export function LearnPage({
@@ -110,6 +111,12 @@ export function LearnPage({
             </Card>
           );
         })}
+      </div>
+
+      <div className="flex items-end justify-center gap-8 pb-6 pt-8">
+        <Character file="chicken.png" size={76} />
+        <Character file="character.png" size={104} />
+        <Character file="cow.png" size={92} flip />
       </div>
     </div>
   );

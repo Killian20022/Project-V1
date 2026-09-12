@@ -1,6 +1,7 @@
 import { Rocket, BookOpen, Sparkles, Target, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Character } from '@/components/Character';
 import { LEVELS, LEVEL_INFO, LESSONS_PER_LEVEL } from '@/lib/content';
 import type { GameState, Level, Page } from '../types';
 
@@ -47,6 +48,9 @@ export function HomePage({
             <Stat value={state.points} label="XP gagnés" />
             <Stat value={`${lessonsDone}/${totalLessons}`} label="Leçons terminées" />
             <Stat value={state.streak} label="Jours de série" />
+          </div>
+          <div className="pointer-events-none absolute bottom-0 right-4 hidden opacity-95 lg:block">
+            <Character file="character.png" size={168} />
           </div>
         </CardContent>
       </Card>
@@ -125,6 +129,12 @@ export function HomePage({
             );
           })}
         </div>
+      </div>
+
+      <div className="flex items-end justify-center gap-6 pt-4 sm:gap-14">
+        <Character file="cow.png" size={110} />
+        <Character file="character.png" size={132} />
+        <Character file="chicken.png" size={82} flip />
       </div>
     </div>
   );

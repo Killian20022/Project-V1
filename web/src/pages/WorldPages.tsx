@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SHOP } from '@/data/shop';
 import { TROPHIES, type Trophy } from '@/lib/trophies';
+import { Walkers } from '@/components/Walkers';
 import type { GameState, Page } from '../types';
 
 const asset = (file: string) => `${import.meta.env.BASE_URL}assets/${file}`;
@@ -108,8 +109,11 @@ export function IslandPage({ state, navigate }: { state: GameState; navigate: (p
           );
         })}
 
+        {/* personnages qui se promènent en bas */}
+        <Walkers />
+
         {/* panneau info */}
-        <div className="absolute bottom-4 left-4 rounded-xl bg-background/70 px-4 py-2 text-sm font-semibold backdrop-blur">
+        <div className="absolute bottom-4 left-4 z-10 rounded-xl bg-background/70 px-4 py-2 text-sm font-semibold backdrop-blur">
           {ownedItems.length}/{SHOP.length} objets · {state.coins} 🪙
         </div>
         {ownedItems.length === 0 && (

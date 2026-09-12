@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Flame, Star, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Walkers } from '@/components/Walkers';
 import type { GameState, Page } from '../types';
 
 const NAV: { label: string; page: Page }[] = [
@@ -61,7 +62,12 @@ export function Layout({
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 pb-28 pt-8">{children}</main>
+
+      {/* Personnages qui traversent le bas de la page (décoratif, sur le fond) */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 h-20 overflow-hidden">
+        <Walkers />
+      </div>
     </div>
   );
 }

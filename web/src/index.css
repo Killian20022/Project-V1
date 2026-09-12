@@ -85,6 +85,16 @@ h3,
   0%, 100% { opacity: 0.75; }
   50% { opacity: 1; }
 }
+@keyframes eq-walk-r {
+  from { left: -80px; }
+  to { left: 100%; }
+}
+@keyframes eq-walk-l {
+  from { left: 100%; }
+  to { left: -80px; }
+}
+.eq-walk-r { animation: eq-walk-r linear infinite; }
+.eq-walk-l { animation: eq-walk-l linear infinite; }
 .eq-bob { animation: eq-bob 2.4s ease-in-out infinite; }
 .eq-sway { animation: eq-sway 4.5s ease-in-out infinite; transform-origin: bottom center; }
 .eq-drift { animation: eq-drift 14s ease-in-out infinite alternate; }
