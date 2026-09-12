@@ -145,7 +145,7 @@ export default function App() {
       />
     );
   } else if (page === 'island') {
-    content = <IslandPage state={state} navigate={navigate} />;
+    content = <IslandPage state={state} setState={setState} navigate={navigate} />;
   } else if (page === 'shop') {
     content = <ShopPage state={state} setState={setState} />;
   } else if (page === 'trophies') {

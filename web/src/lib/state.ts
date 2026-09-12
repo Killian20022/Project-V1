@@ -10,6 +10,7 @@ export const DEFAULT_STATE: GameState = {
   lessons: {},
   coins: 0,
   island: [],
+  placed: [],
   trophies: [],
   stats: {},
   dailyXP: 0,
@@ -31,6 +32,15 @@ export function loadGameState(): GameState {
       lessons: { ...DEFAULT_STATE.lessons, ...(parsed.lessons ?? {}) },
       stats: { ...DEFAULT_STATE.stats, ...(parsed.stats ?? {}) },
       island: parsed.island ?? [],
+      placed:
+        parsed.placed && parsed.placed.length
+          ? parsed.placed
+          : (parsed.island ?? []).map((id, i) => ({
+              k: `${id}-${i}`,
+              id,
+              x: 24 + (i % 4) * 14,
+              y: 30 + Math.floor(i / 4) * 16,
+            })),
       trophies: parsed.trophies ?? [],
     };
   } catch {

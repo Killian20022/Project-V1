@@ -38,6 +38,7 @@ export interface GameState {
   lessons: Partial<Record<Level, number>>;
   coins: number;
   island: string[];
+  placed: PlacedItem[];
   trophies: string[];
   stats: Record<string, number>;
   dailyXP: number;
@@ -46,6 +47,13 @@ export interface GameState {
   unlocks: string[];
   badges: string[];
   completed: string[];
+}
+
+export interface PlacedItem {
+  k: string; // clé unique de l'instance
+  id: string; // id de l'objet boutique
+  x: number; // position en % (0-100)
+  y: number;
 }
 
 export interface SavedWord {

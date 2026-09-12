@@ -1,4 +1,5 @@
-import { Coins, ShoppingBag, Check, Lock } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Coins, ShoppingBag, Check, Lock, Move } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SHOP } from '@/data/shop';
@@ -6,9 +7,37 @@ import { TROPHIES, type Trophy } from '@/lib/trophies';
 import type { GameState, Page } from '../types';
 
 const asset = (file: string) => `${import.meta.env.BASE_URL}assets/${file}`;
+const SHOP_MAP = Object.fromEntries(SHOP.map((s) => [s.id, s]));
+const MAX_PER_ITEM = 5;
 
 // Tailles de frame pour les personnages (spritesheets) — pour n'afficher qu'une image
 const CHAR_FRAME: Record<string, number> = { chicken: 16, farmer: 48, cow: 32 };
+
+// Rendu à taille uniforme (~46px de haut) pour tous les objets
+function UniformSprite({ id, file }: { id: string; file: string }) {
+  const frame = CHAR_FRAME[id];
+  if (frame) {
+    return (
+      <div
+        style={{
+          width: frame,
+          height: frame,
+          backgroundImage: `url(${asset(file)})`,
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: '0 0',
+          imageRendering: 'pixelated',
+          transform: `scale(${46 / frame})`,
+          transformOrigin: 'bottom center',
+        }}
+      />
+    );
+  }
+  return <img src={asset(file)} alt="" style={{ height: 46, width: 'auto', imageRendering: 'pixelated' }} draggable={false} />;
+}
+
+export function countOwned(state: GameState, id: string) {
+  return (state.placed ?? []).filter((p) => p.id === id).length;
+}
 
 // Emplacements des objets achetés, en % de la carte (posés sur les terres, hors décor)
 const ISLAND_POS: [number, number][] = [
@@ -37,21 +66,58 @@ function Sprite({ id, file, size = 56 }: { id: string; file: string; size?: numb
   return <img src={asset(file)} alt="" style={{ width: size, imageRendering: 'pixelated' }} draggable={false} />;
 }
 
-export function IslandPage({ state, navigate }: { state: GameState; navigate: (page: Page) => void }) {
-  const ownedItems = SHOP.filter((item) => state.island.includes(item.id));
+export function IslandPage({
+  state,
+  setState,
+  navigate,
+}: {
+  state: GameState;
+  setState: React.Dispatch<React.SetStateAction<GameState>>;
+  navigate: (page: Page) => void;
+}) {
+  const placed = state.placed ?? [];
+  const sceneRef = useRef<HTMLDivElement>(null);
+  const [dragK, setDragK] = useState<string | null>(null);
+  const [local, setLocal] = useState<Record<string, { x: number; y: number }>>({});
+
+  function onMove(e: React.PointerEvent) {
+    if (!dragK || !sceneRef.current) return;
+    const r = sceneRef.current.getBoundingClientRect();
+    const x = Math.min(96, Math.max(4, ((e.clientX - r.left) / r.width) * 100));
+    const y = Math.min(92, Math.max(12, ((e.clientY - r.top) / r.height) * 100));
+    setLocal((p) => ({ ...p, [dragK]: { x, y } }));
+  }
+  function endDrag() {
+    if (!dragK) return;
+    const pos = local[dragK];
+    if (pos) {
+      setState((s) => ({
+        ...s,
+        placed: (s.placed ?? []).map((pl) => (pl.k === dragK ? { ...pl, x: pos.x, y: pos.y } : pl)),
+      }));
+    }
+    setDragK(null);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Mon île</h1>
-          <p className="text-muted-foreground">Elle grandit et s'anime à mesure que tu apprends.</p>
+          <p className="text-muted-foreground">Glisse tes objets pour les placer où tu veux. ✋</p>
         </div>
         <Button variant="outline" onClick={() => navigate('shop')}>
           <ShoppingBag /> Boutique
         </Button>
       </div>
 
-      <div className="relative aspect-[8/5] w-full overflow-hidden rounded-2xl border border-border shadow-xl shadow-black/40">
+      <div
+        ref={sceneRef}
+        onPointerMove={onMove}
+        onPointerUp={endDrag}
+        onPointerLeave={endDrag}
+        className="relative aspect-[8/5] w-full touch-none overflow-hidden rounded-2xl border border-border shadow-xl shadow-black/40"
+      >
         {/* eau animée (fond) */}
         <div
           className="absolute inset-0"
@@ -94,19 +160,28 @@ export function IslandPage({ state, navigate }: { state: GameState; navigate: (p
           </div>
         ))}
 
-        {/* objets achetés */}
-        {ownedItems.map((item, i) => {
-          const [left, top] = ISLAND_POS[i % ISLAND_POS.length];
-          const animate = item.kind === 'char' ? 'eq-bob' : 'eq-sway';
+        {/* objets placés (déplaçables) */}
+        {placed.map((pl) => {
+          const item = SHOP_MAP[pl.id];
+          if (!item) return null;
+          const pos = local[pl.k] ?? { x: pl.x, y: pl.y };
+          const dragging = dragK === pl.k;
           return (
             <div
-              key={item.id}
-              className="absolute -translate-x-1/2 -translate-y-1/2 drop-shadow-lg"
-              style={{ left: `${left}%`, top: `${top}%` }}
-              title={item.name}
+              key={pl.k}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                setLocal((p) => ({ ...p, [pl.k]: { x: pl.x, y: pl.y } }));
+                setDragK(pl.k);
+              }}
+              className={`absolute -translate-x-1/2 -translate-y-1/2 select-none drop-shadow-lg ${
+                dragging ? 'z-20 scale-110 cursor-grabbing' : 'cursor-grab'
+              }`}
+              style={{ left: `${pos.x}%`, top: `${pos.y}%`, touchAction: 'none' }}
+              title={`${item.name} — glisse pour déplacer`}
             >
-              <div className={animate} style={{ animationDelay: `${i * 0.3}s` }}>
-                <Sprite id={item.id} file={item.file} size={item.kind === 'char' ? 56 : 48} />
+              <div className={item.kind === 'char' && !dragging ? 'eq-bob' : ''}>
+                <UniformSprite id={item.id} file={item.file} />
               </div>
             </div>
           );
@@ -114,12 +189,12 @@ export function IslandPage({ state, navigate }: { state: GameState; navigate: (p
 
         {/* panneau info */}
         <div className="absolute bottom-4 left-4 z-10 flex items-center gap-1.5 rounded-xl bg-background/70 px-4 py-2 text-sm font-semibold backdrop-blur">
-          {ownedItems.length}/{SHOP.length} objets ·
+          {placed.length} objet{placed.length > 1 ? 's' : ''} ·
           <Coins className="size-4 text-amber-400" /> {state.coins}
         </div>
-        {ownedItems.length === 0 && (
+        {placed.length === 0 && (
           <div className="absolute left-4 top-4 z-10 max-w-[240px] rounded-xl bg-background/80 p-3 text-xs font-semibold shadow-lg backdrop-blur">
-            Gagne des pièces en faisant des leçons, puis adopte ton premier compagnon dans la boutique 🐣
+            Gagne des pièces en faisant des leçons, puis achète des compagnons dans la boutique 🐣
           </div>
         )}
       </div>
@@ -136,8 +211,12 @@ export function ShopPage({
 }) {
   function buy(id: string, price: number) {
     setState((current) => {
-      if (current.island.includes(id) || current.coins < price) return current;
-      return { ...current, coins: current.coins - price, island: [...current.island, id] };
+      const count = (current.placed ?? []).filter((p) => p.id === id).length;
+      if (count >= MAX_PER_ITEM || current.coins < price) return current;
+      const k = `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const x = 28 + (count % 3) * 12 + Math.random() * 6;
+      const y = 34 + Math.floor(count / 3) * 12 + Math.random() * 6;
+      return { ...current, coins: current.coins - price, placed: [...(current.placed ?? []), { k, id, x, y }] };
     });
   }
 
@@ -163,21 +242,25 @@ export function ShopPage({
           <h2 className="mb-3 text-lg font-semibold">{group.title}</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {SHOP.filter((item) => item.kind === group.kind).map((item) => {
-              const owned = state.island.includes(item.id);
-              const canBuy = !owned && state.coins >= item.price;
+              const count = countOwned(state, item.id);
+              const maxed = count >= MAX_PER_ITEM;
+              const canBuy = !maxed && state.coins >= item.price;
               return (
-                <Card key={item.id} className={owned ? 'border-primary/50' : ''}>
+                <Card key={item.id} className={count > 0 ? 'border-primary/50' : ''}>
                   <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
                     <div className="grid h-24 w-full place-items-center rounded-xl bg-gradient-to-b from-sky-300/10 to-transparent">
-                      <div className={owned && item.kind === 'char' ? 'eq-bob' : ''}>
-                        <Sprite id={item.id} file={item.file} size={item.kind === 'char' ? 60 : 52} />
+                      <div className={count > 0 && item.kind === 'char' ? 'eq-bob' : ''}>
+                        <UniformSprite id={item.id} file={item.file} />
                       </div>
                     </div>
                     <div className="font-semibold">{item.name}</div>
                     {item.blurb && <div className="text-[11px] text-primary">{item.blurb}</div>}
-                    {owned ? (
+                    <div className="text-[11px] text-muted-foreground">
+                      {count}/{MAX_PER_ITEM} possédés
+                    </div>
+                    {maxed ? (
                       <div className="flex items-center gap-1 text-sm font-semibold text-primary">
-                        <Check className="size-4" /> Possédé
+                        <Check className="size-4" /> Max atteint
                       </div>
                     ) : (
                       <Button size="sm" className="w-full" disabled={!canBuy} onClick={() => buy(item.id, item.price)}>

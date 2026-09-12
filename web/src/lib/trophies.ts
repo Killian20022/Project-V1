@@ -14,7 +14,10 @@ export type Trophy = {
 
 const lessonsDone = (s: GameState) => Object.values(s.lessons).reduce((a, b) => a + (b ?? 0), 0);
 const stat = (s: GameState, k: string) => s.stats[k] ?? 0;
-const owned = (s: GameState) => s.island ?? [];
+const owned = (s: GameState) => {
+  const ids = s.placed?.length ? s.placed.map((p) => p.id) : (s.island ?? []);
+  return [...new Set(ids)];
+};
 
 export const TROPHIES: Trophy[] = [
   { id: 'first', category: 'Progression', tier: 'bronze', icon: '🎓', name: 'Premiers pas', desc: 'Terminer ta 1re leçon', goal: 1, progress: lessonsDone },
