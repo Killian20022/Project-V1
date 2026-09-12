@@ -10,10 +10,10 @@ const asset = (file: string) => `${import.meta.env.BASE_URL}assets/${file}`;
 // Tailles de frame pour les personnages (spritesheets) — pour n'afficher qu'une image
 const CHAR_FRAME: Record<string, number> = { chicken: 16, farmer: 48, cow: 32 };
 
-// Emplacements des objets achetés (zone herbe à gauche/centre, on évite le lac à droite)
+// Emplacements des objets achetés, en % de la carte (posés sur les terres, hors décor)
 const ISLAND_POS: [number, number][] = [
-  [13, 58], [28, 50], [43, 60], [57, 52], [20, 74],
-  [35, 80], [50, 74], [12, 44], [40, 42], [26, 66], [52, 86],
+  [22, 30], [15, 40], [31, 36], [52, 20], [66, 34],
+  [70, 22], [66, 64], [80, 74], [58, 82], [86, 62], [18, 76],
 ];
 
 function Sprite({ id, file, size = 56 }: { id: string; file: string; size?: number }) {
@@ -51,43 +51,15 @@ export function IslandPage({ state, navigate }: { state: GameState; navigate: (p
         </Button>
       </div>
 
-      <div
-        className="relative min-h-[460px] w-full overflow-hidden rounded-2xl border border-border shadow-xl shadow-black/40 sm:min-h-[560px]"
-        style={{
-          background:
-            'linear-gradient(180deg, #79c4ff 0%, #a8dcff 26%, #cdeeff 33%, #8fd36a 33%, #77bd50 66%, #5fa63e 100%)',
-        }}
-      >
-        {/* soleil */}
-        <div className="absolute right-8 top-6 h-14 w-14 rounded-full bg-yellow-200 shadow-[0_0_50px_16px_rgba(254,240,138,0.7)]" />
-        {/* nuages qui dérivent */}
-        <div className="eq-drift absolute left-[10%] top-[8%] h-5 w-24 rounded-full bg-white/85 blur-[1px]" />
-        <div className="eq-drift absolute left-[52%] top-[5%] h-4 w-20 rounded-full bg-white/70 blur-[1px]" style={{ animationDelay: '3s' }} />
-        <div className="eq-drift absolute left-[30%] top-[14%] h-4 w-16 rounded-full bg-white/60 blur-[1px]" style={{ animationDelay: '6s' }} />
-
-        {/* grand lac réaliste avec vaguelettes */}
-        <div
-          className="absolute overflow-hidden"
-          style={{
-            left: '52%',
-            right: '6%',
-            bottom: '7%',
-            height: '48%',
-            borderRadius: '50%',
-            boxShadow: 'inset 0 12px 26px rgba(0,0,0,0.30), 0 0 0 4px rgba(255,255,255,0.10)',
-          }}
-        >
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg,#9fe3ff 0%,#46b0ec 40%,#2183c8 76%,#155f9c 100%)' }} />
-          <div
-            className="eq-ripple-a absolute inset-0 opacity-40"
-            style={{ backgroundImage: 'repeating-linear-gradient(96deg, transparent 0 20px, rgba(255,255,255,0.38) 20px 22px)' }}
-          />
-          <div
-            className="eq-ripple-b absolute inset-0 opacity-25"
-            style={{ backgroundImage: 'repeating-linear-gradient(92deg, transparent 0 30px, rgba(255,255,255,0.30) 30px 32px)' }}
-          />
-          <div className="eq-shimmer absolute left-1/2 top-4 h-2.5 w-28 -translate-x-1/2 rounded-full bg-white/70 blur-[2px]" />
-        </div>
+      <div className="relative w-full overflow-hidden rounded-2xl border border-border shadow-xl shadow-black/40">
+        {/* vraie carte pixel-art */}
+        <img
+          src={asset('island_map.png')}
+          alt="Ton île"
+          className="block w-full select-none"
+          style={{ imageRendering: 'pixelated' }}
+          draggable={false}
+        />
 
         {/* objets achetés */}
         {ownedItems.map((item, i) => {
