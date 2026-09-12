@@ -134,8 +134,9 @@ export function IslandPage({ state, navigate }: { state: GameState; navigate: (p
         <Walkers />
 
         {/* panneau info */}
-        <div className="absolute bottom-4 left-4 z-10 rounded-xl bg-background/70 px-4 py-2 text-sm font-semibold backdrop-blur">
-          {ownedItems.length}/{SHOP.length} objets · {state.coins} 🪙
+        <div className="absolute bottom-4 left-4 z-10 flex items-center gap-1.5 rounded-xl bg-background/70 px-4 py-2 text-sm font-semibold backdrop-blur">
+          {ownedItems.length}/{SHOP.length} objets ·
+          <Coins className="size-4 text-amber-400" /> {state.coins}
         </div>
         {ownedItems.length === 0 && (
           <div className="absolute left-4 top-4 z-10 max-w-[240px] rounded-xl bg-background/80 p-3 text-xs font-semibold shadow-lg backdrop-blur">

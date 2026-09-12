@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { completeLesson, loadGameState, saveGameState } from '@/lib/state';
+import { loadRemoteProgress, saveRemoteProgress } from '@/lib/progressSync';
 import { HomePage } from '@/pages/HomePage';
 import { LearnPage } from '@/pages/LearnPage';
 import { LessonPage } from '@/pages/LessonPage';
@@ -20,11 +22,53 @@ export default function App() {
   const [lesson, setLesson] = useState<LessonSelection | null>(null);
   const [exercising, setExercising] = useState(false);
   const [result, setResult] = useState<{ correct: number; total: number } | null>(null);
+  const { user, isLoaded } = useUser();
+  const hydrated = useRef(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', state.dark);
     saveGameState(state);
   }, [state]);
+
+  // À la connexion : charger la progression du compte (source de vérité entre appareils)
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!user) {
+      hydrated.current = false;
+      return;
+    }
+    let cancelled = false;
+    loadRemoteProgress(user.id)
+      .then((remote) => {
+        if (cancelled) return;
+        if (remote) {
+          setState((current) => ({ ...current, ...remote }));
+        } else {
+          // Aucune sauvegarde en ligne : on envoie la progression locale actuelle
+          setState((current) => {
+            saveRemoteProgress(user.id, current);
+            return current;
+          });
+        }
+        hydrated.current = true;
+      })
+      .catch(() => {
+        hydrated.current = true;
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, user?.id]);
+
+  // Sauvegarde en ligne (anti-rebond) quand l'état change et qu'on est connecté
+  useEffect(() => {
+    if (!user || !hydrated.current) return;
+    const timeout = window.setTimeout(() => {
+      saveRemoteProgress(user.id, state);
+    }, 800);
+    return () => window.clearTimeout(timeout);
+  }, [state, user]);
 
   // Mise à jour de la série quotidienne au démarrage
   useEffect(() => {
