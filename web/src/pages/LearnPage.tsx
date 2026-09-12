@@ -1,7 +1,7 @@
 import { Lock, Check, Play, ChevronLeft, GraduationCap, BookText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { LEVELS, LEVEL_INFO, LESSONS_PER_LEVEL, lessonsFor } from '@/lib/content';
+import { LEVELS, LEVEL_INFO, lessonCount, lessonsFor } from '@/lib/content';
 import { Character } from '@/components/Character';
 import type { GameState, Lesson, Level } from '../types';
 
@@ -20,11 +20,12 @@ export function LearnPage({
     return (
       <div>
         <h1 className="text-2xl font-bold">Apprendre</h1>
-        <p className="text-muted-foreground">Choisis un niveau pour voir ton parcours de 10 leçons.</p>
+        <p className="text-muted-foreground">Choisis un niveau pour voir ton parcours.</p>
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {LEVELS.map((lv) => {
+            const total = lessonCount(lv);
             const done = state.lessons[lv] ?? 0;
-            const pct = Math.round((done / LESSONS_PER_LEVEL) * 100);
+            const pct = total ? Math.round((Math.min(done, total) / total) * 100) : 0;
             return (
               <Card
                 key={lv}
@@ -43,7 +44,7 @@ export function LearnPage({
                     <div className="h-full rounded-full bg-gradient-to-r from-primary to-accent" style={{ width: `${pct}%` }} />
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {done}/{LESSONS_PER_LEVEL} leçons
+                    {Math.min(done, total)}/{total} leçons
                   </div>
                 </CardHeader>
               </Card>

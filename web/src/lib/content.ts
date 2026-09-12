@@ -4,7 +4,13 @@ import type { Lesson, Level, Sentence } from '../types';
 
 export const LEVELS: Level[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
-export const LESSONS_PER_LEVEL = 10;
+// Nombre de leçons réellement présentes pour un niveau (dynamique)
+export function lessonCount(level: Level): number {
+  return ((CURRICULUM as unknown as Record<Level, readonly Lesson[]>)[level] ?? []).length;
+}
+
+// Total de leçons tous niveaux confondus
+export const TOTAL_LESSONS = LEVELS.reduce((sum, lv) => sum + lessonCount(lv), 0);
 
 export const LEVEL_INFO: Record<Level, { name: string; description: string; gradient: string }> = {
   A1: { name: 'Découverte', description: 'Premiers mots et phrases', gradient: 'from-cyan-300 to-sky-400' },

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Heart, Volume2, X, ArrowRight, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { buildQuestions, normalized, speechMatches } from '@/lib/exercises';
+import { buildQuestions, normalized, speechMatches, shuffle } from '@/lib/exercises';
 import { speak } from '@/lib/speak';
 import type { Lesson, Level } from '../types';
 
@@ -10,7 +10,9 @@ const TYPE_LABEL: Record<string, string> = {
   qcm: 'Choix multiple',
   fill: 'Complète avec le bon mot',
   order: 'Remettre en ordre',
+  dictation: 'Dictée',
   listen: 'Écoute',
+  match: 'Associe les paires',
   speak: 'Prononciation',
 };
 
@@ -43,7 +45,15 @@ export function ExercisePage({
   const [result, setResult] = useState<boolean | null>(null);
   const [listening, setListening] = useState(false);
   const [heard, setHeard] = useState('');
+  const [matched, setMatched] = useState<string[]>([]);
+  const [selEn, setSelEn] = useState<string | null>(null);
   const question = questions[position];
+
+  // Colonne de droite mélangée pour l'exercice d'association (stable par question)
+  const rightCol = useMemo(
+    () => (question?.type === 'match' ? shuffle(question.pairs.map((p) => p.fr)) : []),
+    [position, question],
+  );
 
   function grade(value: string, forceSuccess?: boolean) {
     if (result !== null) return;
@@ -88,6 +98,20 @@ export function ExercisePage({
     }
   }
 
+  // Association de paires : on choisit une phrase, puis sa traduction
+  function tapMatchFr(fr: string) {
+    if (result !== null || !selEn || question.type !== 'match') return;
+    const pair = question.pairs.find((p) => p.fr === fr);
+    if (pair && pair.en === selEn) {
+      const nextMatched = [...matched, selEn];
+      setMatched(nextMatched);
+      setSelEn(null);
+      if (nextMatched.length === question.pairs.length) grade('', true);
+    } else {
+      setSelEn(null);
+    }
+  }
+
   function next() {
     if (hearts <= 0 || position === questions.length - 1) {
       onFinish(correct, questions.length, maxCombo);
@@ -98,6 +122,8 @@ export function ExercisePage({
     setOrdered([]);
     setResult(null);
     setHeard('');
+    setMatched([]);
+    setSelEn(null);
   }
 
   if (!question) return null;
@@ -191,8 +217,13 @@ export function ExercisePage({
             </div>
           )}
 
-          {question.type === 'order' && (
+          {(question.type === 'order' || question.type === 'dictation') && (
             <div className="space-y-3">
+              {question.type === 'dictation' && (
+                <Button variant="outline" onClick={() => speak(question.audio)}>
+                  <Volume2 /> Réécouter
+                </Button>
+              )}
               <div className="flex min-h-12 flex-wrap gap-2 rounded-lg border border-dashed border-border p-2">
                 {ordered.map((token, tokenIndex) => (
                   <button
@@ -205,20 +236,71 @@ export function ExercisePage({
                 ))}
               </div>
               <div className="flex flex-wrap gap-2">
-                {question.tokens.map((token, tokenIndex) => (
-                  <button
-                    key={`${token}-${tokenIndex}`}
-                    disabled={result !== null}
-                    className="rounded-md border border-border px-3 py-1.5 text-sm hover:border-primary/60 hover:bg-secondary disabled:opacity-50"
-                    onClick={() => setOrdered((items) => [...items, token])}
-                  >
-                    {token}
-                  </button>
-                ))}
+                {question.tokens.map((token, tokenIndex) => {
+                  const used = ordered.filter((t) => t === token).length;
+                  const total = question.tokens.filter((t) => t === token).length;
+                  return (
+                    <button
+                      key={`${token}-${tokenIndex}`}
+                      disabled={result !== null || used >= total}
+                      className="rounded-md border border-border px-3 py-1.5 text-sm hover:border-primary/60 hover:bg-secondary disabled:opacity-30"
+                      onClick={() => setOrdered((items) => [...items, token])}
+                    >
+                      {token}
+                    </button>
+                  );
+                })}
               </div>
-              <Button className="w-full" disabled={result !== null} onClick={() => grade(ordered.join(' '))}>
+              <Button className="w-full" disabled={result !== null || !ordered.length} onClick={() => grade(ordered.join(' '))}>
                 Vérifier
               </Button>
+            </div>
+          )}
+
+          {question.type === 'match' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                {question.pairs.map((pair) => {
+                  const done = matched.includes(pair.en);
+                  const active = selEn === pair.en;
+                  return (
+                    <button
+                      key={pair.en}
+                      disabled={done || result !== null}
+                      onClick={() => setSelEn(pair.en)}
+                      className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+                        done
+                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
+                          : active
+                            ? 'border-primary bg-primary/15'
+                            : 'border-border hover:border-primary/60 hover:bg-secondary'
+                      }`}
+                    >
+                      {pair.en}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="space-y-2">
+                {rightCol.map((fr) => {
+                  const pair = question.pairs.find((p) => p.fr === fr)!;
+                  const done = matched.includes(pair.en);
+                  return (
+                    <button
+                      key={fr}
+                      disabled={done || result !== null}
+                      onClick={() => tapMatchFr(fr)}
+                      className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+                        done
+                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
+                          : 'border-border hover:border-primary/60 hover:bg-secondary'
+                      }`}
+                    >
+                      {fr}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 

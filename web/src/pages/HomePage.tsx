@@ -2,7 +2,7 @@ import { Rocket, BookOpen, Sparkles, Target, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Character } from '@/components/Character';
-import { LEVELS, LEVEL_INFO, LESSONS_PER_LEVEL } from '@/lib/content';
+import { LEVELS, LEVEL_INFO, lessonCount, TOTAL_LESSONS } from '@/lib/content';
 import type { GameState, Level, Page } from '../types';
 
 export function HomePage({
@@ -14,8 +14,8 @@ export function HomePage({
   navigate: (page: Page) => void;
   openLevel: (level: Level) => void;
 }) {
-  const lessonsDone = LEVELS.reduce((sum, lv) => sum + (state.lessons[lv] ?? 0), 0);
-  const totalLessons = LEVELS.length * LESSONS_PER_LEVEL;
+  const lessonsDone = LEVELS.reduce((sum, lv) => sum + Math.min(state.lessons[lv] ?? 0, lessonCount(lv)), 0);
+  const totalLessons = TOTAL_LESSONS;
   const dailyGoal = 50;
   const dailyToday = state.dailyDate === new Date().toDateString() ? state.dailyXP : 0;
   const dailyPct = Math.min(100, Math.round((dailyToday / dailyGoal) * 100));
@@ -102,8 +102,9 @@ export function HomePage({
         </div>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {LEVELS.map((lv) => {
+            const total = lessonCount(lv);
             const done = state.lessons[lv] ?? 0;
-            const pct = Math.round((done / LESSONS_PER_LEVEL) * 100);
+            const pct = total ? Math.round((Math.min(done, total) / total) * 100) : 0;
             return (
               <Card
                 key={lv}
@@ -122,7 +123,7 @@ export function HomePage({
                     <div className="h-full rounded-full bg-gradient-to-r from-primary to-accent" style={{ width: `${pct}%` }} />
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {done}/{LESSONS_PER_LEVEL} leçons
+                    {Math.min(done, total)}/{total} leçons
                   </div>
                 </CardHeader>
               </Card>

@@ -5,6 +5,8 @@ export type Question =
   | { type: 'qcm' | 'listen'; prompt: string; options: string[]; answer: string; explanation: string; audio?: string }
   | { type: 'fill'; prompt: string; fr: string; options: string[]; answer: string; explanation: string }
   | { type: 'order'; prompt: string; tokens: string[]; answer: string; explanation: string }
+  | { type: 'dictation'; prompt: string; tokens: string[]; answer: string; explanation: string; audio: string }
+  | { type: 'match'; prompt: string; pairs: { en: string; fr: string }[]; explanation: string }
   | { type: 'speak'; prompt: string; answer: string; explanation: string };
 
 export function shuffle<T>(items: readonly T[]): T[] {
@@ -46,10 +48,25 @@ function fillQuestion(level: Level, sentence: Sentence): Question {
   };
 }
 
+const TOTAL_QUESTIONS = 12;
+
+// Association de paires (phrase ↔ traduction) — 4 paires, courtes de préférence
+function matchQuestion(level: Level, pool: Sentence[]): Question {
+  const source = pool.length >= 4 ? pool : sentencesFor(level);
+  const short = source.filter((s) => s.en.length <= 36);
+  const chosen = shuffle(short.length >= 4 ? short : source).slice(0, 4);
+  return {
+    type: 'match',
+    prompt: 'Associe chaque phrase à sa traduction',
+    pairs: chosen.map((s) => ({ en: s.en, fr: s.fr })),
+    explanation: 'Toutes les paires étaient correctes. 🎉',
+  };
+}
+
 export function buildQuestions(level: Level, lesson: Lesson): Question[] {
-  const pool = lesson.practice?.length ? [...lesson.practice] : shuffle(sentencesFor(level)).slice(0, 10);
+  const pool = lesson.practice?.length ? [...lesson.practice] : shuffle(sentencesFor(level)).slice(0, TOTAL_QUESTIONS);
   const questions: Question[] = shuffle(lesson.drills ?? [])
-    .slice(0, 4)
+    .slice(0, 3)
     .map((drill) => ({
       type: 'qcm' as const,
       prompt: drill.q,
@@ -57,9 +74,13 @@ export function buildQuestions(level: Level, lesson: Lesson): Question[] {
       answer: drill.answer,
       explanation: drill.exp ?? drill.answer,
     }));
-  const types: Question['type'][] = ['fill', 'order', 'listen', 'qcm', 'speak'];
+
+  // Une association de paires par leçon
+  questions.push(matchQuestion(level, pool));
+
+  const types: Question['type'][] = ['fill', 'order', 'dictation', 'listen', 'speak'];
   shuffle(pool)
-    .slice(0, Math.max(0, 10 - questions.length))
+    .slice(0, Math.max(0, TOTAL_QUESTIONS - questions.length))
     .forEach((sentence, index) => {
       const type = types[index % types.length];
       if (type === 'fill') questions.push(fillQuestion(level, sentence));
@@ -69,7 +90,16 @@ export function buildQuestions(level: Level, lesson: Lesson): Question[] {
           prompt: `Remets la phrase dans l'ordre : ${sentence.fr}`,
           tokens: shuffle(sentence.en.split(' ')),
           answer: sentence.en,
-          explanation: sentence.en,
+          explanation: `${sentence.en} — ${sentence.fr}`,
+        });
+      else if (type === 'dictation')
+        questions.push({
+          type,
+          prompt: 'Écoute puis reconstitue la phrase',
+          tokens: shuffle(sentence.en.split(' ')),
+          answer: sentence.en,
+          audio: sentence.en,
+          explanation: `${sentence.en} — ${sentence.fr}`,
         });
       else if (type === 'speak')
         questions.push({ type, prompt: 'Prononce cette phrase à voix haute', answer: sentence.en, explanation: sentence.fr });
@@ -79,15 +109,15 @@ export function buildQuestions(level: Level, lesson: Lesson): Question[] {
           .map((item) => item.en);
         questions.push({
           type,
-          prompt: type === 'listen' ? 'Écoute et choisis la bonne phrase' : `Traduis : ${sentence.fr}`,
+          prompt: 'Écoute et choisis la bonne phrase',
           options: shuffle([sentence.en, ...alternatives]),
           answer: sentence.en,
           explanation: `${sentence.en} = ${sentence.fr}`,
-          audio: type === 'listen' ? sentence.en : undefined,
+          audio: sentence.en,
         });
       }
     });
-  return shuffle(questions).slice(0, 10);
+  return shuffle(questions).slice(0, TOTAL_QUESTIONS);
 }
 
 export function normalized(value: string) {
