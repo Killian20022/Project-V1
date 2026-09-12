@@ -1,18 +1,24 @@
 import { useMemo, useState } from 'react';
-import { Heart, Volume2, X, ArrowRight } from 'lucide-react';
+import { Heart, Volume2, X, ArrowRight, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { buildQuestions, normalized } from '@/lib/exercises';
+import { buildQuestions, normalized, speechMatches } from '@/lib/exercises';
 import { speak } from '@/lib/speak';
 import type { Lesson, Level } from '../types';
 
 const TYPE_LABEL: Record<string, string> = {
   qcm: 'Choix multiple',
-  fill: 'Compléter',
+  fill: 'Complète avec le bon mot',
   order: 'Remettre en ordre',
   listen: 'Écoute',
   speak: 'Prononciation',
 };
+
+// Reconnaissance vocale du navigateur (Chrome/Edge)
+const SpeechRec: any =
+  typeof window !== 'undefined'
+    ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null
+    : null;
 
 export function ExercisePage({
   level,
@@ -35,11 +41,13 @@ export function ExercisePage({
   const [answer, setAnswer] = useState('');
   const [ordered, setOrdered] = useState<string[]>([]);
   const [result, setResult] = useState<boolean | null>(null);
+  const [listening, setListening] = useState(false);
+  const [heard, setHeard] = useState('');
   const question = questions[position];
 
-  function grade(value: string) {
+  function grade(value: string, forceSuccess?: boolean) {
     if (result !== null) return;
-    const success = normalized(value) === normalized(question.answer);
+    const success = forceSuccess !== undefined ? forceSuccess : normalized(value) === normalized(question.answer);
     setAnswer(value);
     setResult(success);
     if (success) {
@@ -55,6 +63,31 @@ export function ExercisePage({
     }
   }
 
+  function listenSpeak() {
+    if (!SpeechRec || result !== null || listening) return;
+    const rec = new SpeechRec();
+    rec.lang = 'en-US';
+    rec.interimResults = false;
+    rec.maxAlternatives = 3;
+    setHeard('');
+    setListening(true);
+    rec.onresult = (event: any) => {
+      const alts: string[] = Array.from(event.results[0]).map((r: any) => r.transcript);
+      const said = alts[0] ?? '';
+      setHeard(said);
+      setListening(false);
+      const ok = alts.some((a) => speechMatches(a, question.answer));
+      grade(said, ok);
+    };
+    rec.onerror = () => setListening(false);
+    rec.onend = () => setListening(false);
+    try {
+      rec.start();
+    } catch {
+      setListening(false);
+    }
+  }
+
   function next() {
     if (hearts <= 0 || position === questions.length - 1) {
       onFinish(correct, questions.length, maxCombo);
@@ -64,6 +97,7 @@ export function ExercisePage({
     setAnswer('');
     setOrdered([]);
     setResult(null);
+    setHeard('');
   }
 
   if (!question) return null;
@@ -128,25 +162,33 @@ export function ExercisePage({
           )}
 
           {question.type === 'fill' && (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                grade(answer);
-              }}
-              className="space-y-3"
-            >
-              <input
-                className="w-full rounded-lg border border-input bg-background px-4 py-3 outline-none focus:border-primary"
-                disabled={result !== null}
-                value={answer}
-                onChange={(event) => setAnswer(event.target.value)}
-                placeholder="Ta réponse…"
-                autoFocus
-              />
-              <Button type="submit" className="w-full" disabled={result !== null}>
-                Vérifier
-              </Button>
-            </form>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Sens : <span className="text-foreground">{question.fr}</span>
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {question.options.map((option) => {
+                  const isAnswer = result !== null && normalized(option) === normalized(question.answer);
+                  const isWrong = result === false && option === answer;
+                  return (
+                    <button
+                      key={option}
+                      disabled={result !== null}
+                      onClick={() => grade(option)}
+                      className={`rounded-lg border px-4 py-3 text-center font-medium transition ${
+                        isAnswer
+                          ? 'border-emerald-500 bg-emerald-500/10'
+                          : isWrong
+                            ? 'border-red-500 bg-red-500/10'
+                            : 'border-border hover:border-primary/60 hover:bg-secondary'
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
 
           {question.type === 'order' && (
@@ -186,15 +228,32 @@ export function ExercisePage({
               <Button variant="outline" onClick={() => speak(question.answer)}>
                 <Volume2 /> Écouter le modèle
               </Button>
-              <p className="text-sm text-muted-foreground">Prononce la phrase à voix haute, puis indique si tu as réussi.</p>
-              <div className="flex gap-2">
-                <Button variant="ghost" className="flex-1" disabled={result !== null} onClick={() => grade('')}>
-                  À retravailler
-                </Button>
-                <Button className="flex-1" disabled={result !== null} onClick={() => grade(question.answer)}>
-                  J'ai réussi
-                </Button>
-              </div>
+              {SpeechRec ? (
+                <>
+                  <Button className="w-full" size="lg" disabled={result !== null || listening} onClick={listenSpeak}>
+                    <Mic /> {listening ? 'Je t’écoute… parle !' : 'Parler dans le micro'}
+                  </Button>
+                  {heard && (
+                    <p className="text-sm text-muted-foreground">
+                      Tu as dit : <span className="text-foreground">« {heard} »</span>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Ton navigateur ne gère pas le micro (essaie Chrome). Prononce la phrase, puis indique si tu as réussi.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" className="flex-1" disabled={result !== null} onClick={() => grade('', false)}>
+                      À retravailler
+                    </Button>
+                    <Button className="flex-1" disabled={result !== null} onClick={() => grade(question.answer, true)}>
+                      J'ai réussi
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

@@ -3,22 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SHOP } from '@/data/shop';
 import { TROPHIES, type Trophy } from '@/lib/trophies';
-import { Walkers } from '@/components/Walkers';
 import type { GameState, Page } from '../types';
 
 const asset = (file: string) => `${import.meta.env.BASE_URL}assets/${file}`;
 
 // Tailles de frame pour les personnages (spritesheets) — pour n'afficher qu'une image
 const CHAR_FRAME: Record<string, number> = { chicken: 16, farmer: 48, cow: 32 };
-
-// Décor d'ambiance toujours présent (fichiers hors boutique) pour une île vivante
-const AMBIENT: { file: string; left: number; top: number; size: number; sway?: boolean }[] = [
-  { file: 'tree_big.png', left: 6, top: 46, size: 96, sway: true },
-  { file: 'tree_small.png', left: 92, top: 40, size: 64, sway: true },
-  { file: 'tree_big.png', left: 78, top: 32, size: 80, sway: true },
-  { file: 'house.png', left: 24, top: 30, size: 92 },
-  { file: 'tree_small.png', left: 44, top: 26, size: 54, sway: true },
-];
 
 // Emplacements des objets achetés (zone herbe à gauche/centre, on évite le lac à droite)
 const ISLAND_POS: [number, number][] = [
@@ -99,19 +89,6 @@ export function IslandPage({ state, navigate }: { state: GameState; navigate: (p
           <div className="eq-shimmer absolute left-1/2 top-4 h-2.5 w-28 -translate-x-1/2 rounded-full bg-white/70 blur-[2px]" />
         </div>
 
-        {/* décor d'ambiance */}
-        {AMBIENT.map((d, i) => (
-          <div
-            key={`amb-${i}`}
-            className="absolute -translate-x-1/2 -translate-y-1/2"
-            style={{ left: `${d.left}%`, top: `${d.top}%` }}
-          >
-            <div className={d.sway ? 'eq-sway' : ''} style={{ animationDelay: `${i * 0.5}s` }}>
-              <img src={asset(d.file)} alt="" style={{ width: d.size, imageRendering: 'pixelated' }} draggable={false} />
-            </div>
-          </div>
-        ))}
-
         {/* objets achetés */}
         {ownedItems.map((item, i) => {
           const [left, top] = ISLAND_POS[i % ISLAND_POS.length];
@@ -129,9 +106,6 @@ export function IslandPage({ state, navigate }: { state: GameState; navigate: (p
             </div>
           );
         })}
-
-        {/* personnages qui se promènent en bas */}
-        <Walkers />
 
         {/* panneau info */}
         <div className="absolute bottom-4 left-4 z-10 flex items-center gap-1.5 rounded-xl bg-background/70 px-4 py-2 text-sm font-semibold backdrop-blur">
