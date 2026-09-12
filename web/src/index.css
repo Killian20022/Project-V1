@@ -85,6 +85,16 @@ h3,
   0%, 100% { opacity: 0.75; }
   50% { opacity: 1; }
 }
+@keyframes eq-ripple-a {
+  from { background-position: 0 0; }
+  to { background-position: 240px 0; }
+}
+@keyframes eq-ripple-b {
+  from { background-position: 0 0; }
+  to { background-position: -180px 0; }
+}
+.eq-ripple-a { animation: eq-ripple-a 7s linear infinite; }
+.eq-ripple-b { animation: eq-ripple-b 11s linear infinite; }
 @keyframes eq-walk-r {
   from { left: -80px; }
   to { left: 100%; }

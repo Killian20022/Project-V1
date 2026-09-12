@@ -20,10 +20,10 @@ const AMBIENT: { file: string; left: number; top: number; size: number; sway?: b
   { file: 'tree_small.png', left: 44, top: 26, size: 54, sway: true },
 ];
 
-// Emplacements des objets achetés (zone herbe, premier plan)
+// Emplacements des objets achetés (zone herbe à gauche/centre, on évite le lac à droite)
 const ISLAND_POS: [number, number][] = [
-  [16, 62], [34, 54], [52, 66], [66, 56], [84, 64],
-  [24, 80], [42, 86], [60, 78], [78, 86], [90, 72], [37, 70],
+  [13, 58], [28, 50], [43, 60], [57, 52], [20, 74],
+  [35, 80], [50, 74], [12, 44], [40, 42], [26, 66], [52, 86],
 ];
 
 function Sprite({ id, file, size = 56 }: { id: string; file: string; size?: number }) {
@@ -75,8 +75,29 @@ export function IslandPage({ state, navigate }: { state: GameState; navigate: (p
         <div className="eq-drift absolute left-[52%] top-[5%] h-4 w-20 rounded-full bg-white/70 blur-[1px]" style={{ animationDelay: '3s' }} />
         <div className="eq-drift absolute left-[30%] top-[14%] h-4 w-16 rounded-full bg-white/60 blur-[1px]" style={{ animationDelay: '6s' }} />
 
-        {/* étang */}
-        <div className="eq-shimmer absolute bottom-[8%] right-[8%] h-20 w-40 rounded-[50%] bg-sky-300/80 shadow-inner" />
+        {/* grand lac réaliste avec vaguelettes */}
+        <div
+          className="absolute overflow-hidden"
+          style={{
+            left: '52%',
+            right: '6%',
+            bottom: '7%',
+            height: '48%',
+            borderRadius: '50%',
+            boxShadow: 'inset 0 12px 26px rgba(0,0,0,0.30), 0 0 0 4px rgba(255,255,255,0.10)',
+          }}
+        >
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg,#9fe3ff 0%,#46b0ec 40%,#2183c8 76%,#155f9c 100%)' }} />
+          <div
+            className="eq-ripple-a absolute inset-0 opacity-40"
+            style={{ backgroundImage: 'repeating-linear-gradient(96deg, transparent 0 20px, rgba(255,255,255,0.38) 20px 22px)' }}
+          />
+          <div
+            className="eq-ripple-b absolute inset-0 opacity-25"
+            style={{ backgroundImage: 'repeating-linear-gradient(92deg, transparent 0 30px, rgba(255,255,255,0.30) 30px 32px)' }}
+          />
+          <div className="eq-shimmer absolute left-1/2 top-4 h-2.5 w-28 -translate-x-1/2 rounded-full bg-white/70 blur-[2px]" />
+        </div>
 
         {/* décor d'ambiance */}
         {AMBIENT.map((d, i) => (
@@ -117,7 +138,7 @@ export function IslandPage({ state, navigate }: { state: GameState; navigate: (p
           {ownedItems.length}/{SHOP.length} objets · {state.coins} 🪙
         </div>
         {ownedItems.length === 0 && (
-          <div className="absolute bottom-4 right-4 max-w-[240px] rounded-xl bg-background/80 p-3 text-right text-xs font-semibold backdrop-blur">
+          <div className="absolute left-4 top-4 z-10 max-w-[240px] rounded-xl bg-background/80 p-3 text-xs font-semibold shadow-lg backdrop-blur">
             Gagne des pièces en faisant des leçons, puis adopte ton premier compagnon dans la boutique 🐣
           </div>
         )}

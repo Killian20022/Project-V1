@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react';
-import { Flame, Star, Coins } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Flame, Star, Coins, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Walkers } from '@/components/Walkers';
+import { VoiceSettings } from '@/components/VoiceSettings';
 import type { GameState, Page } from '../types';
 
 const NAV: { label: string; page: Page }[] = [
@@ -24,6 +25,7 @@ export function Layout({
   state: GameState;
   children: ReactNode;
 }) {
+  const [voiceOpen, setVoiceOpen] = useState(false);
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-border/60 bg-background/70 backdrop-blur">
@@ -58,9 +60,14 @@ export function Layout({
             <span className="flex items-center gap-1 rounded-full bg-secondary px-3 py-1" title="Pièces">
               <Coins className="text-amber-400" /> {state.coins}
             </span>
+            <Button variant="ghost" size="icon" onClick={() => setVoiceOpen(true)} title="Réglages de la voix" aria-label="Réglages de la voix">
+              <Volume2 />
+            </Button>
           </div>
         </div>
       </header>
+
+      <VoiceSettings open={voiceOpen} onClose={() => setVoiceOpen(false)} />
 
       <main className="mx-auto max-w-6xl px-4 pb-28 pt-8">{children}</main>
 
