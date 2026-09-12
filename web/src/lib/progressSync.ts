@@ -5,7 +5,20 @@ import type { GameState } from '../types';
 const SUPABASE_URL = 'https://ibcktknjfbipxydzvajf.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_NnCHeVeTUVDzMwxGmJ8ZlA_WpP58a-r';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+// On transmet le jeton de session Clerk à Supabase (intégration native).
+// Quand l'utilisateur est connecté, Supabase le reconnaît → les règles RLS s'appliquent.
+type ClerkWindow = { Clerk?: { session?: { getToken?: () => Promise<string | null> } } };
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  accessToken: async () => {
+    try {
+      const clerk = (window as unknown as ClerkWindow).Clerk;
+      return (await clerk?.session?.getToken?.()) ?? null;
+    } catch {
+      return null;
+    }
+  },
+});
 
 export async function loadRemoteProgress(userId: string): Promise<GameState | null> {
   try {
