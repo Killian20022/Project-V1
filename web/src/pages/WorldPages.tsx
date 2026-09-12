@@ -1,69 +1,53 @@
-import { useRef, useState } from 'react';
-import { Coins, ShoppingBag, Check, Lock, Move } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Coins, ShoppingBag, Check, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SHOP } from '@/data/shop';
 import { TROPHIES, type Trophy } from '@/lib/trophies';
+import landMask from '@/data/landMask.json';
 import type { GameState, Page } from '../types';
 
 const asset = (file: string) => `${import.meta.env.BASE_URL}assets/${file}`;
 const SHOP_MAP = Object.fromEntries(SHOP.map((s) => [s.id, s]));
 const MAX_PER_ITEM = 5;
+const ITEM_H = 44; // hauteur d'affichage IDENTIQUE pour tous les objets
+const CHAR_IDS = new Set(['chicken', 'farmer', 'cow']); // se déplacent tout seuls
 
-// Tailles de frame pour les personnages (spritesheets) — pour n'afficher qu'une image
-const CHAR_FRAME: Record<string, number> = { chicken: 16, farmer: 48, cow: 32 };
+const MASK = landMask as { cols: number; rows: number; cells: string[] };
 
-// Rendu à taille uniforme (~46px de haut) pour tous les objets
-function UniformSprite({ id, file }: { id: string; file: string }) {
-  const frame = CHAR_FRAME[id];
-  if (frame) {
-    return (
-      <div
-        style={{
-          width: frame,
-          height: frame,
-          backgroundImage: `url(${asset(file)})`,
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: '0 0',
-          imageRendering: 'pixelated',
-          transform: `scale(${46 / frame})`,
-          transformOrigin: 'bottom center',
-        }}
-      />
-    );
-  }
-  return <img src={asset(file)} alt="" style={{ height: 46, width: 'auto', imageRendering: 'pixelated' }} draggable={false} />;
+// Une position en % (0-100) est-elle sur la terre ferme ?
+function isLand(xPct: number, yPct: number) {
+  const col = Math.floor((xPct / 100) * MASK.cols);
+  const row = Math.floor((yPct / 100) * MASK.rows);
+  if (row < 0 || row >= MASK.rows || col < 0 || col >= MASK.cols) return false;
+  return MASK.cells[row]?.[col] === '1';
+}
+
+// Toutes les cases de terre (en %), pour réapparaître au hasard sur l'île
+const LAND_SPOTS: { x: number; y: number }[] = [];
+for (let r = 0; r < MASK.rows; r++)
+  for (let c = 0; c < MASK.cols; c++)
+    if (MASK.cells[r][c] === '1')
+      LAND_SPOTS.push({ x: ((c + 0.5) / MASK.cols) * 100, y: ((r + 0.5) / MASK.rows) * 100 });
+
+function randomLand(): { x: number; y: number } {
+  return LAND_SPOTS[Math.floor(Math.random() * LAND_SPOTS.length)] ?? { x: 50, y: 50 };
+}
+
+// Rendu STRICTEMENT uniforme : chips pré-détourés, même hauteur pour TOUS
+function Chip({ id }: { id: string }) {
+  return (
+    <img
+      src={asset(`chip_${id}.png`)}
+      alt=""
+      style={{ height: ITEM_H, width: 'auto', imageRendering: 'pixelated' }}
+      draggable={false}
+    />
+  );
 }
 
 export function countOwned(state: GameState, id: string) {
   return (state.placed ?? []).filter((p) => p.id === id).length;
-}
-
-// Emplacements des objets achetés, en % de la carte (posés sur les terres, hors décor)
-const ISLAND_POS: [number, number][] = [
-  [22, 30], [15, 40], [31, 36], [52, 20], [66, 34],
-  [70, 22], [66, 64], [80, 74], [58, 82], [86, 62], [18, 76],
-];
-
-function Sprite({ id, file, size = 56 }: { id: string; file: string; size?: number }) {
-  const frame = CHAR_FRAME[id];
-  if (frame) {
-    return (
-      <div
-        style={{
-          width: frame,
-          height: frame,
-          backgroundImage: `url(${asset(file)})`,
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: '0 0',
-          imageRendering: 'pixelated',
-          transform: `scale(${size / frame})`,
-          transformOrigin: 'bottom center',
-        }}
-      />
-    );
-  }
-  return <img src={asset(file)} alt="" style={{ width: size, imageRendering: 'pixelated' }} draggable={false} />;
 }
 
 export function IslandPage({
@@ -77,26 +61,95 @@ export function IslandPage({
 }) {
   const placed = state.placed ?? [];
   const sceneRef = useRef<HTMLDivElement>(null);
+
+  // position d'affichage vivante : prioritaire sur la position enregistrée
+  const [live, setLive] = useState<Record<string, { x: number; y: number }>>({});
   const [dragK, setDragK] = useState<string | null>(null);
-  const [local, setLocal] = useState<Record<string, { x: number; y: number }>>({});
+  const [drowning, setDrowning] = useState<Record<string, boolean>>({});
+  const [appearing, setAppearing] = useState<Record<string, boolean>>({});
+
+  // refs pour l'intervalle de déplacement autonome (évite les closures périmées)
+  const dragRef = useRef<string | null>(null);
+  const drownRef = useRef<Record<string, boolean>>({});
+  const placedRef = useRef(placed);
+  dragRef.current = dragK;
+  drownRef.current = drowning;
+  placedRef.current = placed;
+
+  const posOf = (pl: { k: string; x: number; y: number }) => live[pl.k] ?? { x: pl.x, y: pl.y };
+
+  // Déplacement autonome des animaux (uniquement sur la terre)
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setLive((prev) => {
+        const next = { ...prev };
+        for (const pl of placedRef.current) {
+          if (!CHAR_IDS.has(pl.id)) continue;
+          if (pl.k === dragRef.current || drownRef.current[pl.k]) continue;
+          if (Math.random() < 0.45) continue; // pause parfois
+          const base = next[pl.k] ?? { x: pl.x, y: pl.y };
+          for (let tries = 0; tries < 10; tries++) {
+            const nx = Math.min(94, Math.max(6, base.x + (Math.random() * 2 - 1) * 11));
+            const ny = Math.min(90, Math.max(14, base.y + (Math.random() * 2 - 1) * 9));
+            if (isLand(nx, ny)) {
+              next[pl.k] = { x: nx, y: ny };
+              break;
+            }
+          }
+        }
+        return next;
+      });
+    }, 2600);
+    return () => window.clearInterval(timer);
+  }, []);
 
   function onMove(e: React.PointerEvent) {
     if (!dragK || !sceneRef.current) return;
     const r = sceneRef.current.getBoundingClientRect();
     const x = Math.min(96, Math.max(4, ((e.clientX - r.left) / r.width) * 100));
-    const y = Math.min(92, Math.max(12, ((e.clientY - r.top) / r.height) * 100));
-    setLocal((p) => ({ ...p, [dragK]: { x, y } }));
+    const y = Math.min(94, Math.max(8, ((e.clientY - r.top) / r.height) * 100));
+    setLive((p) => ({ ...p, [dragK]: { x, y } }));
   }
+
   function endDrag() {
-    if (!dragK) return;
-    const pos = local[dragK];
-    if (pos) {
+    const k = dragK;
+    setDragK(null);
+    if (!k) return;
+    const pos = live[k] ?? placed.find((p) => p.k === k);
+    if (!pos) return;
+    if (isLand(pos.x, pos.y)) {
+      // posé sur la terre : on enregistre
       setState((s) => ({
         ...s,
-        placed: (s.placed ?? []).map((pl) => (pl.k === dragK ? { ...pl, x: pos.x, y: pos.y } : pl)),
+        placed: (s.placed ?? []).map((pl) => (pl.k === k ? { ...pl, x: pos.x, y: pos.y } : pl)),
       }));
+    } else {
+      // tombé dans l'eau : noyade → réapparition sur l'île
+      setDrowning((d) => ({ ...d, [k]: true }));
+      window.setTimeout(() => {
+        const dest = randomLand();
+        setLive((p) => ({ ...p, [k]: dest }));
+        setDrowning((d) => {
+          const n = { ...d };
+          delete n[k];
+          return n;
+        });
+        setAppearing((a) => ({ ...a, [k]: true }));
+        setState((s) => ({
+          ...s,
+          placed: (s.placed ?? []).map((pl) => (pl.k === k ? { ...pl, x: dest.x, y: dest.y } : pl)),
+        }));
+        window.setTimeout(
+          () =>
+            setAppearing((a) => {
+              const n = { ...a };
+              delete n[k];
+              return n;
+            }),
+          650,
+        );
+      }, 900);
     }
-    setDragK(null);
   }
 
   return (
@@ -104,7 +157,7 @@ export function IslandPage({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Mon île</h1>
-          <p className="text-muted-foreground">Glisse tes objets pour les placer où tu veux. ✋</p>
+          <p className="text-muted-foreground">Glisse tes objets pour les placer où tu veux. Les animaux se promènent tout seuls 🐾</p>
         </div>
         <Button variant="outline" onClick={() => navigate('shop')}>
           <ShoppingBag /> Boutique
@@ -164,24 +217,38 @@ export function IslandPage({
         {placed.map((pl) => {
           const item = SHOP_MAP[pl.id];
           if (!item) return null;
-          const pos = local[pl.k] ?? { x: pl.x, y: pl.y };
-          const dragging = dragK === pl.k;
+          const pos = posOf(pl);
+          const isDragging = dragK === pl.k;
+          const isDrowning = !!drowning[pl.k];
+          const isAppearing = !!appearing[pl.k];
+          const isChar = CHAR_IDS.has(pl.id);
+          const smooth = isChar && !isDragging && !isDrowning && !isAppearing;
           return (
             <div
               key={pl.k}
               onPointerDown={(e) => {
+                if (isDrowning) return;
                 e.preventDefault();
-                setLocal((p) => ({ ...p, [pl.k]: { x: pl.x, y: pl.y } }));
+                setLive((p) => ({ ...p, [pl.k]: posOf(pl) }));
                 setDragK(pl.k);
               }}
               className={`absolute -translate-x-1/2 -translate-y-1/2 select-none drop-shadow-lg ${
-                dragging ? 'z-20 scale-110 cursor-grabbing' : 'cursor-grab'
+                isDragging ? 'z-30 scale-110 cursor-grabbing' : 'cursor-grab'
               }`}
-              style={{ left: `${pos.x}%`, top: `${pos.y}%`, touchAction: 'none' }}
+              style={{
+                left: `${pos.x}%`,
+                top: `${pos.y}%`,
+                touchAction: 'none',
+                transition: smooth ? 'left 2.4s ease-in-out, top 2.4s ease-in-out' : 'none',
+                zIndex: isDrowning ? 5 : undefined,
+              }}
               title={`${item.name} — glisse pour déplacer`}
             >
-              <div className={item.kind === 'char' && !dragging ? 'eq-bob' : ''}>
-                <UniformSprite id={item.id} file={item.file} />
+              {isDrowning && (
+                <div className="eq-splash pointer-events-none absolute left-1/2 top-1/2 h-8 w-8 rounded-full border-2 border-sky-100/70" />
+              )}
+              <div className={`${isDrowning ? 'eq-drown' : isAppearing ? 'eq-appear' : isChar && !isDragging ? 'eq-bob' : ''}`}>
+                <Chip id={pl.id} />
               </div>
             </div>
           );
@@ -214,8 +281,7 @@ export function ShopPage({
       const count = (current.placed ?? []).filter((p) => p.id === id).length;
       if (count >= MAX_PER_ITEM || current.coins < price) return current;
       const k = `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-      const x = 28 + (count % 3) * 12 + Math.random() * 6;
-      const y = 34 + Math.floor(count / 3) * 12 + Math.random() * 6;
+      const { x, y } = randomLand(); // apparait toujours sur la terre ferme
       return { ...current, coins: current.coins - price, placed: [...(current.placed ?? []), { k, id, x, y }] };
     });
   }
@@ -250,7 +316,7 @@ export function ShopPage({
                   <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
                     <div className="grid h-24 w-full place-items-center rounded-xl bg-gradient-to-b from-sky-300/10 to-transparent">
                       <div className={count > 0 && item.kind === 'char' ? 'eq-bob' : ''}>
-                        <UniformSprite id={item.id} file={item.file} />
+                        <Chip id={item.id} />
                       </div>
                     </div>
                     <div className="font-semibold">{item.name}</div>
