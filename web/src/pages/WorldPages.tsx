@@ -51,15 +51,48 @@ export function IslandPage({ state, navigate }: { state: GameState; navigate: (p
         </Button>
       </div>
 
-      <div className="relative w-full overflow-hidden rounded-2xl border border-border shadow-xl shadow-black/40">
-        {/* vraie carte pixel-art */}
+      <div className="relative aspect-[8/5] w-full overflow-hidden rounded-2xl border border-border shadow-xl shadow-black/40">
+        {/* eau animée (fond) */}
+        <div
+          className="absolute inset-0"
+          style={{ backgroundImage: `url(${asset('water_tile.png')})`, backgroundSize: '34px', imageRendering: 'pixelated' }}
+        />
+        <div
+          className="eq-ripple-a absolute inset-0 opacity-25"
+          style={{ backgroundImage: 'repeating-linear-gradient(96deg, transparent 0 22px, rgba(255,255,255,0.18) 22px 24px)' }}
+        />
+        <div
+          className="eq-ripple-b absolute inset-0 opacity-15"
+          style={{ backgroundImage: 'repeating-linear-gradient(92deg, transparent 0 34px, rgba(255,255,255,0.14) 34px 36px)' }}
+        />
+
+        {/* terre (calque transparent posé sur l'eau) */}
         <img
-          src={asset('island_map.png')}
+          src={asset('island_land.png')}
           alt="Ton île"
-          className="block w-full select-none"
+          className="absolute inset-0 h-full w-full select-none"
           style={{ imageRendering: 'pixelated' }}
           draggable={false}
         />
+
+        {/* nuages qui dérivent */}
+        <div className="eq-walk-r absolute top-[6%] h-6 w-28 rounded-full bg-white/40 blur-md" style={{ animationDuration: '46s' }} />
+        <div className="eq-walk-r absolute top-[30%] h-5 w-20 rounded-full bg-white/30 blur-md" style={{ animationDuration: '64s', animationDelay: '10s' }} />
+        <div className="eq-walk-r absolute top-[70%] h-7 w-36 rounded-full bg-white/25 blur-md" style={{ animationDuration: '80s', animationDelay: '24s' }} />
+
+        {/* oiseaux */}
+        {[
+          { top: 12, dur: 30, delay: 3 },
+          { top: 20, dur: 38, delay: 14 },
+        ].map((b, i) => (
+          <div key={`bird-${i}`} className="eq-walk-r absolute" style={{ top: `${b.top}%`, animationDuration: `${b.dur}s`, animationDelay: `${b.delay}s` }}>
+            <div className="eq-bob">
+              <svg width="18" height="9" viewBox="0 0 18 9" fill="none">
+                <path d="M1 7 Q4.5 1 8 7 Q11.5 1 17 7" stroke="rgba(20,30,45,0.55)" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+            </div>
+          </div>
+        ))}
 
         {/* objets achetés */}
         {ownedItems.map((item, i) => {
