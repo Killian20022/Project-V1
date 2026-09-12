@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ClerkProvider } from '@clerk/clerk-react';
+import { dark } from '@clerk/themes';
 import App from './App';
 import './index.css';
 
@@ -12,6 +13,7 @@ createRoot(document.getElementById('root')!).render(
     <ClerkProvider
       publishableKey={PUBLISHABLE_KEY}
       appearance={{
+        baseTheme: dark,
         variables: {
           colorPrimary: '#38bdf8',
           colorBackground: '#0c1424',
@@ -19,6 +21,7 @@ createRoot(document.getElementById('root')!).render(
           colorTextSecondary: '#a8bed8',
           colorInputBackground: '#111c30',
           colorInputText: '#eaf3ff',
+          colorNeutral: '#eaf3ff',
           borderRadius: '0.85rem',
         },
       }}
