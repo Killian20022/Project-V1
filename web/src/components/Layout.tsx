@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Flame, Star, Coins, Volume2 } from 'lucide-react';
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react';
 import { Button } from '@/components/ui/button';
 import { Walkers } from '@/components/Walkers';
 import { VoiceSettings } from '@/components/VoiceSettings';
@@ -63,6 +64,18 @@ export function Layout({
             <Button variant="ghost" size="icon" onClick={() => setVoiceOpen(true)} title="Réglages de la voix" aria-label="Réglages de la voix">
               <Volume2 />
             </Button>
+
+            <SignedOut>
+              <SignInButton mode="modal">
+                <Button variant="outline" size="sm">Connexion</Button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <Button size="sm">S'inscrire</Button>
+              </SignUpButton>
+            </SignedOut>
+            <SignedIn>
+              <UserButton afterSignOutUrl="/" />
+            </SignedIn>
           </div>
         </div>
       </header>
