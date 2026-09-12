@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Palette « bleu glacial » sombre premium */
+  --background: 216 54% 6%;
+  --foreground: 205 45% 97%;
+  --card: 214 46% 11%;
+  --card-foreground: 205 45% 97%;
+  --primary: 196 100% 60%;
+  --primary-foreground: 216 60% 7%;
+  --secondary: 214 38% 17%;
+  --secondary-foreground: 205 45% 97%;
+  --muted: 214 34% 15%;
+  --muted-foreground: 208 28% 70%;
+  --accent: 205 100% 66%;
+  --accent-foreground: 216 60% 7%;
+  --border: 205 42% 22%;
+  --input: 205 42% 24%;
+  --ring: 196 100% 62%;
+  --radius: 1rem;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 620px at 82% -14%, hsl(196 100% 60% / 0.18), transparent 60%),
+    radial-gradient(880px 520px at -6% 4%, hsl(205 100% 62% / 0.14), transparent 55%),
+    radial-gradient(760px 560px at 50% 118%, hsl(210 100% 55% / 0.10), transparent 62%),
+    linear-gradient(180deg, hsl(216 56% 7%), hsl(217 60% 5%));
+  color: hsl(var(--foreground));
+  font-family: 'Nunito', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: 'Baloo 2', 'Nunito', ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Effets premium réutilisables */
+.glass {
+  background:
+    linear-gradient(180deg, hsl(205 60% 30% / 0.12), hsl(214 46% 11% / 0.55));
+  backdrop-filter: blur(10px);
+  border: 1px solid hsl(205 60% 60% / 0.12);
+}
+
+.glow-primary {
+  box-shadow: 0 0 0 1px hsl(196 100% 60% / 0.25), 0 10px 40px -12px hsl(196 100% 60% / 0.45);
+}
+
+.text-glow {
+  text-shadow: 0 0 24px hsl(196 100% 60% / 0.45);
+}
+
+/* Barres de défilement */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(214 38% 22%);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(205 60% 30%);
+}
