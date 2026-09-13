@@ -67,6 +67,7 @@ export interface PlacedItem {
   id: string;
   x: number;
   y: number;
+  rot?: number; // rotation en degrés (0, 90, 180, 270) — molette sur un objet sélectionné
 }
 
 export interface SavedWord {

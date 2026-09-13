@@ -34,13 +34,20 @@ function randomLand(): { x: number; y: number } {
   return LAND_SPOTS[Math.floor(Math.random() * LAND_SPOTS.length)] ?? { x: 50, y: 50 };
 }
 
-// Rendu STRICTEMENT uniforme : chips pré-détourés, même hauteur pour TOUS
-function Chip({ id }: { id: string }) {
+// Rendu STRICTEMENT uniforme : chips pré-détourés, même hauteur pour TOUS.
+// `rot` (degrés) permet de tourner un objet (molette sur un objet sélectionné).
+function Chip({ id, rot = 0 }: { id: string; rot?: number }) {
   return (
     <img
       src={asset(`chip_${id}.png`)}
       alt=""
-      style={{ height: ITEM_H, width: 'auto', imageRendering: 'pixelated' }}
+      style={{
+        height: ITEM_H,
+        width: 'auto',
+        imageRendering: 'pixelated',
+        transform: rot ? `rotate(${rot}deg)` : undefined,
+        transition: 'transform 0.15s ease',
+      }}
       draggable={false}
     />
   );
@@ -65,6 +72,7 @@ export function IslandPage({
   // position d'affichage vivante : prioritaire sur la position enregistrée
   const [live, setLive] = useState<Record<string, { x: number; y: number }>>({});
   const [dragK, setDragK] = useState<string | null>(null);
+  const [selectedK, setSelectedK] = useState<string | null>(null);
   const [drowning, setDrowning] = useState<Record<string, boolean>>({});
   const [appearing, setAppearing] = useState<Record<string, boolean>>({});
 
@@ -72,9 +80,11 @@ export function IslandPage({
   const dragRef = useRef<string | null>(null);
   const drownRef = useRef<Record<string, boolean>>({});
   const placedRef = useRef(placed);
+  const selRef = useRef<string | null>(null);
   dragRef.current = dragK;
   drownRef.current = drowning;
   placedRef.current = placed;
+  selRef.current = selectedK;
 
   const posOf = (pl: { k: string; x: number; y: number }) => live[pl.k] ?? { x: pl.x, y: pl.y };
 
@@ -101,6 +111,30 @@ export function IslandPage({
       });
     }, 2600);
     return () => window.clearInterval(timer);
+  }, []);
+
+  // Rotation à la molette de l'objet sélectionné (décors uniquement).
+  // Chaque cran = 90° → passe du vertical à l'horizontal et inversement.
+  useEffect(() => {
+    const el = sceneRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      const k = selRef.current;
+      if (!k) return;
+      const pl = placedRef.current.find((p) => p.k === k);
+      if (!pl || CHAR_IDS.has(pl.id)) return; // les animaux ne tournent pas
+      e.preventDefault();
+      const dir = e.deltaY > 0 ? 1 : -1;
+      setState((s) => ({
+        ...s,
+        placed: (s.placed ?? []).map((p) =>
+          p.k === k ? { ...p, rot: ((((p.rot ?? 0) + dir * 90) % 360) + 360) % 360 } : p,
+        ),
+      }));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function onMove(e: React.PointerEvent) {
@@ -157,7 +191,9 @@ export function IslandPage({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Mon île</h1>
-          <p className="text-muted-foreground">Glisse tes objets pour les placer où tu veux. Les animaux se promènent tout seuls 🐾</p>
+          <p className="text-muted-foreground">
+            Glisse tes objets pour les placer. Clique un décor puis tourne-le avec la molette 🔄 — les animaux se promènent tout seuls 🐾
+          </p>
         </div>
         <Button variant="outline" onClick={() => navigate('shop')}>
           <ShoppingBag /> Boutique
@@ -166,6 +202,7 @@ export function IslandPage({
 
       <div
         ref={sceneRef}
+        onPointerDown={() => setSelectedK(null)}
         onPointerMove={onMove}
         onPointerUp={endDrag}
         onPointerLeave={endDrag}
@@ -219,6 +256,7 @@ export function IslandPage({
           if (!item) return null;
           const pos = posOf(pl);
           const isDragging = dragK === pl.k;
+          const isSelected = selectedK === pl.k;
           const isDrowning = !!drowning[pl.k];
           const isAppearing = !!appearing[pl.k];
           const isChar = CHAR_IDS.has(pl.id);
@@ -229,12 +267,14 @@ export function IslandPage({
               onPointerDown={(e) => {
                 if (isDrowning) return;
                 e.preventDefault();
+                e.stopPropagation();
+                setSelectedK(pl.k);
                 setLive((p) => ({ ...p, [pl.k]: posOf(pl) }));
                 setDragK(pl.k);
               }}
               className={`absolute -translate-x-1/2 -translate-y-1/2 select-none drop-shadow-lg ${
                 isDragging ? 'z-30 scale-110 cursor-grabbing' : 'cursor-grab'
-              }`}
+              } ${isSelected ? 'z-40 rounded-md ring-2 ring-sky-300' : ''}`}
               style={{
                 left: `${pos.x}%`,
                 top: `${pos.y}%`,
@@ -242,13 +282,13 @@ export function IslandPage({
                 transition: smooth ? 'left 2.4s ease-in-out, top 2.4s ease-in-out' : 'none',
                 zIndex: isDrowning ? 5 : undefined,
               }}
-              title={`${item.name} — glisse pour déplacer`}
+              title={`${item.name} — glisse pour déplacer${!isChar ? ' · molette pour tourner' : ''}`}
             >
               {isDrowning && (
                 <div className="eq-splash pointer-events-none absolute left-1/2 top-1/2 h-8 w-8 rounded-full border-2 border-sky-100/70" />
               )}
               <div className={`${isDrowning ? 'eq-drown' : isAppearing ? 'eq-appear' : isChar && !isDragging ? 'eq-bob' : ''}`}>
-                <Chip id={pl.id} />
+                <Chip id={pl.id} rot={pl.rot} />
               </div>
             </div>
           );
