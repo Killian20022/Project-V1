@@ -15,8 +15,21 @@ const CHAR_IDS = new Set(['chicken', 'farmer', 'cow']); // se déplacent tout se
 const BRIDGE_IDS = new Set(['bridge']); // seuls les ponts peuvent tenir sur l'eau
 const BRIDGE_H = 72; // les ponts sont plus grands que les autres objets
 
-// Hauteur d'affichage d'un objet (les ponts sont volontairement plus gros)
-const sizeOf = (id: string) => (BRIDGE_IDS.has(id) ? BRIDGE_H : ITEM_H);
+// Hauteur d'affichage par objet. Le pont est volontairement grand ; le pommier
+// est gros et le buisson petit (échange demandé). Les autres gardent ITEM_H.
+const SIZE: Record<string, number> = { bridge: BRIDGE_H, tree: 64, bush: 40 };
+const sizeOf = (id: string) => SIZE[id] ?? ITEM_H;
+
+// Demi-dimensions (en % de la scène) de l'empreinte d'un pont, selon sa rotation.
+// Sert à savoir si un point tombe « sur » un pont (zone marchable au-dessus de l'eau).
+const BRIDGE_W_RATIO = 16 / 43; // ratio largeur/hauteur du chip du pont
+function bridgeHalfExtentsPct(rot: number, rect: { width: number; height: number }) {
+  const wpx = BRIDGE_H * BRIDGE_W_RATIO;
+  const vertical = rot % 180 === 0;
+  const halfWpx = (vertical ? wpx : BRIDGE_H) / 2;
+  const halfHpx = (vertical ? BRIDGE_H : wpx) / 2;
+  return { hx: (halfWpx / rect.width) * 100, hy: (halfHpx / rect.height) * 100 };
+}
 
 const MASK = landMask as { cols: number; rows: number; cells: string[] };
 
@@ -93,11 +106,27 @@ export function IslandPage({
 
   const posOf = (pl: { k: string; x: number; y: number }) => live[pl.k] ?? { x: pl.x, y: pl.y };
 
-  // Déplacement autonome des animaux (uniquement sur la terre)
+  // Déplacement autonome des animaux : sur la terre OU sur un pont (les ponts
+  // enjambent l'eau, donc les animaux peuvent les traverser).
   useEffect(() => {
     const timer = window.setInterval(() => {
+      const rect = sceneRef.current?.getBoundingClientRect();
       setLive((prev) => {
         const next = { ...prev };
+        // empreinte actuelle de chaque pont (position vivante prioritaire)
+        const bridges =
+          rect && rect.width && rect.height
+            ? placedRef.current
+                .filter((p) => BRIDGE_IDS.has(p.id))
+                .map((b) => {
+                  const bp = prev[b.k] ?? { x: b.x, y: b.y };
+                  const { hx, hy } = bridgeHalfExtentsPct(b.rot ?? 0, rect);
+                  return { x: bp.x, y: bp.y, hx, hy };
+                })
+            : [];
+        const onBridge = (x: number, y: number) =>
+          bridges.some((b) => Math.abs(x - b.x) <= b.hx && Math.abs(y - b.y) <= b.hy);
+        const walkable = (x: number, y: number) => isLand(x, y) || onBridge(x, y);
         for (const pl of placedRef.current) {
           if (!CHAR_IDS.has(pl.id)) continue;
           if (pl.k === dragRef.current || drownRef.current[pl.k]) continue;
@@ -106,7 +135,7 @@ export function IslandPage({
           for (let tries = 0; tries < 10; tries++) {
             const nx = Math.min(94, Math.max(6, base.x + (Math.random() * 2 - 1) * 11));
             const ny = Math.min(90, Math.max(14, base.y + (Math.random() * 2 - 1) * 9));
-            if (isLand(nx, ny)) {
+            if (walkable(nx, ny)) {
               next[pl.k] = { x: nx, y: ny };
               break;
             }
@@ -150,6 +179,18 @@ export function IslandPage({
     setLive((p) => ({ ...p, [dragK]: { x, y } }));
   }
 
+  // Un point tombe-t-il sur un pont déjà posé ? (zone marchable au-dessus de l'eau)
+  function onABridge(x: number, y: number, excludeK?: string) {
+    const rect = sceneRef.current?.getBoundingClientRect();
+    if (!rect || !rect.width || !rect.height) return false;
+    return placed.some((b) => {
+      if (!BRIDGE_IDS.has(b.id) || b.k === excludeK) return false;
+      const bp = live[b.k] ?? { x: b.x, y: b.y };
+      const { hx, hy } = bridgeHalfExtentsPct(b.rot ?? 0, rect);
+      return Math.abs(x - bp.x) <= hx && Math.abs(y - bp.y) <= hy;
+    });
+  }
+
   function endDrag() {
     const k = dragK;
     setDragK(null);
@@ -158,8 +199,8 @@ export function IslandPage({
     const pos = live[k] ?? plItem;
     if (!pos) return;
     const canFloat = plItem ? BRIDGE_IDS.has(plItem.id) : false;
-    if (isLand(pos.x, pos.y) || canFloat) {
-      // posé sur la terre, ou pont (qui peut tenir sur l'eau) : on enregistre
+    if (isLand(pos.x, pos.y) || canFloat || onABridge(pos.x, pos.y, k)) {
+      // posé sur la terre, sur un pont, ou pont lui-même (qui tient sur l'eau) : on enregistre
       setState((s) => ({
         ...s,
         placed: (s.placed ?? []).map((pl) => (pl.k === k ? { ...pl, x: pos.x, y: pos.y } : pl)),
