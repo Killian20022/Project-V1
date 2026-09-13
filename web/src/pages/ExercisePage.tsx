@@ -3,6 +3,7 @@ import { Heart, Volume2, X, ArrowRight, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { buildQuestions, normalized, speechMatches, shuffle } from '@/lib/exercises';
+import type { Question } from '@/lib/exercises';
 import { speak } from '@/lib/speak';
 import type { Lesson, Level } from '../types';
 
@@ -27,14 +28,24 @@ export function ExercisePage({
   lesson,
   onFinish,
   onQuit,
+  reviewQuestions,
+  onGrade,
 }: {
   level: Level;
-  index: number;
-  lesson: Lesson;
+  index?: number;
+  lesson?: Lesson;
   onFinish: (correct: number, total: number, maxCombo: number) => void;
   onQuit: () => void;
+  // Mode révision : questions pré-construites (une par carte SRS)
+  reviewQuestions?: Question[];
+  // Remonté à chaque réponse en mode révision (pour reprogrammer la carte)
+  onGrade?: (index: number, success: boolean) => void;
 }) {
-  const questions = useMemo(() => buildQuestions(level, lesson), [level, lesson]);
+  const reviewMode = !!reviewQuestions;
+  const questions = useMemo(
+    () => reviewQuestions ?? buildQuestions(level, lesson as Lesson),
+    [level, lesson, reviewQuestions],
+  );
   const [position, setPosition] = useState(0);
   const [correct, setCorrect] = useState(0);
   const [combo, setCombo] = useState(0);
@@ -69,8 +80,9 @@ export function ExercisePage({
       });
     } else {
       setCombo(0);
-      setHearts((count) => Math.max(0, count - 1));
+      if (!reviewMode) setHearts((count) => Math.max(0, count - 1));
     }
+    onGrade?.(position, success);
   }
 
   function listenSpeak() {
@@ -113,7 +125,7 @@ export function ExercisePage({
   }
 
   function next() {
-    if (hearts <= 0 || position === questions.length - 1) {
+    if ((!reviewMode && hearts <= 0) || position === questions.length - 1) {
       onFinish(correct, questions.length, maxCombo);
       return;
     }
@@ -137,11 +149,15 @@ export function ExercisePage({
         <span className="text-sm text-muted-foreground">
           {position + 1} / {questions.length}
         </span>
-        <span className="flex items-center gap-0.5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Heart key={i} className={i < hearts ? 'size-5 fill-red-500 text-red-500' : 'size-5 text-secondary'} />
-          ))}
-        </span>
+        {reviewMode ? (
+          <span className="text-sm font-semibold text-primary">🧠 Révision</span>
+        ) : (
+          <span className="flex items-center gap-0.5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Heart key={i} className={i < hearts ? 'size-5 fill-red-500 text-red-500' : 'size-5 text-secondary'} />
+            ))}
+          </span>
+        )}
       </div>
 
       <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
@@ -352,7 +368,7 @@ export function ExercisePage({
 
           {result !== null && (
             <Button className="w-full" size="lg" onClick={next}>
-              {hearts <= 0 || position === questions.length - 1 ? 'Voir le résultat' : 'Continuer'} <ArrowRight />
+              {(!reviewMode && hearts <= 0) || position === questions.length - 1 ? 'Voir le résultat' : 'Continuer'} <ArrowRight />
             </Button>
           )}
         </CardContent>

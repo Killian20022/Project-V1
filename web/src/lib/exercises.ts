@@ -18,7 +18,7 @@ function escapeRegExp(value: string) {
 }
 
 function words(sentence: string): string[] {
-  return sentence.replace(/[.,!?;:'’"]/g, '').split(/\s+/).filter(Boolean);
+  return sentence.replace(/[.,!?;:''"]/g, '').split(/\s+/).filter(Boolean);
 }
 
 // Texte à trou : on cache un mot, on montre la traduction, et on propose des mots à choisir → jamais ambigu.
@@ -120,10 +120,54 @@ export function buildQuestions(level: Level, lesson: Lesson): Question[] {
   return shuffle(questions).slice(0, TOTAL_QUESTIONS);
 }
 
+// Construit UNE question de révision à partir d'une carte SRS.
+// Le type d'exercice est tiré au hasard (jamais « match » ni « qcm de leçon »,
+// qui ne s'appliquent pas à une phrase isolée).
+export function buildReviewQuestion(card: { level: Level; en: string; fr: string }): Question {
+  const sentence: Sentence = { en: card.en, fr: card.fr };
+  const level = card.level;
+  const types: Exclude<Question['type'], 'qcm' | 'match'>[] = ['fill', 'order', 'dictation', 'listen', 'speak'];
+  const type = types[Math.floor(Math.random() * types.length)];
+
+  if (type === 'fill') return fillQuestion(level, sentence);
+  if (type === 'order')
+    return {
+      type: 'order',
+      prompt: `Remets la phrase dans l'ordre : ${sentence.fr}`,
+      tokens: shuffle(sentence.en.split(' ')),
+      answer: sentence.en,
+      explanation: `${sentence.en} — ${sentence.fr}`,
+    };
+  if (type === 'dictation')
+    return {
+      type: 'dictation',
+      prompt: 'Écoute puis reconstitue la phrase',
+      tokens: shuffle(sentence.en.split(' ')),
+      answer: sentence.en,
+      audio: sentence.en,
+      explanation: `${sentence.en} — ${sentence.fr}`,
+    };
+  if (type === 'speak')
+    return { type: 'speak', prompt: 'Prononce cette phrase à voix haute', answer: sentence.en, explanation: sentence.fr };
+
+  // listen
+  const alternatives = shuffle(sentencesFor(level).filter((item) => item.en !== sentence.en))
+    .slice(0, 3)
+    .map((item) => item.en);
+  return {
+    type: 'listen',
+    prompt: 'Écoute et choisis la bonne phrase',
+    options: shuffle([sentence.en, ...alternatives]),
+    answer: sentence.en,
+    explanation: `${sentence.en} = ${sentence.fr}`,
+    audio: sentence.en,
+  };
+}
+
 export function normalized(value: string) {
   return value
     .toLowerCase()
-    .replace(/[.,!?;:'’"]/g, '')
+    .replace(/[.,!?;:''"]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }

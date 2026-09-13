@@ -1,24 +1,28 @@
-import { Rocket, BookOpen, Sparkles, Target, Flame } from 'lucide-react';
+import { Rocket, BookOpen, Sparkles, Target, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Character } from '@/components/Character';
 import { LEVELS, LEVEL_INFO, lessonCount, TOTAL_LESSONS } from '@/lib/content';
+import { countDue } from '@/lib/srs';
 import type { GameState, Level, Page } from '../types';
 
 export function HomePage({
   state,
   navigate,
   openLevel,
+  onReview,
 }: {
   state: GameState;
   navigate: (page: Page) => void;
   openLevel: (level: Level) => void;
+  onReview: () => void;
 }) {
   const lessonsDone = LEVELS.reduce((sum, lv) => sum + Math.min(state.lessons[lv] ?? 0, lessonCount(lv)), 0);
   const totalLessons = TOTAL_LESSONS;
   const dailyGoal = 50;
   const dailyToday = state.dailyDate === new Date().toDateString() ? state.dailyXP : 0;
   const dailyPct = Math.min(100, Math.round((dailyToday / dailyGoal) * 100));
+  const due = countDue(state.srs);
 
   return (
     <div className="space-y-8">
@@ -39,6 +43,9 @@ export function HomePage({
           <div className="mt-7 flex flex-wrap gap-3">
             <Button size="lg" onClick={() => navigate('learn')}>
               <Rocket /> Continuer mon parcours
+            </Button>
+            <Button size="lg" variant={due > 0 ? 'default' : 'outline'} disabled={due === 0} onClick={onReview}>
+              <Brain /> {due > 0 ? `Réviser (${due})` : 'Rien à réviser'}
             </Button>
             <Button size="lg" variant="outline" onClick={() => navigate('dictionary')}>
               <BookOpen /> Dictionnaire
@@ -82,14 +89,21 @@ export function HomePage({
             </div>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer transition hover:border-primary/60" onClick={() => navigate('learn')}>
+        <Card
+          className={due > 0 ? 'cursor-pointer transition hover:border-primary/60' : ''}
+          onClick={due > 0 ? onReview : undefined}
+        >
           <CardContent className="flex items-center gap-4 p-6">
             <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-primary/15">
-              <Flame className="text-orange-400" />
+              <Brain className="text-primary" />
             </div>
             <div>
-              <div className="font-bold">Reprendre</div>
-              <div className="text-sm text-muted-foreground">Continue à ton rythme, une leçon à la fois.</div>
+              <div className="font-bold">Réviser</div>
+              <div className="text-sm text-muted-foreground">
+                {due > 0
+                  ? `${due} carte${due > 1 ? 's' : ''} à revoir aujourd'hui · consolide ta mémoire.`
+                  : 'Termine des leçons pour remplir ta pile de révision.'}
+              </div>
             </div>
           </CardContent>
         </Card>

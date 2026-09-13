@@ -1,7 +1,8 @@
-import { Lock, Check, Play, ChevronLeft, GraduationCap, BookText } from 'lucide-react';
+import { Lock, Check, Play, ChevronLeft, GraduationCap, BookText, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LEVELS, LEVEL_INFO, lessonCount, lessonsFor } from '@/lib/content';
+import { countDue } from '@/lib/srs';
 import { Character } from '@/components/Character';
 import type { GameState, Lesson, Level } from '../types';
 
@@ -10,11 +11,13 @@ export function LearnPage({
   selectedLevel,
   onSelectLevel,
   onOpenLesson,
+  onReview,
 }: {
   state: GameState;
   selectedLevel: Level | null;
   onSelectLevel: (level: Level | null) => void;
   onOpenLesson: (level: Level, index: number, lesson: Lesson) => void;
+  onReview: (level: Level) => void;
 }) {
   if (!selectedLevel) {
     return (
@@ -58,20 +61,26 @@ export function LearnPage({
   const lessons = lessonsFor(selectedLevel);
   const done = state.lessons[selectedLevel] ?? 0;
   const info = LEVEL_INFO[selectedLevel];
+  const dueHere = countDue(state.srs, Date.now(), selectedLevel);
 
   return (
     <div>
       <Button variant="ghost" size="sm" onClick={() => onSelectLevel(null)}>
         <ChevronLeft /> Tous les niveaux
       </Button>
-      <div className="mt-3 flex items-center gap-4">
+      <div className="mt-3 flex flex-wrap items-center gap-4">
         <div className={`grid h-14 w-14 place-items-center rounded-xl bg-gradient-to-br ${info.gradient} text-xl font-black text-white`}>
           {selectedLevel}
         </div>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold">{info.name}</h1>
           <p className="text-muted-foreground">{info.description}</p>
         </div>
+        {dueHere > 0 && (
+          <Button onClick={() => onReview(selectedLevel)}>
+            <Brain /> Réviser ce niveau ({dueHere})
+          </Button>
+        )}
       </div>
 
       <div className="mt-6 space-y-3">

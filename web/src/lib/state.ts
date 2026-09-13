@@ -19,6 +19,7 @@ export const DEFAULT_STATE: GameState = {
   unlocks: [],
   badges: [],
   completed: [],
+  srs: {},
 };
 
 export function loadGameState(): GameState {
@@ -31,6 +32,7 @@ export function loadGameState(): GameState {
       ...parsed,
       lessons: { ...DEFAULT_STATE.lessons, ...(parsed.lessons ?? {}) },
       stats: { ...DEFAULT_STATE.stats, ...(parsed.stats ?? {}) },
+      srs: { ...(parsed.srs ?? {}) },
       island: parsed.island ?? [],
       placed:
         parsed.placed && parsed.placed.length

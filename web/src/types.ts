@@ -28,6 +28,18 @@ export interface Lesson {
   practice?: readonly Sentence[];
 }
 
+// Carte de révision espacée : une par phrase déjà étudiée.
+export interface SrsCard {
+  id: string; // `${level}|${en}`
+  level: Level;
+  en: string;
+  fr: string;
+  box: number; // boîte de Leitner (0..6)
+  due: number; // timestamp (ms) de la prochaine révision
+  lapses: number; // nombre d'oublis
+  last: number; // dernière révision (timestamp ms)
+}
+
 export interface GameState {
   points: number;
   streak: number;
@@ -47,12 +59,13 @@ export interface GameState {
   unlocks: string[];
   badges: string[];
   completed: string[];
+  srs: Record<string, SrsCard>;
 }
 
 export interface PlacedItem {
-  k: string; // clé unique de l'instance
-  id: string; // id de l'objet boutique
-  x: number; // position en % (0-100)
+  k: string;
+  id: string;
+  x: number;
   y: number;
 }
 
