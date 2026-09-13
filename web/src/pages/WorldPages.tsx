@@ -10,8 +10,13 @@ import type { GameState, Page } from '../types';
 const asset = (file: string) => `${import.meta.env.BASE_URL}assets/${file}`;
 const SHOP_MAP = Object.fromEntries(SHOP.map((s) => [s.id, s]));
 const MAX_PER_ITEM = 5;
-const ITEM_H = 44; // hauteur d'affichage IDENTIQUE pour tous les objets
+const ITEM_H = 44; // hauteur d'affichage par défaut
 const CHAR_IDS = new Set(['chicken', 'farmer', 'cow']); // se déplacent tout seuls
+const BRIDGE_IDS = new Set(['bridge']); // seuls les ponts peuvent tenir sur l'eau
+const BRIDGE_H = 72; // les ponts sont plus grands que les autres objets
+
+// Hauteur d'affichage d'un objet (les ponts sont volontairement plus gros)
+const sizeOf = (id: string) => (BRIDGE_IDS.has(id) ? BRIDGE_H : ITEM_H);
 
 const MASK = landMask as { cols: number; rows: number; cells: string[] };
 
@@ -36,13 +41,13 @@ function randomLand(): { x: number; y: number } {
 
 // Rendu STRICTEMENT uniforme : chips pré-détourés, même hauteur pour TOUS.
 // `rot` (degrés) permet de tourner un objet (molette sur un objet sélectionné).
-function Chip({ id, rot = 0 }: { id: string; rot?: number }) {
+function Chip({ id, rot = 0, size = ITEM_H }: { id: string; rot?: number; size?: number }) {
   return (
     <img
       src={asset(`chip_${id}.png`)}
       alt=""
       style={{
-        height: ITEM_H,
+        height: size,
         width: 'auto',
         imageRendering: 'pixelated',
         transform: rot ? `rotate(${rot}deg)` : undefined,
@@ -149,10 +154,12 @@ export function IslandPage({
     const k = dragK;
     setDragK(null);
     if (!k) return;
-    const pos = live[k] ?? placed.find((p) => p.k === k);
+    const plItem = placed.find((p) => p.k === k);
+    const pos = live[k] ?? plItem;
     if (!pos) return;
-    if (isLand(pos.x, pos.y)) {
-      // posé sur la terre : on enregistre
+    const canFloat = plItem ? BRIDGE_IDS.has(plItem.id) : false;
+    if (isLand(pos.x, pos.y) || canFloat) {
+      // posé sur la terre, ou pont (qui peut tenir sur l'eau) : on enregistre
       setState((s) => ({
         ...s,
         placed: (s.placed ?? []).map((pl) => (pl.k === k ? { ...pl, x: pos.x, y: pos.y } : pl)),
@@ -192,7 +199,7 @@ export function IslandPage({
         <div>
           <h1 className="text-2xl font-bold">Mon île</h1>
           <p className="text-muted-foreground">
-            Glisse tes objets pour les placer. Clique un décor puis tourne-le avec la molette 🔄 — les animaux se promènent tout seuls 🐾
+            Glisse tes objets pour les placer. Clique un décor puis tourne-le avec la molette 🔄. Seuls les ponts peuvent tenir sur l'eau 🌉 — les animaux se promènent tout seuls 🐾
           </p>
         </div>
         <Button variant="outline" onClick={() => navigate('shop')}>
@@ -288,7 +295,7 @@ export function IslandPage({
                 <div className="eq-splash pointer-events-none absolute left-1/2 top-1/2 h-8 w-8 rounded-full border-2 border-sky-100/70" />
               )}
               <div className={`${isDrowning ? 'eq-drown' : isAppearing ? 'eq-appear' : isChar && !isDragging ? 'eq-bob' : ''}`}>
-                <Chip id={pl.id} rot={pl.rot} />
+                <Chip id={pl.id} rot={pl.rot} size={sizeOf(pl.id)} />
               </div>
             </div>
           );
@@ -356,7 +363,7 @@ export function ShopPage({
                   <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
                     <div className="grid h-24 w-full place-items-center rounded-xl bg-gradient-to-b from-sky-300/10 to-transparent">
                       <div className={count > 0 && item.kind === 'char' ? 'eq-bob' : ''}>
-                        <Chip id={item.id} />
+                        <Chip id={item.id} size={sizeOf(item.id)} />
                       </div>
                     </div>
                     <div className="font-semibold">{item.name}</div>
