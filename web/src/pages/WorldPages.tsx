@@ -17,7 +17,7 @@ const BRIDGE_H = 72;
 
 // Hauteur d'affichage par objet. Les véhicules et grosses créatures sont plus imposants.
 const SIZE: Record<string, number> = {
-  atat: 96, xwing: 60, tie: 58, speeder: 56, bantha: 70, rancor: 54,
+  atat: 96, xwing: 60, tie: 58, bantha: 70, rancor: 54,
   chewie: 56, boba: 52, stormtrooper: 52,
 };
 const sizeOf = (id: string) => SIZE[id] ?? ITEM_H;
@@ -69,6 +69,53 @@ function Chip({ id, rot = 0, size = ITEM_H }: { id: string; rot?: number; size?:
 
 export function countOwned(state: GameState, id: string) {
   return (state.placed ?? []).filter((p) => p.id === id).length;
+}
+
+// Vaisseaux qui survolent la carte : traînées de vitesse + lueur des réacteurs.
+type Flight = { type: 'xwing' | 'tie'; top: number; dir: 1 | -1; dur: number; delay: number; size: number };
+const FLIGHTS: Flight[] = [
+  { type: 'xwing', top: 9, dir: 1, dur: 15, delay: 0, size: 42 },
+  { type: 'tie', top: 24, dir: -1, dur: 21, delay: 5, size: 34 },
+  { type: 'xwing', top: 64, dir: -1, dur: 18, delay: 11, size: 36 },
+  { type: 'tie', top: 46, dir: 1, dur: 26, delay: 17, size: 30 },
+  { type: 'xwing', top: 82, dir: 1, dur: 20, delay: 24, size: 30 },
+];
+function SkyFlight({ type, top, dir, dur, delay, size }: Flight) {
+  const glow = type === 'xwing' ? 'rgba(255,120,40,0.95)' : 'rgba(90,190,255,0.95)';
+  const streak = type === 'xwing' ? 'rgba(255,175,95,0.6)' : 'rgba(150,215,255,0.6)';
+  const behind = dir === 1 ? { right: '90%' as const } : { left: '90%' as const };
+  const engine = dir === 1 ? { right: '78%' as const } : { left: '78%' as const };
+  const streakBg = `linear-gradient(to ${dir === 1 ? 'left' : 'right'}, ${streak}, transparent)`;
+  return (
+    <div
+      className={dir === 1 ? 'eq-walk-r absolute' : 'eq-walk-l absolute'}
+      style={{ top: `${top}%`, animationDuration: `${dur}s`, animationDelay: `${delay}s`, zIndex: 20 }}
+    >
+      <div className="eq-bob relative" style={{ animationDuration: '3.4s' }}>
+        <div style={{ position: 'absolute', top: '40%', ...behind, width: size * 2.8, height: 2, transform: 'translateY(-50%)', background: streakBg, filter: 'blur(0.6px)' }} />
+        <div style={{ position: 'absolute', top: '58%', ...behind, width: size * 1.9, height: 1.5, transform: 'translateY(-50%)', background: streakBg }} />
+        <div
+          className="eq-shimmer"
+          style={{ position: 'absolute', top: '49%', ...engine, width: size * 0.85, height: size * 0.55, transform: 'translateY(-50%)', background: `radial-gradient(closest-side, ${glow}, transparent)`, filter: 'blur(2px)' }}
+        />
+        <img
+          src={asset(`chip_${type}.png`)}
+          alt=""
+          style={{ height: size, width: 'auto', imageRendering: 'pixelated', transform: `rotate(${dir === 1 ? 90 : -90}deg)`, filter: 'drop-shadow(0 5px 7px rgba(0,0,0,0.55))' }}
+          draggable={false}
+        />
+      </div>
+    </div>
+  );
+}
+function SkyFlights() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {FLIGHTS.map((f, i) => (
+        <SkyFlight key={i} {...f} />
+      ))}
+    </div>
+  );
 }
 
 export function IslandPage({
@@ -126,7 +173,7 @@ export function IslandPage({
         for (const pl of placedRef.current) {
           if (!CHAR_IDS.has(pl.id)) continue;
           if (pl.k === dragRef.current || drownRef.current[pl.k]) continue;
-          if (Math.random() < 0.45) continue; // pause parfois
+          if (Math.random() < 0.3) continue; // pause parfois
           const base = next[pl.k] ?? { x: pl.x, y: pl.y };
           for (let tries = 0; tries < 10; tries++) {
             const nx = Math.min(94, Math.max(6, base.x + (Math.random() * 2 - 1) * 11));
@@ -139,7 +186,7 @@ export function IslandPage({
         }
         return next;
       });
-    }, 2600);
+    }, 2100);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -234,7 +281,7 @@ export function IslandPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Ta base sur Endor</h1>
+          <h1 className="text-2xl font-bold">Ton monde Endor</h1>
           <p className="text-muted-foreground">
             Glisse tes unités pour les déployer. Clique un véhicule ou une créature puis tourne-le avec la molette 🔄. Les compagnons (droïdes, Wookiee…) patrouillent tout seuls 🤖
           </p>
@@ -250,12 +297,12 @@ export function IslandPage({
         onPointerMove={onMove}
         onPointerUp={endDrag}
         onPointerLeave={endDrag}
-        className="relative aspect-[8/5] w-full touch-none overflow-hidden rounded-2xl border border-border shadow-xl shadow-black/40"
+        className="relative aspect-square w-full touch-none overflow-hidden rounded-2xl border border-border shadow-xl shadow-black/40"
       >
-        {/* fond : la forêt d'Endor */}
+        {/* fond : le monde d'Endor complet — les 25 zones (5×5) assemblées */}
         <img
-          src={asset('endor_bg.jpg')}
-          alt="La lune forestière d'Endor"
+          src={asset('endor_world.jpg')}
+          alt="Le monde d'Endor — 25 territoires"
           className="absolute inset-0 h-full w-full select-none object-cover"
           style={{ imageRendering: 'pixelated' }}
           draggable={false}
@@ -267,17 +314,8 @@ export function IslandPage({
         <div className="eq-walk-r absolute top-[40%] h-5 w-20 rounded-full bg-white/10 blur-md" style={{ animationDuration: '78s', animationDelay: '12s' }} />
         <div className="eq-walk-r absolute top-[66%] h-8 w-40 rounded-full bg-white/[0.08] blur-lg" style={{ animationDuration: '96s', animationDelay: '26s' }} />
 
-        {/* vaisseau qui traverse le ciel */}
-        <div className="eq-walk-r absolute top-[8%]" style={{ animationDuration: '34s', animationDelay: '6s' }}>
-          <div className="eq-bob">
-            <img
-              src={asset('chip_xwing.png')}
-              alt=""
-              style={{ height: 26, width: 'auto', imageRendering: 'pixelated', transform: 'rotate(90deg)', filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.4))' }}
-              draggable={false}
-            />
-          </div>
-        </div>
+        {/* escadrille qui survole Endor */}
+        <SkyFlights />
 
         {/* objets placés (déplaçables) */}
         {placed.map((pl) => {
@@ -316,7 +354,10 @@ export function IslandPage({
               {isDrowning && (
                 <div className="eq-splash pointer-events-none absolute left-1/2 top-1/2 h-8 w-8 rounded-full border-2 border-[#a6b4ff]/70" />
               )}
-              <div className={`${isDrowning ? 'eq-drown' : isAppearing ? 'eq-appear' : isChar && !isDragging ? 'eq-bob' : ''}`}>
+              <div
+                className={isDrowning ? 'eq-drown' : isAppearing ? 'eq-appear' : !isDragging ? 'eq-bob' : ''}
+                style={!isDragging && !isDrowning && !isAppearing ? { animationDelay: `${((pl.x + pl.y) % 24) / 10}s`, animationDuration: isChar ? '2.4s' : '3.6s' } : undefined}
+              >
                 <Chip id={pl.id} rot={pl.rot} size={sizeOf(pl.id)} />
               </div>
             </div>

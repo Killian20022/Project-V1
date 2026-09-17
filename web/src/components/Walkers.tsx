@@ -8,7 +8,7 @@ const DEFAULT_WALKERS: Walker[] = [
   { file: 'chip_stormtrooper.png', size: 58, dur: 30, delay: 5, dir: 1, bottom: 2 },
   { file: 'chip_bb8.png', size: 40, dur: 18, delay: 11, dir: -1, bottom: 8 },
   { file: 'chip_chewie.png', size: 62, dur: 34, delay: 16, dir: -1, bottom: 2 },
-  { file: 'chip_speeder.png', size: 52, dur: 14, delay: 22, dir: 1, bottom: 6 },
+  { file: 'chip_boba.png', size: 56, dur: 24, delay: 22, dir: 1, bottom: 4 },
 ];
 
 /** Personnages qui traversent le bas du conteneur parent (qui doit être `position: relative; overflow: hidden`). */
