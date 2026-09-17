@@ -32,7 +32,18 @@ export function Character({
             }}
           />
         ) : (
-          <img src={asset(file)} alt="" style={{ width: size, imageRendering: 'pixelated' }} draggable={false} />
+          <img
+            src={asset(file)}
+            alt=""
+            style={{
+              height: size,
+              width: 'auto',
+              imageRendering: 'pixelated',
+              transform: `scaleX(${flip ? -1 : 1})`,
+              filter: 'drop-shadow(0 6px 8px rgba(0,0,0,0.4))',
+            }}
+            draggable={false}
+          />
         )}
       </div>
     </div>

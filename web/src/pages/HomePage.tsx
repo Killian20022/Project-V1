@@ -29,35 +29,36 @@ export function HomePage({
       <Card className="overflow-hidden">
         <CardContent className="relative p-8 md:p-12">
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary">
-            <Sparkles className="size-3" /> APPRENDS · PRATIQUE · PROGRESSE
+            <Sparkles className="size-3" /> ENTRAÎNE-TOI · MAÎTRISE · TRIOMPHE
           </div>
           <h1 className="mt-5 max-w-2xl text-4xl font-black leading-tight md:text-5xl">
-            Ton aventure vers un anglais{' '}
-            <span className="text-glow bg-gradient-to-r from-cyan-300 via-sky-400 to-blue-400 bg-clip-text text-transparent">
-              sans limites
+            Deviens un Jedi de{' '}
+            <span className="text-glow bg-gradient-to-r from-[#f5c518] via-[#ffe27a] to-[#33ccff] bg-clip-text text-transparent">
+              l'anglais
             </span>
           </h1>
           <p className="mt-4 max-w-xl text-muted-foreground">
-            Des leçons courtes, des exercices variés et une île qui grandit avec tes progrès.
+            Des missions courtes, des exercices variés et une galaxie qui grandit avec tes victoires.
+            Que la Force (et l'anglais) soit avec toi.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Button size="lg" onClick={() => navigate('learn')}>
-              <Rocket /> Continuer mon parcours
+              <Rocket /> Reprendre la mission
             </Button>
             <Button size="lg" variant={due > 0 ? 'default' : 'outline'} disabled={due === 0} onClick={onReview}>
-              <Brain /> {due > 0 ? `Réviser (${due})` : 'Rien à réviser'}
+              <Brain /> {due > 0 ? `Entraînement (${due})` : 'Rien à réviser'}
             </Button>
             <Button size="lg" variant="outline" onClick={() => navigate('dictionary')}>
-              <BookOpen /> Dictionnaire
+              <BookOpen /> Archives
             </Button>
           </div>
           <div className="mt-8 flex flex-wrap gap-8">
             <Stat value={state.points} label="XP gagnés" />
-            <Stat value={`${lessonsDone}/${totalLessons}`} label="Leçons terminées" />
+            <Stat value={`${lessonsDone}/${totalLessons}`} label="Missions accomplies" />
             <Stat value={state.streak} label="Jours de série" />
           </div>
-          <div className="pointer-events-none absolute bottom-0 right-4 hidden opacity-95 lg:block">
-            <Character file="character.png" size={168} />
+          <div className="pointer-events-none absolute bottom-0 right-6 hidden opacity-95 lg:block">
+            <Character file="chip_luke.png" size={172} />
           </div>
         </CardContent>
       </Card>
@@ -111,8 +112,8 @@ export function HomePage({
 
       <div>
         <div className="flex items-end justify-between">
-          <h2 className="text-2xl font-bold">Choisis ton niveau</h2>
-          <span className="text-sm text-muted-foreground">Du premier mot jusqu'à la maîtrise (A1 → C2)</span>
+          <h2 className="text-2xl font-bold">Choisis ton grade</h2>
+          <span className="text-sm text-muted-foreground">Du Youngling au Grand Maître (A1 → C2)</span>
         </div>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {LEVELS.map((lv) => {
@@ -134,10 +135,10 @@ export function HomePage({
                   <CardTitle className="mt-2">{LEVEL_INFO[lv].name}</CardTitle>
                   <CardDescription>{LEVEL_INFO[lv].description}</CardDescription>
                   <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
-                    <div className="h-full rounded-full bg-gradient-to-r from-primary to-accent" style={{ width: `${pct}%` }} />
+                    <div className="h-full rounded-full bg-gradient-to-r from-primary via-[#ffe27a] to-accent" style={{ width: `${pct}%` }} />
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {Math.min(done, total)}/{total} leçons
+                    {Math.min(done, total)}/{total} missions
                   </div>
                 </CardHeader>
               </Card>
@@ -147,9 +148,9 @@ export function HomePage({
       </div>
 
       <div className="flex items-end justify-center gap-6 pt-4 sm:gap-14">
-        <Character file="cow.png" size={110} />
-        <Character file="character.png" size={132} />
-        <Character file="chicken.png" size={82} flip />
+        <Character file="chip_chewie.png" size={116} />
+        <Character file="chip_vader.png" size={140} />
+        <Character file="chip_r2d2.png" size={78} />
       </div>
     </div>
   );

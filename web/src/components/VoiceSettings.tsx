@@ -31,7 +31,7 @@ export function VoiceSettings({ open, onClose }: { open: boolean; onClose: () =>
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-2xl border border-sky-400/20 bg-card p-6 shadow-2xl"
+        className="w-full max-w-md rounded-2xl border border-[#7480ff]/25 bg-card p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -91,7 +91,7 @@ export function VoiceSettings({ open, onClose }: { open: boolean; onClose: () =>
               step={0.05}
               value={pref.rate}
               onChange={(e) => update({ rate: Number(e.target.value) })}
-              className="w-full accent-sky-400"
+              className="w-full accent-[#7480ff]"
             />
           </div>
 

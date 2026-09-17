@@ -7,12 +7,12 @@ import { VoiceSettings } from '@/components/VoiceSettings';
 import type { GameState, Page } from '../types';
 
 const NAV: { label: string; page: Page }[] = [
-  { label: 'Accueil', page: 'home' },
-  { label: 'Apprendre', page: 'learn' },
-  { label: 'Île', page: 'island' },
-  { label: 'Boutique', page: 'shop' },
-  { label: 'Trophées', page: 'trophies' },
-  { label: 'Dictionnaire', page: 'dictionary' },
+  { label: 'Base', page: 'home' },
+  { label: 'Missions', page: 'learn' },
+  { label: 'Galaxie', page: 'island' },
+  { label: 'Armurerie', page: 'shop' },
+  { label: 'Médailles', page: 'trophies' },
+  { label: 'Archives', page: 'dictionary' },
 ];
 
 const DEV_EMAIL = 'killianlopez20@gmail.com';
@@ -37,10 +37,10 @@ export function Layout({
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-border/60 bg-background/70 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-          <button className="flex items-center gap-2 font-extrabold tracking-tight" onClick={() => onNavigate('home')}>
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">EQ</span>
+          <button className="flex items-center gap-2 font-display font-extrabold tracking-tight" onClick={() => onNavigate('home')}>
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground shadow-[0_0_14px_hsl(var(--brand-gold)/0.6)]">EW</span>
             <span>
-              English<span className="text-primary">Quest</span>
+              English<span className="text-primary text-glow"> Wars</span>
             </span>
           </button>
 
@@ -64,11 +64,11 @@ export function Layout({
             <span className="flex items-center gap-1 rounded-full bg-secondary px-3 py-1" title="Points d'expérience">
               <Star className="text-yellow-400" /> {state.points}
             </span>
-            <span className="flex items-center gap-1 rounded-full bg-secondary px-3 py-1" title="Pièces">
+            <span className="flex items-center gap-1 rounded-full bg-secondary px-3 py-1" title="Crédits">
               <Coins className="text-amber-400" /> {state.coins}
             </span>
             {isDev && onAddCoins && (
-              <Button size="sm" variant="secondary" onClick={onAddCoins} title="Dev : +1000 pièces">
+              <Button size="sm" variant="secondary" onClick={onAddCoins} title="Dev : +1000 crédits">
                 <Coins className="text-amber-400" /> +1000
               </Button>
             )}

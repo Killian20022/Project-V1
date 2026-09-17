@@ -12,13 +12,15 @@ export function lessonCount(level: Level): number {
 // Total de leçons tous niveaux confondus
 export const TOTAL_LESSONS = LEVELS.reduce((sum, lv) => sum + lessonCount(lv), 0);
 
+// Grades « English Wars » : la progression Jedi, du Youngling au Grand Maître.
+// Le code CEFR (A1…C2) reste affiché sur le badge — la pédagogie est inchangée.
 export const LEVEL_INFO: Record<Level, { name: string; description: string; gradient: string }> = {
-  A1: { name: 'Découverte', description: 'Premiers mots et phrases', gradient: 'from-cyan-300 to-sky-400' },
-  A2: { name: 'Élémentaire', description: 'Communiquer au quotidien', gradient: 'from-sky-400 to-blue-400' },
-  B1: { name: 'Intermédiaire', description: 'Devenir autonome', gradient: 'from-blue-400 to-blue-500' },
-  B2: { name: 'Avancé', description: "S'exprimer avec aisance", gradient: 'from-blue-500 to-indigo-500' },
-  C1: { name: 'Expert', description: 'Nuancer son expression', gradient: 'from-indigo-500 to-blue-600' },
-  C2: { name: 'Maîtrise', description: 'Comprendre avec précision', gradient: 'from-sky-500 to-indigo-600' },
+  A1: { name: 'Youngling', description: 'Premiers mots et phrases', gradient: 'from-sky-300 to-cyan-400' },
+  A2: { name: 'Padawan', description: 'Communiquer au quotidien', gradient: 'from-cyan-400 to-sky-500' },
+  B1: { name: 'Chevalier Jedi', description: 'Devenir autonome', gradient: 'from-emerald-400 to-teal-500' },
+  B2: { name: 'Maître Jedi', description: "S'exprimer avec aisance", gradient: 'from-amber-400 to-yellow-500' },
+  C1: { name: 'Gardien de la Force', description: 'Nuancer son expression', gradient: 'from-orange-400 to-amber-500' },
+  C2: { name: 'Grand Maître', description: 'Comprendre avec précision', gradient: 'from-yellow-400 to-amber-600' },
 };
 
 export function lessonsFor(level: Level): Lesson[] {

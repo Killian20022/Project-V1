@@ -7,18 +7,21 @@ export type ShopItem = {
   blurb?: string;
 };
 
+// Boutique « English Wars » — compagnons (se promènent tout seuls sur Endor)
+// et véhicules / créatures à poser. Les visuels sont les sprites Star Wars.
 export const SHOP: ShopItem[] = [
-  { id: 'chicken', name: 'Poule', price: 120, kind: 'char', file: 'chicken.png', blurb: '+1 pièce / leçon' },
-  { id: 'farmer', name: 'Fermier', price: 200, kind: 'char', file: 'character.png', blurb: '+2 XP / leçon' },
-  { id: 'cow', name: 'Vache', price: 250, kind: 'char', file: 'cow.png', blurb: '+2 pièces / leçon' },
-  { id: 'rock', name: 'Rocher', price: 40, kind: 'decor', file: 'rock.png' },
-  { id: 'bush', name: 'Buisson', price: 50, kind: 'decor', file: 'bush.png' },
-  { id: 'nest', name: 'Nid', price: 60, kind: 'decor', file: 'nest.png' },
-  { id: 'sunflower', name: 'Tournesol', price: 80, kind: 'decor', file: 'sunflower.png' },
-  { id: 'chest', name: 'Coffre', price: 90, kind: 'decor', file: 'chest.png' },
-  { id: 'tree', name: 'Pommier', price: 120, kind: 'decor', file: 'tree_apple.png' },
-  { id: 'bridge', name: 'Pont', price: 150, kind: 'decor', file: 'bridge.png' },
-  { id: 'coop', name: 'Poulailler', price: 300, kind: 'decor', file: 'chicken_house.png' },
+  { id: 'r2d2', name: 'R2-D2', price: 120, kind: 'char', file: 'chip_r2d2.png', blurb: 'Astromech loyal' },
+  { id: 'bb8', name: 'BB-8', price: 160, kind: 'char', file: 'chip_bb8.png', blurb: 'Toujours de bonne humeur' },
+  { id: 'stormtrooper', name: 'Stormtrooper', price: 180, kind: 'char', file: 'chip_stormtrooper.png', blurb: 'Patrouille impériale' },
+  { id: 'boba', name: 'Boba Fett', price: 240, kind: 'char', file: 'chip_boba.png', blurb: 'Chasseur de primes' },
+  { id: 'chewie', name: 'Chewbacca', price: 260, kind: 'char', file: 'chip_chewie.png', blurb: 'Copilote wookiee' },
+  { id: 'yoda', name: 'Maître Yoda', price: 320, kind: 'char', file: 'chip_yoda.png', blurb: 'La Force, puissante en lui' },
+  { id: 'speeder', name: 'Speeder', price: 90, kind: 'decor', file: 'chip_speeder.png' },
+  { id: 'tie', name: 'TIE Bomber', price: 140, kind: 'decor', file: 'chip_tie.png' },
+  { id: 'xwing', name: 'X-Wing', price: 160, kind: 'decor', file: 'chip_xwing.png' },
+  { id: 'rancor', name: 'Rancor', price: 200, kind: 'decor', file: 'chip_rancor.png' },
+  { id: 'bantha', name: 'Bantha', price: 220, kind: 'decor', file: 'chip_bantha.png' },
+  { id: 'atat', name: 'TB-TT · AT-AT', price: 400, kind: 'decor', file: 'chip_atat.png' },
 ];
 
 export const SHOP_MAP = Object.fromEntries(SHOP.map((item) => [item.id, item]));

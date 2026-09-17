@@ -1,13 +1,14 @@
 const asset = (file: string) => `${import.meta.env.BASE_URL}assets/${file}`;
 
-type Walker = { file: string; frame: number; size: number; dur: number; delay: number; dir: 1 | -1; bottom: number };
+type Walker = { file: string; size: number; dur: number; delay: number; dir: 1 | -1; bottom: number };
 
+// Petits personnages Star Wars qui traversent le bas de la page (décoratif).
 const DEFAULT_WALKERS: Walker[] = [
-  { file: 'chicken.png', frame: 16, size: 40, dur: 20, delay: 0, dir: 1, bottom: 6 },
-  { file: 'cow.png', frame: 32, size: 56, dur: 30, delay: 4, dir: 1, bottom: 2 },
-  { file: 'character.png', frame: 48, size: 58, dur: 26, delay: 9, dir: -1, bottom: 4 },
-  { file: 'chicken.png', frame: 16, size: 34, dur: 16, delay: 13, dir: -1, bottom: 10 },
-  { file: 'cow.png', frame: 32, size: 48, dur: 34, delay: 18, dir: 1, bottom: 8 },
+  { file: 'chip_r2d2.png', size: 42, dur: 22, delay: 0, dir: 1, bottom: 6 },
+  { file: 'chip_stormtrooper.png', size: 58, dur: 30, delay: 5, dir: 1, bottom: 2 },
+  { file: 'chip_bb8.png', size: 40, dur: 18, delay: 11, dir: -1, bottom: 8 },
+  { file: 'chip_chewie.png', size: 62, dur: 34, delay: 16, dir: -1, bottom: 2 },
+  { file: 'chip_speeder.png', size: 52, dur: 14, delay: 22, dir: 1, bottom: 6 },
 ];
 
 /** Personnages qui traversent le bas du conteneur parent (qui doit être `position: relative; overflow: hidden`). */
@@ -21,18 +22,18 @@ export function Walkers({ walkers = DEFAULT_WALKERS }: { walkers?: Walker[] }) {
           style={{ bottom: `${w.bottom}px`, animationDuration: `${w.dur}s`, animationDelay: `${w.delay}s` }}
         >
           <div className="eq-bob" style={{ animationDelay: `${i * 0.2}s` }}>
-            <div
+            <img
+              src={asset(w.file)}
+              alt=""
               style={{
-                width: w.frame,
-                height: w.frame,
-                backgroundImage: `url(${asset(w.file)})`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: '0 0',
+                height: w.size,
+                width: 'auto',
                 imageRendering: 'pixelated',
-                transform: `scale(${w.size / w.frame}) scaleX(${w.dir})`,
+                transform: `scaleX(${w.dir})`,
                 transformOrigin: 'bottom center',
-                filter: 'drop-shadow(0 3px 3px rgba(0,0,0,0.25))',
+                filter: 'drop-shadow(0 3px 3px rgba(0,0,0,0.3))',
               }}
+              draggable={false}
             />
           </div>
         </div>

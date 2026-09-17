@@ -10,14 +10,16 @@ import type { GameState, Page } from '../types';
 const asset = (file: string) => `${import.meta.env.BASE_URL}assets/${file}`;
 const SHOP_MAP = Object.fromEntries(SHOP.map((s) => [s.id, s]));
 const MAX_PER_ITEM = 5;
-const ITEM_H = 44; // hauteur d'affichage par défaut
-const CHAR_IDS = new Set(['chicken', 'farmer', 'cow']); // se déplacent tout seuls
-const BRIDGE_IDS = new Set(['bridge']); // seuls les ponts peuvent tenir sur l'eau
-const BRIDGE_H = 72; // les ponts sont plus grands que les autres objets
+const ITEM_H = 46; // hauteur d'affichage par défaut
+const CHAR_IDS = new Set(['r2d2', 'bb8', 'stormtrooper', 'boba', 'chewie', 'yoda']); // compagnons qui se promènent
+const BRIDGE_IDS = new Set<string>(); // (héritage) — plus d'eau sur Endor, rien ne flotte
+const BRIDGE_H = 72;
 
-// Hauteur d'affichage par objet. Le pont est volontairement grand ; le pommier
-// est gros et le buisson petit (échange demandé). Les autres gardent ITEM_H.
-const SIZE: Record<string, number> = { bridge: BRIDGE_H, tree: 64, bush: 40 };
+// Hauteur d'affichage par objet. Les véhicules et grosses créatures sont plus imposants.
+const SIZE: Record<string, number> = {
+  atat: 96, xwing: 60, tie: 58, speeder: 56, bantha: 70, rancor: 54,
+  chewie: 56, boba: 52, stormtrooper: 52,
+};
 const sizeOf = (id: string) => SIZE[id] ?? ITEM_H;
 
 // Demi-dimensions (en % de la scène) de l'empreinte d'un pont, selon sa rotation.
@@ -33,24 +35,18 @@ function bridgeHalfExtentsPct(rot: number, rect: { width: number; height: number
 
 const MASK = landMask as { cols: number; rows: number; cells: string[] };
 
-// Une position en % (0-100) est-elle sur la terre ferme ?
-function isLand(xPct: number, yPct: number) {
-  const col = Math.floor((xPct / 100) * MASK.cols);
-  const row = Math.floor((yPct / 100) * MASK.rows);
-  if (row < 0 || row >= MASK.rows || col < 0 || col >= MASK.cols) return false;
-  return MASK.cells[row]?.[col] === '1';
+// Sur Endor, toute la scène est un sol forestier praticable : plus d'eau, donc
+// tout est « terre ferme » (on garde la signature pour ne rien casser).
+function isLand(_xPct: number, _yPct: number) {
+  return true;
 }
 
-// Toutes les cases de terre (en %), pour réapparaître au hasard sur l'île
-const LAND_SPOTS: { x: number; y: number }[] = [];
-for (let r = 0; r < MASK.rows; r++)
-  for (let c = 0; c < MASK.cols; c++)
-    if (MASK.cells[r][c] === '1')
-      LAND_SPOTS.push({ x: ((c + 0.5) / MASK.cols) * 100, y: ((r + 0.5) / MASK.rows) * 100 });
-
+// Apparition / déplacement : n'importe où dans la clairière (marges évitées).
 function randomLand(): { x: number; y: number } {
-  return LAND_SPOTS[Math.floor(Math.random() * LAND_SPOTS.length)] ?? { x: 50, y: 50 };
+  return { x: 10 + Math.random() * 80, y: 20 + Math.random() * 68 };
 }
+// Référence conservée pour éviter un import inutilisé (masque hérité).
+void MASK;
 
 // Rendu STRICTEMENT uniforme : chips pré-détourés, même hauteur pour TOUS.
 // `rot` (degrés) permet de tourner un objet (molette sur un objet sélectionné).
@@ -238,13 +234,13 @@ export function IslandPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Mon île</h1>
+          <h1 className="text-2xl font-bold">Ta base sur Endor</h1>
           <p className="text-muted-foreground">
-            Glisse tes objets pour les placer. Clique un décor puis tourne-le avec la molette 🔄. Seuls les ponts peuvent tenir sur l'eau 🌉 — les animaux se promènent tout seuls 🐾
+            Glisse tes unités pour les déployer. Clique un véhicule ou une créature puis tourne-le avec la molette 🔄. Les compagnons (droïdes, Wookiee…) patrouillent tout seuls 🤖
           </p>
         </div>
         <Button variant="outline" onClick={() => navigate('shop')}>
-          <ShoppingBag /> Boutique
+          <ShoppingBag /> Armurerie
         </Button>
       </div>
 
@@ -256,47 +252,32 @@ export function IslandPage({
         onPointerLeave={endDrag}
         className="relative aspect-[8/5] w-full touch-none overflow-hidden rounded-2xl border border-border shadow-xl shadow-black/40"
       >
-        {/* eau animée (fond) */}
-        <div
-          className="absolute inset-0"
-          style={{ backgroundImage: `url(${asset('water_tile.png')})`, backgroundSize: '34px', imageRendering: 'pixelated' }}
-        />
-        <div
-          className="eq-ripple-a absolute inset-0 opacity-25"
-          style={{ backgroundImage: 'repeating-linear-gradient(96deg, transparent 0 22px, rgba(255,255,255,0.18) 22px 24px)' }}
-        />
-        <div
-          className="eq-ripple-b absolute inset-0 opacity-15"
-          style={{ backgroundImage: 'repeating-linear-gradient(92deg, transparent 0 34px, rgba(255,255,255,0.14) 34px 36px)' }}
-        />
-
-        {/* terre (calque transparent posé sur l'eau) */}
+        {/* fond : la forêt d'Endor */}
         <img
-          src={asset('island_land.png')}
-          alt="Ton île"
-          className="absolute inset-0 h-full w-full select-none"
+          src={asset('endor_bg.jpg')}
+          alt="La lune forestière d'Endor"
+          className="absolute inset-0 h-full w-full select-none object-cover"
           style={{ imageRendering: 'pixelated' }}
           draggable={false}
         />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/35" />
 
-        {/* nuages qui dérivent */}
-        <div className="eq-walk-r absolute top-[6%] h-6 w-28 rounded-full bg-white/40 blur-md" style={{ animationDuration: '46s' }} />
-        <div className="eq-walk-r absolute top-[30%] h-5 w-20 rounded-full bg-white/30 blur-md" style={{ animationDuration: '64s', animationDelay: '10s' }} />
-        <div className="eq-walk-r absolute top-[70%] h-7 w-36 rounded-full bg-white/25 blur-md" style={{ animationDuration: '80s', animationDelay: '24s' }} />
+        {/* brume qui dérive */}
+        <div className="eq-walk-r absolute top-[10%] h-6 w-28 rounded-full bg-white/10 blur-md" style={{ animationDuration: '60s' }} />
+        <div className="eq-walk-r absolute top-[40%] h-5 w-20 rounded-full bg-white/10 blur-md" style={{ animationDuration: '78s', animationDelay: '12s' }} />
+        <div className="eq-walk-r absolute top-[66%] h-8 w-40 rounded-full bg-white/[0.08] blur-lg" style={{ animationDuration: '96s', animationDelay: '26s' }} />
 
-        {/* oiseaux */}
-        {[
-          { top: 12, dur: 30, delay: 3 },
-          { top: 20, dur: 38, delay: 14 },
-        ].map((b, i) => (
-          <div key={`bird-${i}`} className="eq-walk-r absolute" style={{ top: `${b.top}%`, animationDuration: `${b.dur}s`, animationDelay: `${b.delay}s` }}>
-            <div className="eq-bob">
-              <svg width="18" height="9" viewBox="0 0 18 9" fill="none">
-                <path d="M1 7 Q4.5 1 8 7 Q11.5 1 17 7" stroke="rgba(20,30,45,0.55)" strokeWidth="1.6" strokeLinecap="round" />
-              </svg>
-            </div>
+        {/* vaisseau qui traverse le ciel */}
+        <div className="eq-walk-r absolute top-[8%]" style={{ animationDuration: '34s', animationDelay: '6s' }}>
+          <div className="eq-bob">
+            <img
+              src={asset('chip_xwing.png')}
+              alt=""
+              style={{ height: 26, width: 'auto', imageRendering: 'pixelated', transform: 'rotate(90deg)', filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.4))' }}
+              draggable={false}
+            />
           </div>
-        ))}
+        </div>
 
         {/* objets placés (déplaçables) */}
         {placed.map((pl) => {
@@ -322,7 +303,7 @@ export function IslandPage({
               }}
               className={`absolute -translate-x-1/2 -translate-y-1/2 select-none drop-shadow-lg ${
                 isDragging ? 'z-30 scale-110 cursor-grabbing' : 'cursor-grab'
-              } ${isSelected ? 'z-40 rounded-md ring-2 ring-sky-300' : ''}`}
+              } ${isSelected ? 'z-40 rounded-md ring-2 ring-[#f5c518]' : ''}`}
               style={{
                 left: `${pos.x}%`,
                 top: `${pos.y}%`,
@@ -333,7 +314,7 @@ export function IslandPage({
               title={`${item.name} — glisse pour déplacer${!isChar ? ' · molette pour tourner' : ''}`}
             >
               {isDrowning && (
-                <div className="eq-splash pointer-events-none absolute left-1/2 top-1/2 h-8 w-8 rounded-full border-2 border-sky-100/70" />
+                <div className="eq-splash pointer-events-none absolute left-1/2 top-1/2 h-8 w-8 rounded-full border-2 border-[#a6b4ff]/70" />
               )}
               <div className={`${isDrowning ? 'eq-drown' : isAppearing ? 'eq-appear' : isChar && !isDragging ? 'eq-bob' : ''}`}>
                 <Chip id={pl.id} rot={pl.rot} size={sizeOf(pl.id)} />
@@ -349,7 +330,7 @@ export function IslandPage({
         </div>
         {placed.length === 0 && (
           <div className="absolute left-4 top-4 z-10 max-w-[240px] rounded-xl bg-background/80 p-3 text-xs font-semibold shadow-lg backdrop-blur">
-            Gagne des pièces en faisant des leçons, puis achète des compagnons dans la boutique 🐣
+            Gagne des crédits en accomplissant des missions, puis recrute ton escouade à l'armurerie ⚔️
           </div>
         )}
       </div>
@@ -375,19 +356,19 @@ export function ShopPage({
   }
 
   const groups: { title: string; kind: 'char' | 'decor' }[] = [
-    { title: 'Compagnons', kind: 'char' },
-    { title: 'Décors', kind: 'decor' },
+    { title: 'Escouade', kind: 'char' },
+    { title: 'Véhicules & créatures', kind: 'decor' },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Boutique de l'île</h1>
-          <p className="text-muted-foreground">Transforme tes progrès en compagnons et décors.</p>
+          <h1 className="text-2xl font-bold">Armurerie</h1>
+          <p className="text-muted-foreground">Transforme tes victoires en escouade et en véhicules pour ta base Endor.</p>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-secondary px-4 py-1.5 font-semibold">
-          <Coins className="text-amber-400" /> {state.coins} pièces
+          <Coins className="text-amber-400" /> {state.coins} crédits
         </div>
       </div>
 
@@ -402,7 +383,7 @@ export function ShopPage({
               return (
                 <Card key={item.id} className={count > 0 ? 'border-primary/50' : ''}>
                   <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
-                    <div className="grid h-24 w-full place-items-center rounded-xl bg-gradient-to-b from-sky-300/10 to-transparent">
+                    <div className="grid h-24 w-full place-items-center rounded-xl bg-gradient-to-b from-[#f5c518]/10 to-transparent">
                       <div className={count > 0 && item.kind === 'char' ? 'eq-bob' : ''}>
                         <Chip id={item.id} size={sizeOf(item.id)} />
                       </div>
@@ -445,9 +426,9 @@ export function TrophiesPage({ state }: { state: GameState }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Trophées</h1>
+        <h1 className="text-2xl font-bold">Médailles</h1>
         <p className="text-muted-foreground">
-          {unlockedCount}/{TROPHIES.length} débloqués — les étapes marquantes de ton aventure.
+          {unlockedCount}/{TROPHIES.length} débloquées — tes hauts faits à travers la galaxie.
         </p>
       </div>
 

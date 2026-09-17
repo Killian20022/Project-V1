@@ -22,8 +22,8 @@ export function LearnPage({
   if (!selectedLevel) {
     return (
       <div>
-        <h1 className="text-2xl font-bold">Apprendre</h1>
-        <p className="text-muted-foreground">Choisis un niveau pour voir ton parcours.</p>
+        <h1 className="text-2xl font-bold">Missions</h1>
+        <p className="text-muted-foreground">Choisis un grade pour voir ta campagne.</p>
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {LEVELS.map((lv) => {
             const total = lessonCount(lv);
@@ -47,7 +47,7 @@ export function LearnPage({
                     <div className="h-full rounded-full bg-gradient-to-r from-primary to-accent" style={{ width: `${pct}%` }} />
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {Math.min(done, total)}/{total} leçons
+                    {Math.min(done, total)}/{total} missions
                   </div>
                 </CardHeader>
               </Card>
@@ -66,7 +66,7 @@ export function LearnPage({
   return (
     <div>
       <Button variant="ghost" size="sm" onClick={() => onSelectLevel(null)}>
-        <ChevronLeft /> Tous les niveaux
+        <ChevronLeft /> Tous les grades
       </Button>
       <div className="mt-3 flex flex-wrap items-center gap-4">
         <div className={`grid h-14 w-14 place-items-center rounded-xl bg-gradient-to-br ${info.gradient} text-xl font-black text-white`}>
@@ -78,7 +78,7 @@ export function LearnPage({
         </div>
         {dueHere > 0 && (
           <Button onClick={() => onReview(selectedLevel)}>
-            <Brain /> Réviser ce niveau ({dueHere})
+            <Brain /> Entraînement ({dueHere})
           </Button>
         )}
       </div>
@@ -112,7 +112,7 @@ export function LearnPage({
                       {lesson.t === 'V' ? <BookText className="size-3" /> : <GraduationCap className="size-3" />}
                       {lesson.t === 'V' ? 'Vocabulaire' : 'Grammaire'}
                     </span>
-                    <span className="text-xs text-muted-foreground">Leçon {index + 1}</span>
+                    <span className="text-xs text-muted-foreground">Mission {index + 1}</span>
                   </div>
                   <div className="truncate font-semibold">{lesson.title}</div>
                 </div>
@@ -124,9 +124,9 @@ export function LearnPage({
       </div>
 
       <div className="flex items-end justify-center gap-8 pb-6 pt-8">
-        <Character file="chicken.png" size={76} />
-        <Character file="character.png" size={104} />
-        <Character file="cow.png" size={92} flip />
+        <Character file="chip_r2d2.png" size={72} />
+        <Character file="chip_boba.png" size={104} />
+        <Character file="chip_bb8.png" size={70} flip />
       </div>
     </div>
   );

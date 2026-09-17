@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EnglishQuest — Aperçu refonte Nihondex</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --background:212 18% 14%; --foreground:220 16% 88%; --card:213 18% 17%;
+    --primary:235 100% 73%; --secondary:213 16% 22%; --muted-foreground:220 12% 64%;
+    --accent:174 100% 40%; --border:213 18% 24%;
+    --brand-indigo:235 100% 73%; --brand-pink:313 100% 66%; --brand-teal:174 100% 40%;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; color:hsl(var(--foreground));
+    font-family:'Nunito',system-ui,sans-serif; font-weight:500;
+    background:
+      radial-gradient(1100px 620px at 82% -14%, hsl(var(--brand-indigo)/.16), transparent 60%),
+      radial-gradient(880px 520px at -6% 4%, hsl(var(--brand-pink)/.10), transparent 55%),
+      radial-gradient(760px 560px at 50% 118%, hsl(var(--brand-teal)/.08), transparent 62%),
+      linear-gradient(180deg, hsl(212 18% 15%), hsl(213 18% 11%));
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.disp{font-family:'Baloo 2','Nunito',sans-serif; letter-spacing:-.01em; margin:0}
+  .wrap{max-width:1040px; margin:0 auto; padding:0 16px 60px}
+  header{position:sticky; top:0; z-index:5; border-bottom:1px solid hsl(var(--border)/.6); background:hsl(var(--background)/.7); backdrop-filter:blur(8px)}
+  .bar{max-width:1040px; margin:0 auto; display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; padding:12px 16px}
+  .logo{display:flex; align-items:center; gap:8px; font-weight:800; font-family:'Baloo 2'}
+  .logo .eq{display:grid; place-items:center; width:32px; height:32px; border-radius:10px; background:hsl(var(--primary)); color:#080a1a}
+  .logo .q{color:hsl(var(--primary))}
+  nav{display:flex; gap:4px; overflow:auto}
+  .navbtn{font:inherit; font-weight:600; font-size:14px; padding:8px 12px; border-radius:.5rem; background:transparent; color:hsl(var(--foreground)); border:0; cursor:pointer}
+  .navbtn:hover{background:hsl(var(--secondary)/.8)}
+  .navbtn.active{background:hsl(var(--secondary))}
+  .pills{margin-left:auto; display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px}
+  .pill{display:flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px; background:hsl(var(--secondary))}
+  .card{border-radius:1rem; border:1px solid hsl(var(--brand-indigo)/.10); background:linear-gradient(180deg,hsl(var(--brand-indigo)/.05),transparent),hsl(var(--card)); box-shadow:0 18px 40px -18px #000a; backdrop-filter:blur(6px)}
+  .btn{font:inherit; font-weight:700; font-size:14px; border:0; border-radius:.6rem; padding:12px 22px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:transform .06s, box-shadow .06s, filter .15s}
+  .btn-primary{background:#7480ff; color:#080a1a; box-shadow:0 4px 0 #3b3282}
+  .btn-primary:active{transform:translateY(3px); box-shadow:0 1px 0 #3b3282}
+  .btn-primary:hover{filter:brightness(1.1)}
+  .btn-outline{background:transparent; color:hsl(var(--foreground)); border:1px solid hsl(var(--border))}
+  .btn-outline:hover{background:hsl(var(--secondary))}
+  .badge{display:inline-flex; align-items:center; gap:6px; border-radius:999px; background:hsl(var(--primary)/.15); color:hsl(var(--primary)); font-weight:700; font-size:12px; padding:5px 12px; letter-spacing:.02em}
+  .grad{background:linear-gradient(90deg,#7480ff,#ff52d9,#00cdb7); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 24px hsl(var(--brand-indigo)/.35)}
+  .muted{color:hsl(var(--muted-foreground))}
+  .stat .v{font-size:30px; font-weight:800; font-family:'Baloo 2'}
+  .stat .l{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:hsl(var(--muted-foreground))}
+  .grid{display:grid; gap:16px}
+  .track{height:8px; border-radius:999px; background:hsl(var(--secondary)); overflow:hidden}
+  .fill{height:100%; border-radius:999px; background:linear-gradient(90deg,hsl(var(--primary)),#ff52d9,hsl(var(--accent)))}
+  .lvl{display:grid; place-items:center; width:48px; height:48px; border-radius:12px; font-family:'Baloo 2'; font-weight:800; color:#fff}
+  .note{max-width:1040px;margin:22px auto 0;padding:14px 18px;border-radius:14px;border:1px dashed hsl(var(--border));background:hsl(var(--card)/.5);font-size:13px}
+  @media(min-width:720px){.two{grid-template-columns:1fr 1fr}.three{grid-template-columns:1fr 1fr 1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="logo"><span class="eq">EQ</span><span>English<span class="q">Quest</span></span></div>
+    <nav>
+      <button class="navbtn active">Accueil</button>
+      <button class="navbtn">Apprendre</button>
+      <button class="navbtn">Île</button>
+      <button class="navbtn">Boutique</button>
+      <button class="navbtn">Trophées</button>
+    </nav>
+    <div class="pills">
+      <span class="pill">🔥 7</span>
+      <span class="pill">⭐ 1 240</span>
+      <span class="pill">🪙 320</span>
+    </div>
+  </div>
+</header>
+
+<div class="note">Aperçu de la refonte : palette Nihondex (fond navy <b>#1d232a</b>, primaire indigo <b>#7480ff</b>, secondaire rose <b>#ff52d9</b>, accent turquoise <b>#00cdb7</b>) appliquée aux vrais composants d'EnglishQuest — boutons « 3D », cartes, dégradés de titre et de progression.</div>
+
+<div class="wrap">
+  <div class="card" style="margin-top:22px; padding:44px; position:relative; overflow:hidden">
+    <span class="badge">✦ APPRENDS · PRATIQUE · PROGRESSE</span>
+    <h1 style="margin-top:20px; font-size:44px; line-height:1.1; max-width:640px">Ton aventure vers un anglais <span class="grad">sans limites</span></h1>
+    <p class="muted" style="margin-top:14px; max-width:520px">Des leçons courtes, des exercices variés et une île qui grandit avec tes progrès.</p>
+    <div style="margin-top:26px; display:flex; gap:12px; flex-wrap:wrap">
+      <button class="btn btn-primary">🚀 Continuer mon parcours</button>
+      <button class="btn btn-primary">🧠 Réviser (5)</button>
+      <button class="btn btn-outline">📖 Dictionnaire</button>
+    </div>
+    <div style="margin-top:30px; display:flex; gap:40px; flex-wrap:wrap">
+      <div class="stat"><div class="v">1 240</div><div class="l">XP gagnés</div></div>
+      <div class="stat"><div class="v">38/95</div><div class="l">Leçons terminées</div></div>
+      <div class="stat"><div class="v">7</div><div class="l">Jours de série</div></div>
+    </div>
+  </div>
+
+  <div class="grid two" style="margin-top:16px">
+    <div class="card" style="padding:22px; display:flex; align-items:center; gap:16px">
+      <div class="lvl" style="border-radius:999px; background:hsl(var(--primary)/.15); color:hsl(var(--primary))">🎯</div>
+      <div><div style="font-weight:800; font-family:'Baloo 2'">Objectif du jour</div><div class="muted" style="font-size:14px">35 / 50 XP · encore 15 XP</div></div>
+    </div>
+    <div class="card" style="padding:22px; display:flex; align-items:center; gap:16px">
+      <div class="lvl" style="border-radius:999px; background:hsl(var(--accent)/.15); color:hsl(var(--accent))">🧠</div>
+      <div><div style="font-weight:800; font-family:'Baloo 2'">Réviser</div><div class="muted" style="font-size:14px">5 cartes à revoir aujourd'hui.</div></div>
+    </div>
+  </div>
+
+  <h2 style="margin:32px 0 16px; font-size:26px">Choisis ton niveau</h2>
+  <div class="grid three">
+    <div class="card" style="padding:22px">
+      <div class="lvl" style="background:linear-gradient(135deg,#22c55e,#16a34a)">A1</div>
+      <h3 style="margin:12px 0 4px; font-size:18px">Débutant</h3>
+      <div class="muted" style="font-size:13px">Les premiers mots et phrases.</div>
+      <div class="track" style="margin-top:14px"><div class="fill" style="width:80%"></div></div>
+      <div class="muted" style="font-size:12px; margin-top:6px">13/16 leçons</div>
+    </div>
+    <div class="card" style="padding:22px">
+      <div class="lvl" style="background:linear-gradient(135deg,#7480ff,#5b6bff)">B1</div>
+      <h3 style="margin:12px 0 4px; font-size:18px">Intermédiaire</h3>
+      <div class="muted" style="font-size:13px">Converser avec aisance.</div>
+      <div class="track" style="margin-top:14px"><div class="fill" style="width:45%"></div></div>
+      <div class="muted" style="font-size:12px; margin-top:6px">7/16 leçons</div>
+    </div>
+    <div class="card" style="padding:22px">
+      <div class="lvl" style="background:linear-gradient(135deg,#ff52d9,#c00090)">C2</div>
+      <h3 style="margin:12px 0 4px; font-size:18px">Maîtrise</h3>
+      <div class="muted" style="font-size:13px">Niveau quasi-natif.</div>
+      <div class="track" style="margin-top:14px"><div class="fill" style="width:20%"></div></div>
+      <div class="muted" style="font-size:12px; margin-top:6px">3/15 leçons</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
