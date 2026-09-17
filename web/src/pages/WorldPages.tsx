@@ -1,67 +1,49 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Coins, ShoppingBag, Check, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SHOP } from '@/data/shop';
 import { TROPHIES, type Trophy } from '@/lib/trophies';
-import landMask from '@/data/landMask.json';
+import { createGalaxy } from '@/lib/galaxy';
+import { LEVELS, lessonCount } from '@/lib/content';
 import type { GameState, Page } from '../types';
 
 const asset = (file: string) => `${import.meta.env.BASE_URL}assets/${file}`;
 const SHOP_MAP = Object.fromEntries(SHOP.map((s) => [s.id, s]));
 const MAX_PER_ITEM = 5;
-const ITEM_H = 46; // hauteur d'affichage par défaut
-const CHAR_IDS = new Set(['r2d2', 'bb8', 'stormtrooper', 'boba', 'chewie', 'yoda']); // compagnons qui se promènent
-const BRIDGE_IDS = new Set<string>(); // (héritage) — plus d'eau sur Endor, rien ne flotte
-const BRIDGE_H = 72;
+const ITEM_H = 46;
 
-// Hauteur d'affichage par objet. Les véhicules et grosses créatures sont plus imposants.
+// Taille d'affichage par article dans l'armurerie.
 const SIZE: Record<string, number> = {
-  atat: 96, xwing: 60, tie: 58, bantha: 70, rancor: 54,
-  chewie: 56, boba: 52, stormtrooper: 52,
+  atat: 96, xwing: 60, tie: 58, bantha: 70, rancor: 54, chewie: 56, boba: 52, stormtrooper: 52,
 };
 const sizeOf = (id: string) => SIZE[id] ?? ITEM_H;
 
-// Demi-dimensions (en % de la scène) de l'empreinte d'un pont, selon sa rotation.
-// Sert à savoir si un point tombe « sur » un pont (zone marchable au-dessus de l'eau).
-const BRIDGE_W_RATIO = 16 / 43; // ratio largeur/hauteur du chip du pont
-function bridgeHalfExtentsPct(rot: number, rect: { width: number; height: number }) {
-  const wpx = BRIDGE_H * BRIDGE_W_RATIO;
-  const vertical = rot % 180 === 0;
-  const halfWpx = (vertical ? wpx : BRIDGE_H) / 2;
-  const halfHpx = (vertical ? BRIDGE_H : wpx) / 2;
-  return { hx: (halfWpx / rect.width) * 100, hy: (halfHpx / rect.height) * 100 };
+// ---- Déblocage progressif des zones selon les missions d'anglais réussies ----
+const INITIAL = [6, 7, 8, 11, 12, 13, 16, 17, 18];
+const EXPAND = [1, 2, 3, 9, 14, 19, 23, 22, 21, 15, 10, 5, 0, 4, 24, 20];
+const MISSIONS_PER_ZONE = 2;
+function computeUnlock(totalDone: number) {
+  const extra = Math.floor(totalDone / MISSIONS_PER_ZONE);
+  const unlocked = new Set<number>(INITIAL);
+  for (let i = 0; i < Math.min(extra, EXPAND.length); i++) unlocked.add(EXPAND[i]);
+  const allOpen = unlocked.size >= 25;
+  const nextIn = MISSIONS_PER_ZONE - (totalDone % MISSIONS_PER_ZONE);
+  const lockLabel = allOpen ? 'Zone légendaire' : `Termine ${nextIn} mission${nextIn > 1 ? 's' : ''} pour débloquer`;
+  return { unlocked, lockLabel };
 }
 
-const MASK = landMask as { cols: number; rows: number; cells: string[] };
-
-// Sur Endor, toute la scène est un sol forestier praticable : plus d'eau, donc
-// tout est « terre ferme » (on garde la signature pour ne rien casser).
-function isLand(_xPct: number, _yPct: number) {
-  return true;
-}
-
-// Apparition / déplacement : n'importe où dans la clairière (marges évitées).
-function randomLand(): { x: number; y: number } {
+function randomSpot(): { x: number; y: number } {
   return { x: 10 + Math.random() * 80, y: 20 + Math.random() * 68 };
 }
-// Référence conservée pour éviter un import inutilisé (masque hérité).
-void MASK;
 
-// Rendu STRICTEMENT uniforme : chips pré-détourés, même hauteur pour TOUS.
-// `rot` (degrés) permet de tourner un objet (molette sur un objet sélectionné).
-function Chip({ id, rot = 0, size = ITEM_H }: { id: string; rot?: number; size?: number }) {
+// Vignette d'article (armurerie), image pré-détourée à hauteur fixe.
+function Chip({ id, size = ITEM_H }: { id: string; size?: number }) {
   return (
     <img
       src={asset(`chip_${id}.png`)}
       alt=""
-      style={{
-        height: size,
-        width: 'auto',
-        imageRendering: 'pixelated',
-        transform: rot ? `rotate(${rot}deg)` : undefined,
-        transition: 'transform 0.15s ease',
-      }}
+      style={{ height: size, width: 'auto', imageRendering: 'pixelated' }}
       draggable={false}
     />
   );
@@ -71,211 +53,43 @@ export function countOwned(state: GameState, id: string) {
   return (state.placed ?? []).filter((p) => p.id === id).length;
 }
 
-// Vaisseaux qui survolent la carte : traînées de vitesse + lueur des réacteurs.
-type Flight = { type: 'xwing' | 'tie'; top: number; dir: 1 | -1; dur: number; delay: number; size: number };
-const FLIGHTS: Flight[] = [
-  { type: 'xwing', top: 9, dir: 1, dur: 15, delay: 0, size: 42 },
-  { type: 'tie', top: 24, dir: -1, dur: 21, delay: 5, size: 34 },
-  { type: 'xwing', top: 64, dir: -1, dur: 18, delay: 11, size: 36 },
-  { type: 'tie', top: 46, dir: 1, dur: 26, delay: 17, size: 30 },
-  { type: 'xwing', top: 82, dir: 1, dur: 20, delay: 24, size: 30 },
-];
-function SkyFlight({ type, top, dir, dur, delay, size }: Flight) {
-  const glow = type === 'xwing' ? 'rgba(255,120,40,0.95)' : 'rgba(90,190,255,0.95)';
-  const streak = type === 'xwing' ? 'rgba(255,175,95,0.6)' : 'rgba(150,215,255,0.6)';
-  const behind = dir === 1 ? { right: '90%' as const } : { left: '90%' as const };
-  const engine = dir === 1 ? { right: '78%' as const } : { left: '78%' as const };
-  const streakBg = `linear-gradient(to ${dir === 1 ? 'left' : 'right'}, ${streak}, transparent)`;
-  return (
-    <div
-      className={dir === 1 ? 'eq-walk-r absolute' : 'eq-walk-l absolute'}
-      style={{ top: `${top}%`, animationDuration: `${dur}s`, animationDelay: `${delay}s`, zIndex: 20 }}
-    >
-      <div className="eq-bob relative" style={{ animationDuration: '3.4s' }}>
-        <div style={{ position: 'absolute', top: '40%', ...behind, width: size * 2.8, height: 2, transform: 'translateY(-50%)', background: streakBg, filter: 'blur(0.6px)' }} />
-        <div style={{ position: 'absolute', top: '58%', ...behind, width: size * 1.9, height: 1.5, transform: 'translateY(-50%)', background: streakBg }} />
-        <div
-          className="eq-shimmer"
-          style={{ position: 'absolute', top: '49%', ...engine, width: size * 0.85, height: size * 0.55, transform: 'translateY(-50%)', background: `radial-gradient(closest-side, ${glow}, transparent)`, filter: 'blur(2px)' }}
-        />
-        <img
-          src={asset(`chip_${type}.png`)}
-          alt=""
-          style={{ height: size, width: 'auto', imageRendering: 'pixelated', transform: `rotate(${dir === 1 ? 90 : -90}deg)`, filter: 'drop-shadow(0 5px 7px rgba(0,0,0,0.55))' }}
-          draggable={false}
-        />
-      </div>
-    </div>
-  );
-}
-function SkyFlights() {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {FLIGHTS.map((f, i) => (
-        <SkyFlight key={i} {...f} />
-      ))}
-    </div>
-  );
-}
+export function IslandPage({ state, navigate }: { state: GameState; navigate: (page: Page) => void }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const engineRef = useRef<ReturnType<typeof createGalaxy> | null>(null);
 
-export function IslandPage({
-  state,
-  setState,
-  navigate,
-}: {
-  state: GameState;
-  setState: React.Dispatch<React.SetStateAction<GameState>>;
-  navigate: (page: Page) => void;
-}) {
-  const placed = state.placed ?? [];
-  const sceneRef = useRef<HTMLDivElement>(null);
+  const totalDone = LEVELS.reduce((s, lv) => s + Math.min(state.lessons[lv] ?? 0, lessonCount(lv)), 0);
+  const { unlocked, lockLabel } = computeUnlock(totalDone);
+  const openCount = unlocked.size;
 
-  // position d'affichage vivante : prioritaire sur la position enregistrée
-  const [live, setLive] = useState<Record<string, { x: number; y: number }>>({});
-  const [dragK, setDragK] = useState<string | null>(null);
-  const [selectedK, setSelectedK] = useState<string | null>(null);
-  const [drowning, setDrowning] = useState<Record<string, boolean>>({});
-  const [appearing, setAppearing] = useState<Record<string, boolean>>({});
-
-  // refs pour l'intervalle de déplacement autonome (évite les closures périmées)
-  const dragRef = useRef<string | null>(null);
-  const drownRef = useRef<Record<string, boolean>>({});
-  const placedRef = useRef(placed);
-  const selRef = useRef<string | null>(null);
-  dragRef.current = dragK;
-  drownRef.current = drowning;
-  placedRef.current = placed;
-  selRef.current = selectedK;
-
-  const posOf = (pl: { k: string; x: number; y: number }) => live[pl.k] ?? { x: pl.x, y: pl.y };
-
-  // Déplacement autonome des animaux : sur la terre OU sur un pont (les ponts
-  // enjambent l'eau, donc les animaux peuvent les traverser).
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      const rect = sceneRef.current?.getBoundingClientRect();
-      setLive((prev) => {
-        const next = { ...prev };
-        // empreinte actuelle de chaque pont (position vivante prioritaire)
-        const bridges =
-          rect && rect.width && rect.height
-            ? placedRef.current
-                .filter((p) => BRIDGE_IDS.has(p.id))
-                .map((b) => {
-                  const bp = prev[b.k] ?? { x: b.x, y: b.y };
-                  const { hx, hy } = bridgeHalfExtentsPct(b.rot ?? 0, rect);
-                  return { x: bp.x, y: bp.y, hx, hy };
-                })
-            : [];
-        const onBridge = (x: number, y: number) =>
-          bridges.some((b) => Math.abs(x - b.x) <= b.hx && Math.abs(y - b.y) <= b.hy);
-        const walkable = (x: number, y: number) => isLand(x, y) || onBridge(x, y);
-        for (const pl of placedRef.current) {
-          if (!CHAR_IDS.has(pl.id)) continue;
-          if (pl.k === dragRef.current || drownRef.current[pl.k]) continue;
-          if (Math.random() < 0.3) continue; // pause parfois
-          const base = next[pl.k] ?? { x: pl.x, y: pl.y };
-          for (let tries = 0; tries < 10; tries++) {
-            const nx = Math.min(94, Math.max(6, base.x + (Math.random() * 2 - 1) * 11));
-            const ny = Math.min(90, Math.max(14, base.y + (Math.random() * 2 - 1) * 9));
-            if (walkable(nx, ny)) {
-              next[pl.k] = { x: nx, y: ny };
-              break;
-            }
-          }
-        }
-        return next;
-      });
-    }, 2100);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  // Rotation à la molette de l'objet sélectionné (décors uniquement).
-  // Chaque cran = 90° → passe du vertical à l'horizontal et inversement.
-  useEffect(() => {
-    const el = sceneRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      const k = selRef.current;
-      if (!k) return;
-      const pl = placedRef.current.find((p) => p.k === k);
-      if (!pl || CHAR_IDS.has(pl.id)) return; // les animaux ne tournent pas
-      e.preventDefault();
-      const dir = e.deltaY > 0 ? 1 : -1;
-      setState((s) => ({
-        ...s,
-        placed: (s.placed ?? []).map((p) =>
-          p.k === k ? { ...p, rot: ((((p.rot ?? 0) + dir * 90) % 360) + 360) % 360 } : p,
-        ),
-      }));
+    const canvas = canvasRef.current;
+    const wrap = wrapRef.current;
+    if (!canvas || !wrap) return;
+    const owned = (state.placed ?? []).map((p) => p.id);
+    const eng = createGalaxy(canvas, { baseUrl: import.meta.env.BASE_URL, unlocked, lockLabel, owned });
+    engineRef.current = eng;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const measure = () => {
+      const r = wrap.getBoundingClientRect();
+      eng.resize(dpr, Math.max(1, r.width), Math.max(1, r.height));
     };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
+    const ro = new ResizeObserver(measure);
+    ro.observe(wrap);
+    const r = wrap.getBoundingClientRect();
+    eng.start(dpr, Math.max(1, r.width), Math.max(1, r.height));
+    return () => {
+      ro.disconnect();
+      eng.stop();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function onMove(e: React.PointerEvent) {
-    if (!dragK || !sceneRef.current) return;
-    const r = sceneRef.current.getBoundingClientRect();
-    const x = Math.min(96, Math.max(4, ((e.clientX - r.left) / r.width) * 100));
-    const y = Math.min(94, Math.max(8, ((e.clientY - r.top) / r.height) * 100));
-    setLive((p) => ({ ...p, [dragK]: { x, y } }));
-  }
-
-  // Un point tombe-t-il sur un pont déjà posé ? (zone marchable au-dessus de l'eau)
-  function onABridge(x: number, y: number, excludeK?: string) {
-    const rect = sceneRef.current?.getBoundingClientRect();
-    if (!rect || !rect.width || !rect.height) return false;
-    return placed.some((b) => {
-      if (!BRIDGE_IDS.has(b.id) || b.k === excludeK) return false;
-      const bp = live[b.k] ?? { x: b.x, y: b.y };
-      const { hx, hy } = bridgeHalfExtentsPct(b.rot ?? 0, rect);
-      return Math.abs(x - bp.x) <= hx && Math.abs(y - bp.y) <= hy;
-    });
-  }
-
-  function endDrag() {
-    const k = dragK;
-    setDragK(null);
-    if (!k) return;
-    const plItem = placed.find((p) => p.k === k);
-    const pos = live[k] ?? plItem;
-    if (!pos) return;
-    const canFloat = plItem ? BRIDGE_IDS.has(plItem.id) : false;
-    if (isLand(pos.x, pos.y) || canFloat || onABridge(pos.x, pos.y, k)) {
-      // posé sur la terre, sur un pont, ou pont lui-même (qui tient sur l'eau) : on enregistre
-      setState((s) => ({
-        ...s,
-        placed: (s.placed ?? []).map((pl) => (pl.k === k ? { ...pl, x: pos.x, y: pos.y } : pl)),
-      }));
-    } else {
-      // tombé dans l'eau : noyade → réapparition sur l'île
-      setDrowning((d) => ({ ...d, [k]: true }));
-      window.setTimeout(() => {
-        const dest = randomLand();
-        setLive((p) => ({ ...p, [k]: dest }));
-        setDrowning((d) => {
-          const n = { ...d };
-          delete n[k];
-          return n;
-        });
-        setAppearing((a) => ({ ...a, [k]: true }));
-        setState((s) => ({
-          ...s,
-          placed: (s.placed ?? []).map((pl) => (pl.k === k ? { ...pl, x: dest.x, y: dest.y } : pl)),
-        }));
-        window.setTimeout(
-          () =>
-            setAppearing((a) => {
-              const n = { ...a };
-              delete n[k];
-              return n;
-            }),
-          650,
-        );
-      }, 900);
-    }
-  }
+  useEffect(() => {
+    const next = computeUnlock(totalDone);
+    engineRef.current?.setUnlocked(next.unlocked, next.lockLabel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalDone]);
 
   return (
     <div className="space-y-4">
@@ -283,7 +97,7 @@ export function IslandPage({
         <div>
           <h1 className="text-2xl font-bold">Ton monde Endor</h1>
           <p className="text-muted-foreground">
-            Glisse tes unités pour les déployer. Clique un véhicule ou une créature puis tourne-le avec la molette 🔄. Les compagnons (droïdes, Wookiee…) patrouillent tout seuls 🤖
+            Explore la galaxie — glisse pour te déplacer, molette pour zoomer. Chaque mission d'anglais réussie débloque de nouveaux territoires 🌌
           </p>
         </div>
         <Button variant="outline" onClick={() => navigate('shop')}>
@@ -292,88 +106,16 @@ export function IslandPage({
       </div>
 
       <div
-        ref={sceneRef}
-        onPointerDown={() => setSelectedK(null)}
-        onPointerMove={onMove}
-        onPointerUp={endDrag}
-        onPointerLeave={endDrag}
-        className="relative aspect-square w-full touch-none overflow-hidden rounded-2xl border border-border shadow-xl shadow-black/40"
+        ref={wrapRef}
+        className="relative aspect-square w-full touch-none overflow-hidden rounded-2xl border border-border bg-[#061a24] shadow-xl shadow-black/40"
       >
-        {/* fond : le monde d'Endor complet — les 25 zones (5×5) assemblées */}
-        <img
-          src={asset('endor_world.jpg')}
-          alt="Le monde d'Endor — 25 territoires"
-          className="absolute inset-0 h-full w-full select-none object-cover"
-          style={{ imageRendering: 'pixelated' }}
-          draggable={false}
-        />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/35" />
-
-        {/* brume qui dérive */}
-        <div className="eq-walk-r absolute top-[10%] h-6 w-28 rounded-full bg-white/10 blur-md" style={{ animationDuration: '60s' }} />
-        <div className="eq-walk-r absolute top-[40%] h-5 w-20 rounded-full bg-white/10 blur-md" style={{ animationDuration: '78s', animationDelay: '12s' }} />
-        <div className="eq-walk-r absolute top-[66%] h-8 w-40 rounded-full bg-white/[0.08] blur-lg" style={{ animationDuration: '96s', animationDelay: '26s' }} />
-
-        {/* escadrille qui survole Endor */}
-        <SkyFlights />
-
-        {/* objets placés (déplaçables) */}
-        {placed.map((pl) => {
-          const item = SHOP_MAP[pl.id];
-          if (!item) return null;
-          const pos = posOf(pl);
-          const isDragging = dragK === pl.k;
-          const isSelected = selectedK === pl.k;
-          const isDrowning = !!drowning[pl.k];
-          const isAppearing = !!appearing[pl.k];
-          const isChar = CHAR_IDS.has(pl.id);
-          const smooth = isChar && !isDragging && !isDrowning && !isAppearing;
-          return (
-            <div
-              key={pl.k}
-              onPointerDown={(e) => {
-                if (isDrowning) return;
-                e.preventDefault();
-                e.stopPropagation();
-                setSelectedK(pl.k);
-                setLive((p) => ({ ...p, [pl.k]: posOf(pl) }));
-                setDragK(pl.k);
-              }}
-              className={`absolute -translate-x-1/2 -translate-y-1/2 select-none drop-shadow-lg ${
-                isDragging ? 'z-30 scale-110 cursor-grabbing' : 'cursor-grab'
-              } ${isSelected ? 'z-40 rounded-md ring-2 ring-[#f5c518]' : ''}`}
-              style={{
-                left: `${pos.x}%`,
-                top: `${pos.y}%`,
-                touchAction: 'none',
-                transition: smooth ? 'left 2.4s ease-in-out, top 2.4s ease-in-out' : 'none',
-                zIndex: isDrowning ? 5 : undefined,
-              }}
-              title={`${item.name} — glisse pour déplacer${!isChar ? ' · molette pour tourner' : ''}`}
-            >
-              {isDrowning && (
-                <div className="eq-splash pointer-events-none absolute left-1/2 top-1/2 h-8 w-8 rounded-full border-2 border-[#a6b4ff]/70" />
-              )}
-              <div
-                className={isDrowning ? 'eq-drown' : isAppearing ? 'eq-appear' : !isDragging ? 'eq-bob' : ''}
-                style={!isDragging && !isDrowning && !isAppearing ? { animationDelay: `${((pl.x + pl.y) % 24) / 10}s`, animationDuration: isChar ? '2.4s' : '3.6s' } : undefined}
-              >
-                <Chip id={pl.id} rot={pl.rot} size={sizeOf(pl.id)} />
-              </div>
-            </div>
-          );
-        })}
-
-        {/* panneau info */}
-        <div className="absolute bottom-4 left-4 z-10 flex items-center gap-1.5 rounded-xl bg-background/70 px-4 py-2 text-sm font-semibold backdrop-blur">
-          {placed.length} objet{placed.length > 1 ? 's' : ''} ·
-          <Coins className="size-4 text-amber-400" /> {state.coins}
+        <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" style={{ touchAction: 'none' }} />
+        <div className="pointer-events-none absolute bottom-4 left-4 rounded-xl bg-background/70 px-4 py-2 text-sm font-semibold backdrop-blur">
+          {openCount} / 25 territoires ouverts
         </div>
-        {placed.length === 0 && (
-          <div className="absolute left-4 top-4 z-10 max-w-[240px] rounded-xl bg-background/80 p-3 text-xs font-semibold shadow-lg backdrop-blur">
-            Gagne des crédits en accomplissant des missions, puis recrute ton escouade à l'armurerie ⚔️
-          </div>
-        )}
+        <div className="pointer-events-none absolute right-4 top-4 rounded-xl bg-background/70 px-3 py-1.5 text-xs font-semibold backdrop-blur">
+          {lockLabel}
+        </div>
       </div>
     </div>
   );
@@ -391,7 +133,7 @@ export function ShopPage({
       const count = (current.placed ?? []).filter((p) => p.id === id).length;
       if (count >= MAX_PER_ITEM || current.coins < price) return current;
       const k = `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-      const { x, y } = randomLand(); // apparait toujours sur la terre ferme
+      const { x, y } = randomSpot();
       return { ...current, coins: current.coins - price, placed: [...(current.placed ?? []), { k, id, x, y }] };
     });
   }
