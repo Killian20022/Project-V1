@@ -2,8 +2,9 @@ import { useEffect, useRef } from 'react';
 
 const asset = (file: string) => `${import.meta.env.BASE_URL}assets/${file}`;
 
-// Combat spatial de fond : des X-Wing (tirs laser rouges) poursuivent des TIE
-// (tirs verts) qui les fuient. Décoratif, sans interaction.
+// Combat spatial de fond : X-Wing (tirs rouges) chassent des TIE (tirs verts).
+// Pilotage fluide : poursuite/évasion avec anticipation, inclinaison dans les
+// virages (banking), tonneaux (barrel roll) et profondeur (échelle) pour le relief.
 export function Dogfight() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -22,20 +23,51 @@ export function Dogfight() {
     const imgT = new Image();
     imgT.src = asset('chip_tie.png');
 
-    type Ship = { team: 'x' | 't'; x: number; y: number; vx: number; vy: number; cd: number; size: number; spd: number };
-    type Bolt = { x: number; y: number; vx: number; vy: number; life: number; team: 'x' | 't' };
+    type Ship = {
+      team: 'x' | 't';
+      x: number;
+      y: number;
+      heading: number;
+      spd: number;
+      size: number;
+      z: number;
+      zv: number;
+      bank: number;
+      rollT: number; // >=0 : tonneau en cours ; -1 sinon
+      rollCd: number;
+      cd: number;
+    };
+    type Bolt = { x: number; y: number; vx: number; vy: number; life: number; team: 'x' | 't'; z: number };
     const ships: Ship[] = [];
     const bolts: Bolt[] = [];
-    const TURN = 2.6;
+    const SPD_X = 118;
+    const SPD_T = 98;
+    const TURN = 2.9; // rad/s max
     const RANGE = 340;
-    const SPD_X = 112; // X-Wing un peu plus rapides -> ils rattrapent et tirent
-    const SPD_T = 94;
+    const BULLET = 560;
+    const ROLL_DUR = 0.7;
 
+    function mkShip(team: 'x' | 't'): Ship {
+      return {
+        team,
+        x: Math.random() * W,
+        y: Math.random() * H,
+        heading: Math.random() * Math.PI * 2,
+        spd: team === 'x' ? SPD_X : SPD_T,
+        size: team === 'x' ? 42 : 34,
+        z: 0.75 + Math.random() * 0.5,
+        zv: (Math.random() < 0.5 ? -1 : 1) * (0.03 + Math.random() * 0.05),
+        bank: 0,
+        rollT: -1,
+        rollCd: 2 + Math.random() * 4,
+        cd: Math.random(),
+      };
+    }
     function reset() {
       ships.length = 0;
       for (let i = 0; i < 3; i++) {
-        ships.push({ team: 'x', x: Math.random() * W, y: Math.random() * H, vx: SPD_X, vy: 0, cd: Math.random(), size: 40, spd: SPD_X });
-        ships.push({ team: 't', x: Math.random() * W, y: Math.random() * H, vx: -SPD_T, vy: 0, cd: Math.random(), size: 34, spd: SPD_T });
+        ships.push(mkShip('x'));
+        ships.push(mkShip('t'));
       }
     }
     function measure() {
@@ -63,6 +95,7 @@ export function Dogfight() {
       }
       return best;
     }
+    const wrapAngle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
     let last = performance.now();
     let raf = 0;
@@ -70,58 +103,95 @@ export function Dogfight() {
     function step(dt: number) {
       for (const s of ships) {
         const foe = s.team === 'x' ? nearest(s, 't') : nearest(s, 'x');
+        let desx = Math.cos(s.heading);
+        let desy = Math.sin(s.heading);
         if (foe) {
-          let tx = s.team === 'x' ? foe.x - s.x : s.x - foe.x;
-          let ty = s.team === 'x' ? foe.y - s.y : s.y - foe.y;
-          const tl = Math.hypot(tx, ty) || 1;
-          tx /= tl;
-          ty /= tl;
-          // recentrage : plus fort près des bords -> le combat reste dans le cadre
-          const dcx = W / 2 - s.x;
-          const dcy = H / 2 - s.y;
-          const dcl = Math.hypot(dcx, dcy) || 1;
-          const wc = Math.min(0.85, Math.max(0, (dcl - Math.min(W, H) * 0.4) / (Math.min(W, H) * 0.28)));
-          let desx = tx + (dcx / dcl) * wc;
-          let desy = ty + (dcy / dcl) * wc;
-          const dl = Math.hypot(desx, desy) || 1;
-          desx /= dl;
-          desy /= dl;
-          const vl = Math.hypot(s.vx, s.vy) || 1;
-          let hx = s.vx / vl;
-          let hy = s.vy / vl;
-          hx += (desx - hx) * Math.min(1, TURN * dt);
-          hy += (desy - hy) * Math.min(1, TURN * dt);
-          const hl = Math.hypot(hx, hy) || 1;
-          s.vx = (hx / hl) * s.spd;
-          s.vy = (hy / hl) * s.spd;
-
-          s.cd -= dt;
-          const heading = Math.atan2(s.vy, s.vx);
-          const toFoe = Math.atan2(foe.y - s.y, foe.x - s.x);
-          const aligned = Math.abs(((toFoe - heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI) < 0.6;
+          const fvx = Math.cos(foe.heading) * foe.spd;
+          const fvy = Math.sin(foe.heading) * foe.spd;
           const dist = Math.hypot(foe.x - s.x, foe.y - s.y);
-          const canFire = s.team === 'x' ? aligned && dist < RANGE : dist < RANGE && Math.random() < 0.6;
-          if (s.cd <= 0 && canFire) {
-            s.cd = s.team === 'x' ? 0.3 + Math.random() * 0.4 : 0.5 + Math.random() * 0.7;
-            const bs = 540;
-            const ba = s.team === 'x' ? heading : toFoe;
-            bolts.push({
-              x: s.x + Math.cos(heading) * s.size * 0.6,
-              y: s.y + Math.sin(heading) * s.size * 0.6,
-              vx: Math.cos(ba) * bs,
-              vy: Math.sin(ba) * bs,
-              life: 0.9,
-              team: s.team,
-            });
+          if (s.team === 'x') {
+            // poursuite avec anticipation (lead)
+            const lead = Math.min(0.9, dist / BULLET);
+            desx = foe.x + fvx * lead - s.x;
+            desy = foe.y + fvy * lead - s.y;
+          } else {
+            // évasion
+            desx = s.x - foe.x;
+            desy = s.y - foe.y;
           }
         }
-        s.x += s.vx * dt;
-        s.y += s.vy * dt;
-        const m = 60;
+        // recentrage progressif près des bords
+        const dcx = W / 2 - s.x;
+        const dcy = H / 2 - s.y;
+        const dcl = Math.hypot(dcx, dcy) || 1;
+        const wc = Math.min(0.9, Math.max(0, (dcl - Math.min(W, H) * 0.42) / (Math.min(W, H) * 0.26)));
+        const dl = Math.hypot(desx, desy) || 1;
+        desx = desx / dl + (dcx / dcl) * wc;
+        desy = desy / dl + (dcy / dcl) * wc;
+        const desired = Math.atan2(desy, desx);
+        // rotation douce du cap (limitée) -> arcs fluides
+        const da = wrapAngle(desired - s.heading);
+        const turn = Math.max(-TURN * dt, Math.min(TURN * dt, da));
+        s.heading += turn;
+        const turnRate = turn / dt;
+
+        // banking : incline dans le virage
+        const targetBank = Math.max(-1.1, Math.min(1.1, turnRate * 0.22));
+        s.bank += (targetBank - s.bank) * Math.min(1, 6 * dt);
+
+        // tonneaux (barrel roll) quand le vol est stable
+        if (s.rollT >= 0) {
+          s.rollT += dt;
+          if (s.rollT > ROLL_DUR) {
+            s.rollT = -1;
+            s.rollCd = 3 + Math.random() * 5;
+          }
+        } else {
+          s.rollCd -= dt;
+          if (s.rollCd <= 0 && Math.abs(s.bank) < 0.3 && Math.random() < 0.4) s.rollT = 0;
+        }
+
+        // profondeur (relief) : z oscille
+        s.z += s.zv * dt;
+        if (s.z < 0.72) {
+          s.z = 0.72;
+          s.zv *= -1;
+        }
+        if (s.z > 1.28) {
+          s.z = 1.28;
+          s.zv *= -1;
+        }
+
+        // avance
+        s.x += Math.cos(s.heading) * s.spd * dt;
+        s.y += Math.sin(s.heading) * s.spd * dt;
+        const m = 70;
         if (s.x < -m) s.x = W + m;
         if (s.x > W + m) s.x = -m;
         if (s.y < -m) s.y = H + m;
         if (s.y > H + m) s.y = -m;
+
+        // tir
+        if (foe) {
+          s.cd -= dt;
+          const toFoe = Math.atan2(foe.y - s.y, foe.x - s.x);
+          const aligned = Math.abs(wrapAngle(toFoe - s.heading)) < 0.5;
+          const dist = Math.hypot(foe.x - s.x, foe.y - s.y);
+          const canFire = s.team === 'x' ? aligned && dist < RANGE && s.rollT < 0 : dist < RANGE && Math.random() < 0.55;
+          if (s.cd <= 0 && canFire) {
+            s.cd = s.team === 'x' ? 0.3 + Math.random() * 0.4 : 0.55 + Math.random() * 0.7;
+            const ba = s.team === 'x' ? s.heading : toFoe;
+            bolts.push({
+              x: s.x + Math.cos(s.heading) * s.size * 0.55 * s.z,
+              y: s.y + Math.sin(s.heading) * s.size * 0.55 * s.z,
+              vx: Math.cos(ba) * BULLET,
+              vy: Math.sin(ba) * BULLET,
+              life: 0.9,
+              team: s.team,
+              z: s.z,
+            });
+          }
+        }
       }
       for (let i = bolts.length - 1; i >= 0; i--) {
         const b = bolts[i];
@@ -135,12 +205,12 @@ export function Dogfight() {
     function draw() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
-      // tirs laser
+      // tirs
       ctx.lineCap = 'round';
       for (const b of bolts) {
         const col = b.team === 'x' ? '#ff5a3c' : '#8bff5a';
         ctx.strokeStyle = col;
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 3 * b.z;
         ctx.shadowColor = col;
         ctx.shadowBlur = 9;
         ctx.beginPath();
@@ -149,34 +219,39 @@ export function Dogfight() {
         ctx.stroke();
       }
       ctx.shadowBlur = 0;
-      // vaisseaux
-      for (const s of ships) {
+      // vaisseaux, du plus lointain au plus proche (relief)
+      const ordered = [...ships].sort((a, b) => a.z - b.z);
+      for (const s of ordered) {
         const im = s.team === 'x' ? imgX : imgT;
         if (!im.complete || !im.naturalWidth) continue;
-        const heading = Math.atan2(s.vy, s.vx);
-        const size = s.size;
+        const size = s.size * s.z;
         const w = size * (im.width / im.height);
-        const dx = Math.cos(heading);
-        const dy = Math.sin(heading);
+        const dx = Math.cos(s.heading);
+        const dy = Math.sin(s.heading);
+        // réacteur derrière
         const glow = s.team === 'x' ? 'rgba(255,120,40,.8)' : 'rgba(90,190,255,.8)';
         const rx = s.x - dx * size * 0.5;
         const ry = s.y - dy * size * 0.5;
         const rg = ctx.createRadialGradient(rx, ry, 1, rx, ry, size * 0.5);
         rg.addColorStop(0, glow);
         rg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.globalAlpha = 0.6 + (s.z - 0.72) * 0.7;
         ctx.fillStyle = rg;
         ctx.beginPath();
         ctx.arc(rx, ry, size * 0.5, 0, 7);
         ctx.fill();
-        // orientation du sprite : le nez du X-Wing pointe vers le BAS de l'image,
-        // le TIE (symétrique) vers le haut -> on aligne le nez sur la trajectoire.
+        // orientation + banking/tonneau (foreshortening de l'envergure)
         const noseAngle = s.team === 'x' ? Math.PI / 2 : -Math.PI / 2;
+        const rollPhase = s.rollT >= 0 ? (s.rollT / ROLL_DUR) * Math.PI * 2 : 0;
+        const wingScale = Math.cos(s.bank + rollPhase);
         ctx.save();
         ctx.translate(s.x, s.y);
-        ctx.rotate(heading - noseAngle);
+        ctx.rotate(s.heading - noseAngle);
+        ctx.scale(wingScale, 1);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(im, -w / 2, -size / 2, w, size);
         ctx.restore();
+        ctx.globalAlpha = 1;
       }
     }
 
@@ -196,7 +271,7 @@ export function Dogfight() {
   }, []);
 
   return (
-    <div ref={wrapRef} className="pointer-events-none fixed inset-0 -z-[5]" style={{ opacity: 0.72 }}>
+    <div ref={wrapRef} className="pointer-events-none fixed inset-0 -z-[5]" style={{ opacity: 0.78 }}>
       <canvas ref={canvasRef} className="h-full w-full" />
     </div>
   );

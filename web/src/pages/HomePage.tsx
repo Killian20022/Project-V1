@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Character } from '@/components/Character';
 import { Dogfight } from '@/components/Dogfight';
+import { SpaceBackdrop } from '@/components/SpaceBackdrop';
 import { LEVELS, LEVEL_INFO, lessonCount, TOTAL_LESSONS } from '@/lib/content';
 import { countDue } from '@/lib/srs';
 import type { GameState, Level, Page } from '../types';
@@ -27,7 +28,8 @@ export function HomePage({
 
   return (
     <div className="space-y-8">
-      {/* Combat spatial X-Wing vs TIE, en fond de page (zones libres) */}
+      {/* Décor spatial (planètes, étoiles) + combat X-Wing vs TIE en fond de page */}
+      <SpaceBackdrop />
       <Dogfight />
       <Card className="overflow-hidden">
         <CardContent className="relative p-8 md:p-12">
@@ -60,15 +62,14 @@ export function HomePage({
             <Stat value={`${lessonsDone}/${totalLessons}`} label="Missions accomplies" />
             <Stat value={state.streak} label="Jours de série" />
           </div>
-          {/* Duel au sabre laser : Luke vs Dark Vador */}
+          {/* Duel au sabre laser : Luke (vert) face à Dark Vador (rouge), lames qui pulsent */}
           <div className="pointer-events-none absolute bottom-0 right-4 hidden items-end lg:flex">
             <img
               src={`${import.meta.env.BASE_URL}assets/chip_luke.png`}
               alt=""
               className="saber-luke"
-              style={{ height: 150, width: 'auto', imageRendering: 'pixelated', transform: 'scaleX(-1)' }}
+              style={{ height: 150, width: 'auto', imageRendering: 'pixelated', transform: 'scaleX(-1)', marginRight: -8 }}
             />
-            <div className="saber-clash" style={{ marginBottom: 62 }} />
             <img
               src={`${import.meta.env.BASE_URL}assets/chip_vader.png`}
               alt=""

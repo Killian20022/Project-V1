@@ -228,6 +228,45 @@ h3,
   animation: run-cycle 1.15s steps(8) infinite; /* au ralenti : on voit bien les foulées */
 }
 
+/* --- Décor spatial de fond (planètes, nébuleuse, étoiles) --- */
+.sb-nebula {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 50% at 78% 18%, rgba(120, 90, 220, 0.14), transparent 70%),
+    radial-gradient(55% 45% at 12% 78%, rgba(40, 160, 200, 0.12), transparent 70%),
+    radial-gradient(50% 40% at 52% 48%, rgba(220, 80, 160, 0.07), transparent 75%);
+}
+.sb-stars {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.6px 1.6px at 8% 14%, rgba(255,255,255,0.9), transparent 60%),
+    radial-gradient(1.4px 1.4px at 22% 40%, rgba(255,255,255,0.7), transparent 60%),
+    radial-gradient(1.2px 1.2px at 33% 12%, rgba(200,225,255,0.7), transparent 60%),
+    radial-gradient(1.6px 1.6px at 45% 62%, rgba(255,255,255,0.8), transparent 60%),
+    radial-gradient(1.2px 1.2px at 55% 28%, rgba(255,245,220,0.7), transparent 60%),
+    radial-gradient(1.5px 1.5px at 66% 74%, rgba(255,255,255,0.8), transparent 60%),
+    radial-gradient(1.3px 1.3px at 74% 40%, rgba(210,230,255,0.7), transparent 60%),
+    radial-gradient(1.6px 1.6px at 84% 20%, rgba(255,255,255,0.85), transparent 60%),
+    radial-gradient(1.2px 1.2px at 90% 66%, rgba(255,255,255,0.7), transparent 60%),
+    radial-gradient(1.4px 1.4px at 18% 84%, rgba(255,255,255,0.75), transparent 60%),
+    radial-gradient(1.2px 1.2px at 38% 88%, rgba(210,230,255,0.6), transparent 60%),
+    radial-gradient(1.3px 1.3px at 60% 92%, rgba(255,255,255,0.7), transparent 60%),
+    radial-gradient(1.5px 1.5px at 95% 40%, rgba(255,255,255,0.8), transparent 60%),
+    radial-gradient(1.2px 1.2px at 5% 55%, rgba(255,255,255,0.65), transparent 60%);
+  animation: sw-twinkle 6s ease-in-out infinite;
+}
+@keyframes sb-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+.sb-planet {
+  position: absolute;
+  width: auto;
+  image-rendering: pixelated;
+  opacity: 0.92;
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.5));
+  animation: sb-float 24s ease-in-out infinite;
+}
+
 /* --- Duel au sabre laser (Luke vs Vador) --- */
 @keyframes saber-g { 0%, 100% { filter: drop-shadow(0 0 3px rgba(120, 255, 140, 0.5)); } 50% { filter: drop-shadow(0 0 10px rgba(120, 255, 140, 0.95)); } }
 @keyframes saber-r { 0%, 100% { filter: drop-shadow(0 0 3px rgba(255, 80, 70, 0.5)); } 50% { filter: drop-shadow(0 0 10px rgba(255, 80, 70, 0.95)); } }
