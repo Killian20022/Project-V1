@@ -233,20 +233,6 @@ h3,
 @keyframes saber-r { 0%, 100% { filter: drop-shadow(0 0 3px rgba(255, 80, 70, 0.5)); } 50% { filter: drop-shadow(0 0 10px rgba(255, 80, 70, 0.95)); } }
 .saber-luke { animation: saber-g 1.5s ease-in-out infinite; }
 .saber-vader { animation: saber-r 1.5s ease-in-out infinite; }
-@keyframes saber-clash {
-  0% { opacity: 0.55; transform: scale(0.8) rotate(10deg); }
-  50% { opacity: 1; transform: scale(1.18) rotate(-8deg); }
-  100% { opacity: 0.65; transform: scale(0.9) rotate(12deg); }
-}
-.saber-clash {
-  width: 16px;
-  height: 58px;
-  border-radius: 8px;
-  align-self: center;
-  background: radial-gradient(circle, #ffffff, #d4ecff 40%, rgba(180, 220, 255, 0));
-  box-shadow: 0 0 20px #ffffff, 0 0 36px #9fe8ff, 0 0 54px rgba(120, 255, 140, 0.5);
-  animation: saber-clash 0.12s infinite;
-}
 
 /* --- Entrée en vitesse lumière (hyperespace) --- */
 .ew-intro {
