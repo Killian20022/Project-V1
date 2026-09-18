@@ -261,9 +261,9 @@ h3,
 .sb-planet {
   position: absolute;
   width: auto;
-  image-rendering: pixelated;
-  opacity: 0.92;
-  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.5));
+  image-rendering: auto;
+  opacity: 0.95;
+  filter: drop-shadow(0 8px 22px rgba(0, 0, 0, 0.55));
   animation: sb-float 24s ease-in-out infinite;
 }
 
