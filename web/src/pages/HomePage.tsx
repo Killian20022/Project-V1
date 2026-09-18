@@ -2,6 +2,7 @@ import { Rocket, BookOpen, Sparkles, Target, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Character } from '@/components/Character';
+import { Dogfight } from '@/components/Dogfight';
 import { LEVELS, LEVEL_INFO, lessonCount, TOTAL_LESSONS } from '@/lib/content';
 import { countDue } from '@/lib/srs';
 import type { GameState, Level, Page } from '../types';
@@ -28,6 +29,9 @@ export function HomePage({
     <div className="space-y-8">
       <Card className="overflow-hidden">
         <CardContent className="relative p-8 md:p-12">
+          {/* Combat spatial en fond (X-Wing vs TIE) */}
+          <Dogfight />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-card/90 via-card/55 to-card/20" />
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary">
             <Sparkles className="size-3" /> ENTRAÎNE-TOI · MAÎTRISE · TRIOMPHE
           </div>
