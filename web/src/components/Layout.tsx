@@ -2,7 +2,6 @@ import { useState, type ReactNode } from 'react';
 import { Flame, Star, Coins, Volume2 } from 'lucide-react';
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser } from '@clerk/clerk-react';
 import { Button } from '@/components/ui/button';
-import { Walkers } from '@/components/Walkers';
 import { VoiceSettings } from '@/components/VoiceSettings';
 import type { GameState, Page } from '../types';
 
@@ -102,11 +101,6 @@ export function Layout({
       <VoiceSettings open={voiceOpen} onClose={() => setVoiceOpen(false)} />
 
       <main className="mx-auto max-w-6xl px-4 pb-28 pt-8">{children}</main>
-
-      {/* Personnages qui traversent le bas de la page (décoratif, sur le fond) */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 h-20 overflow-hidden">
-        <Walkers />
-      </div>
     </div>
   );
 }

@@ -36,6 +36,8 @@ export function Dogfight() {
       rollT: number; // >=0 : tonneau en cours ; -1 sinon
       rollCd: number;
       cd: number;
+      turnAcc: number; // virage cumulé signé (détection de boucle)
+      breakT: number; // >0 : dégagement en ligne droite en cours
     };
     type Bolt = { x: number; y: number; vx: number; vy: number; life: number; team: 'x' | 't'; z: number };
     const ships: Ship[] = [];
@@ -61,6 +63,8 @@ export function Dogfight() {
         rollT: -1,
         rollCd: 2 + Math.random() * 4,
         cd: Math.random(),
+        turnAcc: 0,
+        breakT: 0,
       };
     }
     function reset() {
@@ -105,7 +109,10 @@ export function Dogfight() {
         const foe = s.team === 'x' ? nearest(s, 't') : nearest(s, 'x');
         let desx = Math.cos(s.heading);
         let desy = Math.sin(s.heading);
-        if (foe) {
+        if (s.breakT > 0) {
+          // dégagement : on garde le cap et on file droit pour casser la boucle
+          s.breakT -= dt;
+        } else if (foe) {
           const fvx = Math.cos(foe.heading) * foe.spd;
           const fvy = Math.sin(foe.heading) * foe.spd;
           const dist = Math.hypot(foe.x - s.x, foe.y - s.y);
@@ -134,6 +141,14 @@ export function Dogfight() {
         const turn = Math.max(-TURN * dt, Math.min(TURN * dt, da));
         s.heading += turn;
         const turnRate = turn / dt;
+
+        // détection de boucle : si le vaisseau tourne longtemps dans le même sens,
+        // il se dégage en ligne droite au lieu de tourner en rond indéfiniment.
+        s.turnAcc = s.turnAcc * Math.max(0, 1 - dt * 0.35) + turn;
+        if (s.breakT <= 0 && Math.abs(s.turnAcc) > Math.PI * 1.5) {
+          s.breakT = 1.1 + Math.random() * 0.8;
+          s.turnAcc = 0;
+        }
 
         // banking : incline dans le virage
         const targetBank = Math.max(-1.1, Math.min(1.1, turnRate * 0.22));
