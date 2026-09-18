@@ -35,6 +35,14 @@ export function Layout({
   const isDev = user?.primaryEmailAddress?.emailAddress === DEV_EMAIL;
   return (
     <div className="min-h-screen">
+      {/* Ambiance spatiale Star Wars (discrète) : étoiles qui scintillent + étoiles filantes */}
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="sw-stars" />
+        <span className="sw-shoot" style={{ top: '9%', animationDelay: '-2s' }} />
+        <span className="sw-shoot" style={{ top: '34%', animationDelay: '-9s' }} />
+        <span className="sw-shoot" style={{ top: '66%', animationDelay: '-13s' }} />
+      </div>
+
       <header className="sticky top-0 z-20 border-b border-border/60 bg-background/70 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
           <button className="flex items-center gap-2 font-display font-extrabold tracking-tight" onClick={() => onNavigate('home')}>
