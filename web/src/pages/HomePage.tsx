@@ -37,7 +37,7 @@ export function HomePage({
             <Sparkles className="size-3" /> ENTRAÎNE-TOI · MAÎTRISE · TRIOMPHE
           </div>
           <h1 className="mt-5 max-w-2xl text-4xl font-black leading-tight md:text-5xl">
-            Deviens un Jedi de{' '}
+            Deviens un maître de{' '}
             <span className="text-glow bg-gradient-to-r from-[#f5c518] via-[#ffe27a] to-[#33ccff] bg-clip-text text-transparent">
               l'anglais
             </span>
@@ -164,7 +164,7 @@ export function HomePage({
         </div>
       </div>
 
-      <div className="flex items-end justify-center gap-2 pt-4 sm:gap-5">
+      <div className="flex origin-bottom scale-[0.62] items-end justify-center gap-2 pt-4 sm:scale-100 sm:gap-5">
         <Character file="chip_stormtrooper.png" size={84} />
         <Character file="chip_stormtrooper.png" size={84} />
         <Character file="chip_vader.png" size={150} />
