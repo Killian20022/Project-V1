@@ -168,9 +168,12 @@ export function Dogfight() {
         ctx.beginPath();
         ctx.arc(rx, ry, size * 0.5, 0, 7);
         ctx.fill();
+        // orientation du sprite : le nez du X-Wing pointe vers le BAS de l'image,
+        // le TIE (symétrique) vers le haut -> on aligne le nez sur la trajectoire.
+        const noseAngle = s.team === 'x' ? Math.PI / 2 : -Math.PI / 2;
         ctx.save();
         ctx.translate(s.x, s.y);
-        ctx.rotate(heading + Math.PI / 2);
+        ctx.rotate(heading - noseAngle);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(im, -w / 2, -size / 2, w, size);
         ctx.restore();
@@ -193,7 +196,7 @@ export function Dogfight() {
   }, []);
 
   return (
-    <div ref={wrapRef} className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div ref={wrapRef} className="pointer-events-none fixed inset-0 -z-[5]" style={{ opacity: 0.72 }}>
       <canvas ref={canvasRef} className="h-full w-full" />
     </div>
   );

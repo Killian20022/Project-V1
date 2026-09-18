@@ -27,11 +27,10 @@ export function HomePage({
 
   return (
     <div className="space-y-8">
+      {/* Combat spatial X-Wing vs TIE, en fond de page (zones libres) */}
+      <Dogfight />
       <Card className="overflow-hidden">
         <CardContent className="relative p-8 md:p-12">
-          {/* Combat spatial en fond (X-Wing vs TIE) */}
-          <Dogfight />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-card/90 via-card/55 to-card/20" />
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary">
             <Sparkles className="size-3" /> ENTRAÎNE-TOI · MAÎTRISE · TRIOMPHE
           </div>
@@ -61,8 +60,21 @@ export function HomePage({
             <Stat value={`${lessonsDone}/${totalLessons}`} label="Missions accomplies" />
             <Stat value={state.streak} label="Jours de série" />
           </div>
-          <div className="pointer-events-none absolute bottom-0 right-6 hidden opacity-95 lg:block">
-            <Character file="chip_luke.png" size={172} />
+          {/* Duel au sabre laser : Luke vs Dark Vador */}
+          <div className="pointer-events-none absolute bottom-0 right-4 hidden items-end lg:flex">
+            <img
+              src={`${import.meta.env.BASE_URL}assets/chip_luke.png`}
+              alt=""
+              className="saber-luke"
+              style={{ height: 150, width: 'auto', imageRendering: 'pixelated', transform: 'scaleX(-1)' }}
+            />
+            <div className="saber-clash" style={{ marginBottom: 62 }} />
+            <img
+              src={`${import.meta.env.BASE_URL}assets/chip_vader.png`}
+              alt=""
+              className="saber-vader"
+              style={{ height: 168, width: 'auto', imageRendering: 'pixelated' }}
+            />
           </div>
         </CardContent>
       </Card>

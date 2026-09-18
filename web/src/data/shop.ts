@@ -16,7 +16,7 @@ export const SHOP: ShopItem[] = [
   { id: 'boba', name: 'Boba Fett', price: 240, kind: 'char', file: 'chip_boba.png', blurb: 'Chasseur de primes' },
   { id: 'chewie', name: 'Chewbacca', price: 260, kind: 'char', file: 'chip_chewie.png', blurb: 'Copilote wookiee' },
   { id: 'yoda', name: 'Maître Yoda', price: 320, kind: 'char', file: 'chip_yoda.png', blurb: 'La Force, puissante en lui' },
-  { id: 'tie', name: 'TIE Bomber', price: 140, kind: 'decor', file: 'chip_tie.png' },
+  { id: 'tie', name: 'TIE Fighter', price: 140, kind: 'decor', file: 'chip_tie.png' },
   { id: 'xwing', name: 'X-Wing', price: 160, kind: 'decor', file: 'chip_xwing.png' },
   { id: 'rancor', name: 'Rancor', price: 200, kind: 'decor', file: 'chip_rancor.png' },
   { id: 'bantha', name: 'Bantha', price: 220, kind: 'decor', file: 'chip_bantha.png' },
