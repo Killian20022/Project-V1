@@ -164,10 +164,12 @@ export function HomePage({
         </div>
       </div>
 
-      <div className="flex items-end justify-center gap-6 pt-4 sm:gap-14">
-        <Character file="chip_chewie.png" size={116} />
-        <Character file="chip_vader.png" size={140} />
-        <Character file="chip_r2d2.png" size={78} />
+      <div className="flex items-end justify-center gap-2 pt-4 sm:gap-5">
+        <Character file="chip_stormtrooper.png" size={84} />
+        <Character file="chip_stormtrooper.png" size={84} />
+        <Character file="chip_vader.png" size={150} />
+        <Character file="chip_stormtrooper.png" size={84} flip />
+        <Character file="chip_stormtrooper.png" size={84} flip />
       </div>
     </div>
   );
