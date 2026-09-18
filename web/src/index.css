@@ -217,3 +217,33 @@ h3,
   animation: sw-shoot 16s linear infinite;
   opacity: 0;
 }
+
+/* --- Cycle de course (sprite-sheet 8 images) pour les petits clones --- */
+@keyframes run-cycle { from { background-position: 0 0; } to { background-position: -352px 0; } }
+.run-clone {
+  width: 44px;
+  height: 52px;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  animation: run-cycle 1.15s steps(8) infinite; /* au ralenti : on voit bien les foulées */
+}
+
+/* --- Entrée en vitesse lumière (hyperespace) --- */
+.ew-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #02040a;
+  opacity: 1;
+  transition: opacity 0.55s ease;
+}
+.ew-intro-out { opacity: 0; }
+.ew-intro-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.ew-intro-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, #ffffff, #dfeaff 60%, #bcd4ff);
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+.ew-intro-flash.on { opacity: 1; }

@@ -14,6 +14,7 @@ import { LessonPage } from '@/pages/LessonPage';
 import { ExercisePage } from '@/pages/ExercisePage';
 import { IslandPage, ShopPage, TrophiesPage } from '@/pages/WorldPages';
 import { DictionaryPage } from '@/pages/DictionaryPage';
+import { HyperspaceIntro } from '@/components/HyperspaceIntro';
 import type { GameState, Lesson, Level, Page, SrsCard } from './types';
 
 type LessonSelection = { level: Level; index: number; lesson: Lesson };
@@ -247,13 +248,16 @@ export default function App() {
   }
 
   return (
-    <Layout
-      page={page}
-      onNavigate={navigate}
-      state={state}
-      onAddCoins={() => setState((current) => ({ ...current, coins: current.coins + 1000 }))}
-    >
-      {content}
-    </Layout>
+    <>
+      <HyperspaceIntro />
+      <Layout
+        page={page}
+        onNavigate={navigate}
+        state={state}
+        onAddCoins={() => setState((current) => ({ ...current, coins: current.coins + 1000 }))}
+      >
+        {content}
+      </Layout>
+    </>
   );
 }
