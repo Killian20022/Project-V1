@@ -1,16 +1,23 @@
 import type { CSSProperties } from 'react';
 
-const asset = (file: string) => `${import.meta.env.BASE_URL}assets/${file}`;
+type World = {
+  name: string;
+  kind: string;
+  size: number;
+  position: CSSProperties;
+  duration: number;
+  mobile?: boolean;
+};
 
-// Les planètes restent aux bords pour laisser le contenu au premier plan.
-const PLANETS: { file: string; size: number; position: CSSProperties; duration: number }[] = [
-  { file: 'planet_saturn.png', size: 154, position: { top: '7%', left: '3%' }, duration: 28 },
-  { file: 'planet_neptune.png', size: 102, position: { top: '8%', right: '4%' }, duration: 34 },
-  { file: 'planet_earth.png', size: 88, position: { top: '48%', right: '3%' }, duration: 26 },
-  { file: 'planet_jupiter.png', size: 120, position: { bottom: '5%', left: '3%' }, duration: 32 },
-  { file: 'planet_death.png', size: 82, position: { top: '58%', left: '43%' }, duration: 38 },
-  { file: 'planet_mars.png', size: 68, position: { bottom: '16%', right: '22%' }, duration: 24 },
-  { file: 'planet_moon.png', size: 42, position: { top: '74%', left: '20%' }, duration: 20 },
+// Une petite carte de la galaxie, placée sur les bords de l'écran.
+const WORLDS: World[] = [
+  { name: 'Tatooine', kind: 'tatooine', size: 78, position: { top: '13%', left: '6%' }, duration: 27, mobile: true },
+  { name: 'Coruscant', kind: 'coruscant', size: 68, position: { top: '10%', right: '9%' }, duration: 33, mobile: true },
+  { name: 'Hoth', kind: 'hoth', size: 52, position: { top: '39%', right: '4%' }, duration: 29, mobile: true },
+  { name: 'Naboo', kind: 'naboo', size: 62, position: { top: '47%', left: '3%' }, duration: 35 },
+  { name: 'Endor', kind: 'endor', size: 55, position: { bottom: '15%', left: '10%' }, duration: 31, mobile: true },
+  { name: 'Mustafar', kind: 'mustafar', size: 50, position: { bottom: '18%', right: '9%' }, duration: 25 },
+  { name: 'Dagobah', kind: 'dagobah', size: 42, position: { bottom: '7%', right: '37%' }, duration: 37 },
 ];
 
 export function SpaceBackdrop() {
@@ -24,20 +31,21 @@ export function SpaceBackdrop() {
       <div className="sb-orbit sb-orbit-two" />
       <div className="sb-shooting-star sb-shooting-star-one" />
       <div className="sb-shooting-star sb-shooting-star-two" />
-      {PLANETS.map((planet, index) => (
-        <img
-          key={planet.file}
-          src={asset(planet.file)}
-          alt=""
-          className="sb-planet"
+      {WORLDS.map((world, index) => (
+        <div
+          key={world.name}
+          className={`sb-world sb-world-${world.kind}${world.mobile ? ' sb-world-mobile' : ''}`}
           style={{
-            ...planet.position,
-            height: planet.size,
-            animationDuration: `${planet.duration}s`,
+            ...world.position,
+            width: world.size,
+            height: world.size,
+            animationDuration: `${world.duration}s`,
             animationDelay: `${-index * 3}s`,
           }}
-          draggable={false}
-        />
+        >
+          <div className="sb-world-disc" />
+          <span className="sb-world-name">{world.name}</span>
+        </div>
       ))}
     </div>
   );
