@@ -228,43 +228,113 @@ h3,
   animation: run-cycle 1.15s steps(8) infinite; /* au ralenti : on voit bien les foulées */
 }
 
-/* --- Décor spatial de fond (planètes, nébuleuse, étoiles) --- */
+/* --- Décor de l'accueil : profondeur, orbites et étoiles --- */
+.sb-scene { isolation: isolate; }
 .sb-nebula {
   position: absolute;
-  inset: 0;
+  inset: -8%;
   background:
-    radial-gradient(60% 50% at 78% 18%, rgba(120, 90, 220, 0.14), transparent 70%),
-    radial-gradient(55% 45% at 12% 78%, rgba(40, 160, 200, 0.12), transparent 70%),
-    radial-gradient(50% 40% at 52% 48%, rgba(220, 80, 160, 0.07), transparent 75%);
+    radial-gradient(ellipse 42% 44% at 82% 20%, hsl(var(--brand-blue) / 0.16), transparent 75%),
+    radial-gradient(ellipse 35% 38% at 9% 78%, hsl(var(--brand-gold) / 0.11), transparent 76%),
+    radial-gradient(ellipse 44% 38% at 57% 53%, hsl(var(--brand-red) / 0.065), transparent 79%);
+  animation: sb-nebula-drift 44s ease-in-out infinite alternate;
 }
-.sb-stars {
-  position: absolute;
-  inset: 0;
+.sb-stars { position: absolute; inset: 0; }
+.sb-stars-far {
+  opacity: 0.8;
   background-image:
-    radial-gradient(1.6px 1.6px at 8% 14%, rgba(255,255,255,0.9), transparent 60%),
-    radial-gradient(1.4px 1.4px at 22% 40%, rgba(255,255,255,0.7), transparent 60%),
-    radial-gradient(1.2px 1.2px at 33% 12%, rgba(200,225,255,0.7), transparent 60%),
-    radial-gradient(1.6px 1.6px at 45% 62%, rgba(255,255,255,0.8), transparent 60%),
-    radial-gradient(1.2px 1.2px at 55% 28%, rgba(255,245,220,0.7), transparent 60%),
-    radial-gradient(1.5px 1.5px at 66% 74%, rgba(255,255,255,0.8), transparent 60%),
-    radial-gradient(1.3px 1.3px at 74% 40%, rgba(210,230,255,0.7), transparent 60%),
-    radial-gradient(1.6px 1.6px at 84% 20%, rgba(255,255,255,0.85), transparent 60%),
-    radial-gradient(1.2px 1.2px at 90% 66%, rgba(255,255,255,0.7), transparent 60%),
-    radial-gradient(1.4px 1.4px at 18% 84%, rgba(255,255,255,0.75), transparent 60%),
-    radial-gradient(1.2px 1.2px at 38% 88%, rgba(210,230,255,0.6), transparent 60%),
-    radial-gradient(1.3px 1.3px at 60% 92%, rgba(255,255,255,0.7), transparent 60%),
-    radial-gradient(1.5px 1.5px at 95% 40%, rgba(255,255,255,0.8), transparent 60%),
-    radial-gradient(1.2px 1.2px at 5% 55%, rgba(255,255,255,0.65), transparent 60%);
-  animation: sw-twinkle 6s ease-in-out infinite;
+    radial-gradient(1px 1px at 8% 14%, hsl(var(--foreground) / 0.65) 80%, transparent),
+    radial-gradient(1px 1px at 22% 40%, hsl(var(--foreground) / 0.55) 80%, transparent),
+    radial-gradient(1px 1px at 33% 12%, hsl(var(--brand-blue) / 0.7) 80%, transparent),
+    radial-gradient(1px 1px at 45% 62%, hsl(var(--foreground) / 0.7) 80%, transparent),
+    radial-gradient(1px 1px at 55% 28%, hsl(var(--brand-gold) / 0.65) 80%, transparent),
+    radial-gradient(1px 1px at 66% 74%, hsl(var(--foreground) / 0.7) 80%, transparent),
+    radial-gradient(1px 1px at 74% 40%, hsl(var(--brand-blue) / 0.6) 80%, transparent),
+    radial-gradient(1px 1px at 84% 20%, hsl(var(--foreground) / 0.75) 80%, transparent),
+    radial-gradient(1px 1px at 90% 66%, hsl(var(--foreground) / 0.6) 80%, transparent),
+    radial-gradient(1px 1px at 18% 84%, hsl(var(--foreground) / 0.65) 80%, transparent),
+    radial-gradient(1px 1px at 38% 88%, hsl(var(--brand-blue) / 0.6) 80%, transparent),
+    radial-gradient(1px 1px at 60% 92%, hsl(var(--foreground) / 0.6) 80%, transparent);
+  background-size: 330px 270px;
+  animation: sw-twinkle 8s ease-in-out infinite;
 }
-@keyframes sb-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+.sb-stars-near {
+  opacity: 0.7;
+  background-image:
+    radial-gradient(2px 2px at 11% 24%, hsl(var(--foreground) / 0.95) 50%, transparent),
+    radial-gradient(2px 2px at 71% 10%, hsl(var(--brand-gold) / 0.9) 50%, transparent),
+    radial-gradient(2px 2px at 89% 53%, hsl(var(--brand-blue) / 0.9) 50%, transparent),
+    radial-gradient(2px 2px at 34% 79%, hsl(var(--foreground) / 0.85) 50%, transparent),
+    radial-gradient(2px 2px at 58% 43%, hsl(var(--foreground) / 0.8) 50%, transparent);
+  background-size: 510px 390px;
+  animation: sw-twinkle 5.5s ease-in-out infinite reverse;
+}
+.sb-horizon {
+  position: absolute;
+  left: -20%; right: -20%; bottom: -48%; height: 72%;
+  border-radius: 50%;
+  border-top: 1px solid hsl(var(--brand-blue) / 0.18);
+  box-shadow: 0 -12px 70px -38px hsl(var(--brand-blue) / 0.35);
+  transform: rotate(-7deg);
+}
+.sb-orbit {
+  position: absolute;
+  width: 74vw; height: 74vw;
+  min-width: 700px; min-height: 700px;
+  border: 1px solid hsl(var(--brand-gold) / 0.07);
+  border-radius: 50%;
+  transform: rotate(-23deg) scaleY(0.43);
+}
+.sb-orbit-one { top: -47vw; left: -20vw; }
+.sb-orbit-two { right: -29vw; bottom: -50vw; border-color: hsl(var(--brand-blue) / 0.07); }
+.sb-shooting-star {
+  position: absolute;
+  top: 18%; right: -18%;
+  width: 170px; height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, hsl(var(--brand-blue) / 0.22), hsl(var(--foreground) / 0.85));
+  box-shadow: 0 0 12px hsl(var(--brand-blue) / 0.32);
+  opacity: 0;
+  transform: rotate(-25deg);
+  animation: sb-shoot 19s linear infinite;
+}
+.sb-shooting-star-two {
+  top: 47%;
+  width: 110px;
+  background: linear-gradient(90deg, transparent, hsl(var(--brand-gold) / 0.2), hsl(var(--foreground) / 0.72));
+  animation-delay: -10s;
+  animation-duration: 27s;
+}
 .sb-planet {
   position: absolute;
   width: auto;
-  image-rendering: auto;
-  opacity: 0.95;
-  filter: drop-shadow(0 8px 22px rgba(0, 0, 0, 0.55));
+  max-width: 24vw;
+  object-fit: contain;
+  opacity: 0.82;
+  filter: drop-shadow(0 8px 22px hsl(var(--background) / 0.65));
   animation: sb-float 24s ease-in-out infinite;
+}
+@keyframes sb-nebula-drift {
+  from { transform: translate3d(-2%, 0, 0); }
+  to { transform: translate3d(2%, -2%, 0); }
+}
+@keyframes sb-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-13px); }
+}
+@keyframes sb-shoot {
+  0%, 78% { opacity: 0; transform: translate3d(0, 0, 0) rotate(-25deg); }
+  80% { opacity: 0.85; }
+  87%, 100% { opacity: 0; transform: translate3d(-65vw, 29vw, 0) rotate(-25deg); }
+}
+@media (max-width: 640px) {
+  .sb-planet { opacity: 0.58; max-width: 20vw; }
+  .sb-orbit { display: none; }
+  .sb-horizon { bottom: -40%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-nebula, .sb-stars, .sb-planet, .sb-shooting-star { animation: none; }
+  .sb-shooting-star { display: none; }
 }
 
 /* --- Duel au sabre laser (Luke vs Vador) --- */
