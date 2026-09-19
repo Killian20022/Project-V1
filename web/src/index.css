@@ -308,27 +308,22 @@ h3,
 .sb-world {
   position: absolute;
   animation: sb-float 30s ease-in-out infinite;
-  opacity: 0.88;
+  opacity: 0.92;
 }
-.sb-world-disc {
-  position: relative;
-  width: 100%; height: 100%;
-  overflow: hidden;
-  border-radius: 50%;
-  box-shadow: inset -11px -10px 15px hsl(var(--background) / 0.8),
-              inset 3px 3px 7px hsl(var(--foreground) / 0.2),
-              0 0 25px hsl(var(--brand-blue) / 0.12);
+.sb-world-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 18px hsl(var(--brand-blue) / 0.12));
 }
-.sb-world-disc::after {
-  content: '';
-  position: absolute; inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(120deg, hsl(var(--foreground) / 0.22), transparent 35%, hsl(var(--background) / 0.42) 85%);
+.sb-world-mustafar .sb-world-image {
+  filter: drop-shadow(0 0 20px hsl(var(--brand-red) / 0.2));
 }
 .sb-world-name {
   display: block;
-  margin-top: 8px;
-  color: hsl(var(--foreground) / 0.55);
+  margin-top: 4px;
+  color: hsl(var(--foreground) / 0.62);
   font: 600 9px/1.2 'Orbitron', sans-serif;
   letter-spacing: 0.14em;
   text-align: center;
@@ -336,46 +331,15 @@ h3,
   text-shadow: 0 2px 9px hsl(var(--background));
   white-space: nowrap;
 }
-.sb-world-tatooine .sb-world-disc {
-  background: repeating-linear-gradient(165deg, transparent 0 10px, hsl(var(--brand-gold) / 0.2) 11px 15px, transparent 17px 24px),
-              radial-gradient(circle at 28% 25%, hsl(var(--brand-gold) / 0.85), hsl(27 55% 38%) 65%, hsl(25 45% 18%));
-}
 .sb-world-tatooine::before, .sb-world-tatooine::after {
-  content: ''; position: absolute; border-radius: 50%;
-  background: hsl(var(--brand-gold) / 0.85);
-  box-shadow: 0 0 12px hsl(var(--brand-gold) / 0.48);
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: hsl(var(--brand-gold) / 0.9);
+  box-shadow: 0 0 12px hsl(var(--brand-gold) / 0.52);
 }
-.sb-world-tatooine::before { width: 9px; height: 9px; top: -8px; right: -9px; }
-.sb-world-tatooine::after { width: 5px; height: 5px; top: 8px; right: -18px; }
-.sb-world-coruscant .sb-world-disc {
-  background: repeating-linear-gradient(0deg, transparent 0 5px, hsl(var(--brand-gold) / 0.27) 6px 7px, transparent 8px 11px),
-              repeating-linear-gradient(90deg, hsl(var(--background) / 0.14) 0 7px, hsl(var(--brand-blue) / 0.18) 8px 9px),
-              radial-gradient(circle at 34% 30%, hsl(220 28% 55%), hsl(224 48% 18%) 75%);
-}
-.sb-world-hoth .sb-world-disc {
-  background: repeating-linear-gradient(155deg, transparent 0 12px, hsl(var(--brand-blue) / 0.3) 13px 15px, transparent 16px 24px),
-              radial-gradient(circle at 27% 24%, hsl(var(--foreground)), hsl(201 58% 72%) 46%, hsl(208 60% 35%));
-}
-.sb-world-naboo .sb-world-disc {
-  background: radial-gradient(ellipse at 23% 30%, hsl(var(--brand-green) / 0.85) 0 14%, transparent 22%),
-              radial-gradient(ellipse at 68% 67%, hsl(var(--brand-green) / 0.72) 0 15%, transparent 25%),
-              radial-gradient(circle at 40% 35%, hsl(var(--brand-blue) / 0.9), hsl(210 60% 28%) 75%);
-}
-.sb-world-endor .sb-world-disc {
-  background: radial-gradient(ellipse at 30% 27%, hsl(var(--brand-green) / 0.9), transparent 36%),
-              repeating-linear-gradient(132deg, transparent 0 7px, hsl(45 48% 25% / 0.34) 9px 14px),
-              radial-gradient(circle at 40% 35%, hsl(132 42% 44%), hsl(129 46% 18%) 75%);
-}
-.sb-world-mustafar .sb-world-disc {
-  background: repeating-linear-gradient(140deg, transparent 0 7px, hsl(var(--brand-red) / 0.9) 8px 10px, hsl(var(--brand-gold) / 0.6) 11px, transparent 13px 19px),
-              radial-gradient(circle at 33% 30%, hsl(var(--brand-red) / 0.85), hsl(0 30% 10%) 68%);
-  box-shadow: inset -9px -9px 14px hsl(var(--background) / 0.8), 0 0 22px hsl(var(--brand-red) / 0.23);
-}
-.sb-world-dagobah .sb-world-disc {
-  background: radial-gradient(circle at 33% 35%, hsl(var(--brand-green) / 0.52), transparent 60%),
-              repeating-linear-gradient(15deg, transparent 0 7px, hsl(var(--brand-green) / 0.25) 8px 14px),
-              hsl(135 32% 17%);
-}
+.sb-world-tatooine::before { width: 9px; height: 9px; top: -5px; right: -7px; }
+.sb-world-tatooine::after { width: 5px; height: 5px; top: 10px; right: -18px; }
 @keyframes sb-nebula-drift {
   from { transform: translate3d(-2%, 0, 0); }
   to { transform: translate3d(2%, -2%, 0); }
