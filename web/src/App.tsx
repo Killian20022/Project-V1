@@ -14,6 +14,7 @@ import { LessonPage } from '@/pages/LessonPage';
 import { ExercisePage } from '@/pages/ExercisePage';
 import { IslandPage, ShopPage, TrophiesPage } from '@/pages/WorldPages';
 import { DictionaryPage } from '@/pages/DictionaryPage';
+import { BossPage } from '@/pages/BossPage';
 import { HyperspaceIntro } from '@/components/HyperspaceIntro';
 import type { GameState, Lesson, Level, Page, SrsCard } from './types';
 
@@ -29,6 +30,7 @@ export default function App() {
   const [result, setResult] = useState<{ correct: number; total: number } | null>(null);
   const [reviewSession, setReviewSession] = useState<ReviewSession | null>(null);
   const [reviewResult, setReviewResult] = useState<{ correct: number; total: number } | null>(null);
+  const [boss, setBoss] = useState<Level | null>(null);
   const { user, isLoaded } = useUser();
   const hydrated = useRef(false);
 
@@ -96,6 +98,17 @@ export default function App() {
     setResult(null);
     setReviewSession(null);
     setReviewResult(null);
+    setBoss(null);
+  }
+
+  // Lance un duel de boss pour un grade donné.
+  function startBoss(level: Level) {
+    setLesson(null);
+    setExercising(false);
+    setResult(null);
+    setReviewSession(null);
+    setReviewResult(null);
+    setBoss(level);
   }
 
   function openLevel(level: Level) {
@@ -132,7 +145,22 @@ export default function App() {
 
   let content: React.ReactNode;
 
-  if (reviewSession) {
+  if (boss) {
+    content = (
+      <BossPage
+        level={boss}
+        onExit={() => setBoss(null)}
+        onVictory={(r) =>
+          setState((current) => ({
+            ...current,
+            points: current.points + r.xp,
+            coins: current.coins + r.coins,
+            badges: current.badges.includes(`boss-${boss}`) ? current.badges : [...current.badges, `boss-${boss}`],
+          }))
+        }
+      />
+    );
+  } else if (reviewSession) {
     content = (
       <ExercisePage
         level={reviewSession.items[0].card.level}
@@ -231,6 +259,7 @@ export default function App() {
         openLevel={openLevel}
         onReview={() => startReview(null)}
         onResume={(level, index, selectedLesson) => setLesson({ level, index, lesson: selectedLesson })}
+        onStartBoss={startBoss}
       />
     );
   } else if (page === 'learn') {
@@ -241,6 +270,7 @@ export default function App() {
         onSelectLevel={setSelectedLevel}
         onOpenLesson={(level, index, selectedLesson) => setLesson({ level, index, lesson: selectedLesson })}
         onReview={(level) => startReview(level)}
+        onBoss={(level) => startBoss(level)}
       />
     );
   } else if (page === 'island') {
@@ -259,6 +289,7 @@ export default function App() {
         openLevel={openLevel}
         onReview={() => startReview(null)}
         onResume={(level, index, selectedLesson) => setLesson({ level, index, lesson: selectedLesson })}
+        onStartBoss={startBoss}
       />
     );
   }

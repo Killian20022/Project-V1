@@ -1,4 +1,4 @@
-import { Lock, Check, Play, ChevronLeft, GraduationCap, BookText, Brain } from 'lucide-react';
+import { Lock, Check, Play, ChevronLeft, GraduationCap, BookText, Brain, Swords } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LEVELS, LEVEL_INFO, lessonCount, lessonsFor } from '@/lib/content';
@@ -12,12 +12,14 @@ export function LearnPage({
   onSelectLevel,
   onOpenLesson,
   onReview,
+  onBoss,
 }: {
   state: GameState;
   selectedLevel: Level | null;
   onSelectLevel: (level: Level | null) => void;
   onOpenLesson: (level: Level, index: number, lesson: Lesson) => void;
   onReview: (level: Level) => void;
+  onBoss: (level: Level) => void;
 }) {
   if (!selectedLevel) {
     return (
@@ -81,6 +83,9 @@ export function LearnPage({
             <Brain /> Entraînement ({dueHere})
           </Button>
         )}
+        <Button variant="outline" onClick={() => onBoss(selectedLevel)}>
+          <Swords /> Boss du grade
+        </Button>
       </div>
 
       <div className="mt-6 space-y-3">

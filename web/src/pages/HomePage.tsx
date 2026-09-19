@@ -1,4 +1,4 @@
-import { Rocket, BookOpen, Sparkles, Target, Brain, Play, Award } from 'lucide-react';
+import { Rocket, BookOpen, Sparkles, Target, Brain, Play, Award, Swords } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Character } from '@/components/Character';
@@ -24,12 +24,14 @@ export function HomePage({
   openLevel,
   onReview,
   onResume,
+  onStartBoss,
 }: {
   state: GameState;
   navigate: (page: Page) => void;
   openLevel: (level: Level) => void;
   onReview: () => void;
   onResume: (level: Level, index: number, lesson: Lesson) => void;
+  onStartBoss: (level: Level) => void;
 }) {
   const lessonsDone = LEVELS.reduce((sum, lv) => sum + Math.min(state.lessons[lv] ?? 0, lessonCount(lv)), 0);
   const totalLessons = TOTAL_LESSONS;
@@ -37,6 +39,9 @@ export function HomePage({
   const dailyToday = state.dailyDate === new Date().toDateString() ? state.dailyXP : 0;
   const dailyPct = Math.min(100, Math.round((dailyToday / dailyGoal) * 100));
   const due = countDue(state.srs);
+
+  // Boss à affronter : le grade le plus avancé déjà entamé (sinon le premier).
+  const bossLevel: Level = [...LEVELS].reverse().find((lv) => (state.lessons[lv] ?? 0) > 0) ?? 'A1';
 
   // Prochaine mission à faire : premier niveau non terminé, à sa leçon courante.
   const nextMission = (() => {
@@ -90,6 +95,9 @@ export function HomePage({
             </Button>
             <Button size="lg" variant="outline" onClick={() => navigate('dictionary')}>
               <BookOpen /> Archives
+            </Button>
+            <Button size="lg" variant="outline" onClick={() => onStartBoss(bossLevel)}>
+              <Swords /> Duel de Boss
             </Button>
           </div>
           <div className="mt-8 flex flex-wrap gap-8">
