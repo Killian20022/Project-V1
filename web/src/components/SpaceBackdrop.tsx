@@ -11,13 +11,13 @@ type World = {
 
 // Une petite carte de la galaxie, placée sur les bords de l'écran.
 const WORLDS: World[] = [
-  { name: 'Tatooine', kind: 'tatooine', size: 78, position: { top: '13%', left: '6%' }, duration: 27, mobile: true },
-  { name: 'Coruscant', kind: 'coruscant', size: 68, position: { top: '10%', right: '9%' }, duration: 33, mobile: true },
-  { name: 'Hoth', kind: 'hoth', size: 52, position: { top: '39%', right: '4%' }, duration: 29, mobile: true },
-  { name: 'Naboo', kind: 'naboo', size: 62, position: { top: '47%', left: '3%' }, duration: 35 },
-  { name: 'Endor', kind: 'endor', size: 55, position: { bottom: '15%', left: '10%' }, duration: 31, mobile: true },
-  { name: 'Mustafar', kind: 'mustafar', size: 50, position: { bottom: '18%', right: '9%' }, duration: 25 },
-  { name: 'Dagobah', kind: 'dagobah', size: 42, position: { bottom: '7%', right: '37%' }, duration: 37 },
+  { name: 'Tatooine', kind: 'tatooine', size: 106, position: { top: '13%', left: '6%' }, duration: 27, mobile: true },
+  { name: 'Coruscant', kind: 'coruscant', size: 98, position: { top: '10%', right: '9%' }, duration: 33, mobile: true },
+  { name: 'Hoth', kind: 'hoth', size: 86, position: { top: '39%', right: '4%' }, duration: 29, mobile: true },
+  { name: 'Naboo', kind: 'naboo', size: 94, position: { top: '47%', left: '3%' }, duration: 35 },
+  { name: 'Endor', kind: 'endor', size: 88, position: { bottom: '15%', left: '10%' }, duration: 31, mobile: true },
+  { name: 'Mustafar', kind: 'mustafar', size: 90, position: { bottom: '18%', right: '9%' }, duration: 25 },
+  { name: 'Dagobah', kind: 'dagobah', size: 72, position: { bottom: '7%', right: '37%' }, duration: 37 },
 ];
 
 export function SpaceBackdrop() {
@@ -43,7 +43,12 @@ export function SpaceBackdrop() {
             animationDelay: `${-index * 3}s`,
           }}
         >
-          <div className="sb-world-disc" />
+          <img
+            src={`${import.meta.env.BASE_URL}assets/world_${world.kind}.webp`}
+            alt=""
+            className="sb-world-image"
+            draggable={false}
+          />
           <span className="sb-world-name">{world.name}</span>
         </div>
       ))}
