@@ -224,7 +224,15 @@ export default function App() {
   } else if (lesson) {
     content = <LessonPage {...lesson} onBack={() => setLesson(null)} onStart={() => setExercising(true)} />;
   } else if (page === 'home') {
-    content = <HomePage state={state} navigate={navigate} openLevel={openLevel} onReview={() => startReview(null)} />;
+    content = (
+      <HomePage
+        state={state}
+        navigate={navigate}
+        openLevel={openLevel}
+        onReview={() => startReview(null)}
+        onResume={(level, index, selectedLesson) => setLesson({ level, index, lesson: selectedLesson })}
+      />
+    );
   } else if (page === 'learn') {
     content = (
       <LearnPage
@@ -244,7 +252,15 @@ export default function App() {
   } else if (page === 'dictionary') {
     content = <DictionaryPage />;
   } else {
-    content = <HomePage state={state} navigate={navigate} openLevel={openLevel} onReview={() => startReview(null)} />;
+    content = (
+      <HomePage
+        state={state}
+        navigate={navigate}
+        openLevel={openLevel}
+        onReview={() => startReview(null)}
+        onResume={(level, index, selectedLesson) => setLesson({ level, index, lesson: selectedLesson })}
+      />
+    );
   }
 
   return (
