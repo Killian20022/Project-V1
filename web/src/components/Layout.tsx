@@ -100,7 +100,7 @@ export function Layout({
 
       <VoiceSettings open={voiceOpen} onClose={() => setVoiceOpen(false)} />
 
-      <main className="mx-auto max-w-6xl px-4 pb-28 pt-8">{children}</main>
+      <main className={page === 'island' ? 'w-full p-0' : 'mx-auto max-w-6xl px-4 pb-28 pt-8'}>{children}</main>
     </div>
   );
 }
