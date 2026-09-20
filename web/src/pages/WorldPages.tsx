@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Coins, ShoppingBag, Check, Lock } from 'lucide-react';
+import { Coins, ShoppingBag, Check, Lock, Plus, Minus, LocateFixed, Scan } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SHOP } from '@/data/shop';
@@ -92,32 +92,43 @@ export function IslandPage({ state, navigate }: { state: GameState; navigate: (p
   }, [totalDone]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Ton monde Endor</h1>
-          <p className="text-muted-foreground">
-            Explore la galaxie — glisse pour te déplacer, molette pour zoomer. Chaque mission d'anglais réussie débloque de nouveaux territoires 🌌
-          </p>
-        </div>
-        <Button variant="outline" onClick={() => navigate('shop')}>
-          <ShoppingBag /> Armurerie
-        </Button>
-      </div>
-
+    <section aria-label="Carte d'Endor" className="relative h-[calc(100dvh-7rem)] min-h-[34rem] w-full overflow-hidden bg-[#10261d] md:h-[calc(100dvh-4rem)]">
       <div
         ref={wrapRef}
-        className="relative aspect-square w-full touch-none overflow-hidden rounded-2xl border border-border bg-[#061a24] shadow-xl shadow-black/40"
+        className="absolute inset-0 touch-none overflow-hidden"
       >
         <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" style={{ touchAction: 'none' }} />
-        <div className="pointer-events-none absolute bottom-4 left-4 rounded-xl bg-background/70 px-4 py-2 text-sm font-semibold backdrop-blur">
-          {openCount} / 25 territoires ouverts
-        </div>
-        <div className="pointer-events-none absolute right-4 top-4 rounded-xl bg-background/70 px-3 py-1.5 text-xs font-semibold backdrop-blur">
-          {lockLabel}
-        </div>
       </div>
-    </div>
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-[#07130d]/85 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#07130d]/75 to-transparent" />
+      <div className="pointer-events-none absolute left-4 top-4 max-w-[75%] text-[#f6edd1] md:left-8 md:top-7">
+        <p className="text-[10px] font-bold uppercase tracking-[.35em] text-amber-300/85">Endor · 25 territoires</p>
+        <h1 className="font-display text-2xl font-black tracking-wide drop-shadow-lg md:text-4xl">Le village des anciens</h1>
+        <p className="mt-1 hidden text-xs text-[#d9e7cc] drop-shadow md:block">Glisse pour explorer · molette pour zoomer · les missions dévoilent la forêt</p>
+      </div>
+      <div className="absolute right-4 top-4 flex flex-col items-end gap-2 md:right-8 md:top-7">
+        <Button size="sm" className="border border-amber-200/30 bg-[#15281f]/85 text-amber-100 backdrop-blur hover:bg-[#274535]" onClick={() => navigate('shop')}>
+          <ShoppingBag className="size-4" /> Armurerie
+        </Button>
+        <span className="pointer-events-none rounded-full border border-white/15 bg-[#0b1b16]/75 px-3 py-1 text-[11px] text-[#e9e8d1] backdrop-blur">{lockLabel}</span>
+      </div>
+      <div className="pointer-events-none absolute bottom-5 left-4 rounded-xl border border-white/15 bg-[#0b1b16]/75 px-4 py-2 text-sm font-semibold text-[#f6edd1] shadow-xl backdrop-blur md:bottom-7 md:left-8">
+        {openCount} / 25 territoires ouverts
+      </div>
+      <div className="absolute bottom-5 right-4 flex gap-2 md:bottom-7 md:right-8">
+        {[
+          { label: 'Dézoomer', icon: Minus, action: () => engineRef.current?.zoomBy(1 / 1.3) },
+          { label: 'Zoomer', icon: Plus, action: () => engineRef.current?.zoomBy(1.3) },
+          { label: 'Retour au village', icon: LocateFixed, action: () => engineRef.current?.goHome() },
+          { label: 'Voir les 25 territoires', icon: Scan, action: () => engineRef.current?.overview() },
+        ].map(({ label, icon: Icon, action }) => (
+          <Button key={label} size="icon" variant="outline" aria-label={label} title={label} onClick={action}
+            className="size-10 border-white/25 bg-[#0b1b16]/80 text-[#f6edd1] shadow-xl backdrop-blur hover:bg-[#34523a] hover:text-white">
+            <Icon className="size-4" />
+          </Button>
+        ))}
+      </div>
+    </section>
   );
 }
 
