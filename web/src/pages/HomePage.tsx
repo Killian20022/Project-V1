@@ -1,9 +1,10 @@
 import { Rocket, BookOpen, Sparkles, Target, Brain, Play, Award, Swords } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Character } from '@/components/Character';
 import { Dogfight } from '@/components/Dogfight';
 import { SpaceBackdrop } from '@/components/SpaceBackdrop';
+import { GalaxyMap } from '@/components/GalaxyMap';
 import { LEVELS, LEVEL_INFO, lessonCount, lessonsFor, TOTAL_LESSONS } from '@/lib/content';
 import { countDue } from '@/lib/srs';
 import type { GameState, Lesson, Level, Page } from '../types';
@@ -240,36 +241,7 @@ export function HomePage({
           <h2 className="text-2xl font-bold">Choisis ton grade</h2>
           <span className="text-sm text-muted-foreground">Du Youngling au Grand Maître (A1 → C2)</span>
         </div>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {LEVELS.map((lv) => {
-            const total = lessonCount(lv);
-            const done = state.lessons[lv] ?? 0;
-            const pct = total ? Math.round((Math.min(done, total) / total) * 100) : 0;
-            return (
-              <Card
-                key={lv}
-                className="group cursor-pointer transition hover:-translate-y-0.5 hover:border-primary/60"
-                onClick={() => openLevel(lv)}
-              >
-                <CardHeader>
-                  <div
-                    className={`grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br ${LEVEL_INFO[lv].gradient} text-lg font-black text-white`}
-                  >
-                    {lv}
-                  </div>
-                  <CardTitle className="mt-2">{LEVEL_INFO[lv].name}</CardTitle>
-                  <CardDescription>{LEVEL_INFO[lv].description}</CardDescription>
-                  <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
-                    <div className="h-full rounded-full bg-gradient-to-r from-primary via-[#ffe27a] to-accent" style={{ width: `${pct}%` }} />
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {Math.min(done, total)}/{total} missions
-                  </div>
-                </CardHeader>
-              </Card>
-            );
-          })}
-        </div>
+        <GalaxyMap state={state} onSelect={openLevel} />
       </div>
 
       <div className="flex origin-bottom scale-[0.62] items-end justify-center gap-2 pt-4 sm:scale-100 sm:gap-5">
