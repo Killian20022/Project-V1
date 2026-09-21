@@ -1,4 +1,4 @@
-import { sentencesFor } from './content';
+import { LEVELS, sentencesFor } from './content';
 import type { Lesson, Level, Sentence } from '../types';
 
 export type Question =
@@ -7,7 +7,8 @@ export type Question =
   | { type: 'order'; prompt: string; tokens: string[]; answer: string; explanation: string }
   | { type: 'dictation'; prompt: string; tokens: string[]; answer: string; explanation: string; audio: string }
   | { type: 'match'; prompt: string; pairs: { en: string; fr: string }[]; explanation: string }
-  | { type: 'speak'; prompt: string; answer: string; explanation: string };
+  | { type: 'speak'; prompt: string; answer: string; explanation: string }
+  | { type: 'translate'; prompt: string; direction: 'en2fr' | 'fr2en'; source: string; answer: string; explanation: string };
 
 export function shuffle<T>(items: readonly T[]): T[] {
   return [...items].sort(() => Math.random() - 0.5);
@@ -48,7 +49,32 @@ function fillQuestion(level: Level, sentence: Sentence): Question {
   };
 }
 
+// Traduction libre : on donne la phrase dans une langue, il faut taper l'autre.
+// Biais vers fr2en (produire de l'anglais depuis zéro) car c'est la compétence la plus utile ici.
+function translateQuestion(sentence: Sentence): Question {
+  const direction: 'en2fr' | 'fr2en' = Math.random() < 0.7 ? 'fr2en' : 'en2fr';
+  const source = direction === 'fr2en' ? sentence.fr : sentence.en;
+  const answer = direction === 'fr2en' ? sentence.en : sentence.fr;
+  return {
+    type: 'translate',
+    prompt: direction === 'fr2en' ? `Traduis en anglais : ${sentence.fr}` : `Traduis en français : ${sentence.en}`,
+    direction,
+    source,
+    answer,
+    explanation: `${sentence.en} — ${sentence.fr}`,
+  };
+}
+
 const TOTAL_QUESTIONS = 12;
+
+// Mélange de types d'exercices selon le niveau : plus de reconnaissance/reconstruction
+// en A1-A2, plus de production libre (translate, speak) en C1-C2.
+function typeCycleFor(level: Level): Question['type'][] {
+  const levelIdx = LEVELS.indexOf(level);
+  if (levelIdx <= 1) return ['fill', 'order', 'listen', 'dictation', 'translate', 'speak'];
+  if (levelIdx <= 3) return ['fill', 'translate', 'order', 'dictation', 'listen', 'translate', 'speak'];
+  return ['translate', 'fill', 'translate', 'order', 'speak', 'dictation', 'listen', 'translate'];
+}
 
 // Association de paires (phrase ↔ traduction) — 4 paires, courtes de préférence
 function matchQuestion(level: Level, pool: Sentence[]): Question {
@@ -78,12 +104,13 @@ export function buildQuestions(level: Level, lesson: Lesson): Question[] {
   // Une association de paires par leçon
   questions.push(matchQuestion(level, pool));
 
-  const types: Question['type'][] = ['fill', 'order', 'dictation', 'listen', 'speak'];
+  const types = typeCycleFor(level);
   shuffle(pool)
     .slice(0, Math.max(0, TOTAL_QUESTIONS - questions.length))
     .forEach((sentence, index) => {
       const type = types[index % types.length];
       if (type === 'fill') questions.push(fillQuestion(level, sentence));
+      else if (type === 'translate') questions.push(translateQuestion(sentence));
       else if (type === 'order')
         questions.push({
           type,
@@ -126,10 +153,18 @@ export function buildQuestions(level: Level, lesson: Lesson): Question[] {
 export function buildReviewQuestion(card: { level: Level; en: string; fr: string }): Question {
   const sentence: Sentence = { en: card.en, fr: card.fr };
   const level = card.level;
-  const types: Exclude<Question['type'], 'qcm' | 'match'>[] = ['fill', 'order', 'dictation', 'listen', 'speak'];
+  const types: Exclude<Question['type'], 'qcm' | 'match'>[] = [
+    'fill',
+    'order',
+    'dictation',
+    'listen',
+    'speak',
+    'translate',
+  ];
   const type = types[Math.floor(Math.random() * types.length)];
 
   if (type === 'fill') return fillQuestion(level, sentence);
+  if (type === 'translate') return translateQuestion(sentence);
   if (type === 'order')
     return {
       type: 'order',
@@ -180,4 +215,16 @@ export function speechMatches(said: string, target: string): boolean {
   if (normalized(said) === normalized(target)) return true;
   const overlap = b.filter((w) => a.includes(w)).length / Math.max(1, b.length);
   return overlap >= 0.7;
+}
+
+// Comparaison souple pour la traduction libre (texte tapé, pas de la voix) :
+// match exact, sinon recouvrement de mots élevé pour tolérer les variantes valides
+// (« I'm happy » vs « I am happy »).
+export function translateMatches(said: string, target: string): boolean {
+  if (normalized(said) === normalized(target)) return true;
+  const a = normalized(said).split(' ').filter(Boolean);
+  const b = normalized(target).split(' ').filter(Boolean);
+  if (!a.length) return false;
+  const overlap = b.filter((w) => a.includes(w)).length / Math.max(1, b.length);
+  return b.length <= 6 ? overlap === 1 : overlap >= 0.8;
 }

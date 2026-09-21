@@ -14,6 +14,19 @@ export interface Drill {
   exp?: string;
 }
 
+// Mini-explication animée sur-mesure (optionnelle) pour une leçon phare.
+// Sans ce champ, LessonExplainer retombe sur un mode générique basé sur forms/examples.
+export interface LessonExplainerStep {
+  label: string;
+  detail: string;
+  highlight?: string;
+}
+
+export interface LessonExplainerSpec {
+  kind: 'timeline' | 'comparison';
+  steps: readonly LessonExplainerStep[];
+}
+
 export interface Lesson {
   t: 'G' | 'V';
   title: string;
@@ -26,6 +39,7 @@ export interface Lesson {
   keypoints?: readonly string[];
   drills?: readonly Drill[];
   practice?: readonly Sentence[];
+  explainer?: LessonExplainerSpec;
 }
 
 // Carte de révision espacée : une par phrase déjà étudiée.

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Heart, Volume2, X, ArrowRight, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { buildQuestions, normalized, speechMatches, shuffle } from '@/lib/exercises';
+import { buildQuestions, normalized, speechMatches, translateMatches, shuffle } from '@/lib/exercises';
 import type { Question } from '@/lib/exercises';
 import { speak } from '@/lib/speak';
 import type { Lesson, Level } from '../types';
@@ -15,6 +15,7 @@ const TYPE_LABEL: Record<string, string> = {
   listen: 'Écoute',
   match: 'Associe les paires',
   speak: 'Prononciation',
+  translate: 'Traduction',
 };
 
 // Reconnaissance vocale du navigateur (Chrome/Edge)
@@ -68,7 +69,12 @@ export function ExercisePage({
 
   function grade(value: string, forceSuccess?: boolean) {
     if (result !== null) return;
-    const success = forceSuccess !== undefined ? forceSuccess : normalized(value) === normalized(question.answer);
+    const success =
+      forceSuccess !== undefined
+        ? forceSuccess
+        : question.type === 'translate'
+          ? translateMatches(value, question.answer)
+          : normalized(value) === normalized(question.answer);
     setAnswer(value);
     setResult(success);
     if (success) {
@@ -230,6 +236,29 @@ export function ExercisePage({
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {question.type === 'translate' && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {question.direction === 'fr2en' ? 'Écris la traduction en anglais.' : 'Écris la traduction en français.'}
+              </p>
+              <input
+                type="text"
+                autoFocus
+                value={answer}
+                disabled={result !== null}
+                onChange={(event) => setAnswer(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && answer.trim()) grade(answer);
+                }}
+                placeholder="Écris ta réponse…"
+                className="w-full rounded-lg border border-border bg-background px-4 py-3 text-base outline-none focus:border-primary"
+              />
+              <Button className="w-full" disabled={result !== null || !answer.trim()} onClick={() => grade(answer)}>
+                Vérifier
+              </Button>
             </div>
           )}
 

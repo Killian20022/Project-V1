@@ -1,6 +1,7 @@
 import { ChevronLeft, Volume2, AlertTriangle, KeyRound, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { LessonExplainer } from '@/components/LessonExplainer';
 import { speak } from '@/lib/speak';
 import type { Lesson, Level } from '../types';
 
@@ -34,6 +35,8 @@ export function LessonPage({
 
       <h1 className="text-3xl font-black">{lesson.title}</h1>
       {lesson.intro && <p className="text-muted-foreground" dangerouslySetInnerHTML={{ __html: lesson.intro }} />}
+
+      <LessonExplainer title={lesson.title} forms={lesson.forms} examples={lesson.examples} explainer={lesson.explainer} />
 
       {lesson.forms && (
         <Card>
