@@ -1,5 +1,6 @@
 import { CURRICULUM } from '../data/curriculum';
 import { SENTENCES } from '../data/sentences';
+import { COMPREHENSION } from '../data/comprehension';
 import type { Lesson, Level, Sentence } from '../types';
 
 export const LEVELS: Level[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -24,7 +25,13 @@ export const LEVEL_INFO: Record<Level, { name: string; description: string; grad
 };
 
 export function lessonsFor(level: Level): Lesson[] {
-  return [...((CURRICULUM as unknown as Record<Level, readonly Lesson[]>)[level] ?? [])];
+  const base = [...((CURRICULUM as unknown as Record<Level, readonly Lesson[]>)[level] ?? [])];
+  // Fusionne le contenu de compréhension additif (data/comprehension.ts) sans
+  // toucher au curriculum : clé `${niveau}:${index}`.
+  return base.map((lesson, index) => {
+    const extra = COMPREHENSION[`${level}:${index}`];
+    return extra ? { ...lesson, comprehension: extra } : lesson;
+  });
 }
 
 export function sentencesFor(level: Level): Sentence[] {

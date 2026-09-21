@@ -1,5 +1,5 @@
 import { LEVELS, sentencesFor } from './content';
-import type { Lesson, Level, Sentence } from '../types';
+import type { Comprehension, Lesson, Level, Sentence } from '../types';
 
 export type Question =
   | { type: 'qcm' | 'listen'; prompt: string; options: string[]; answer: string; explanation: string; audio?: string }
@@ -8,7 +8,18 @@ export type Question =
   | { type: 'dictation'; prompt: string; tokens: string[]; answer: string; explanation: string; audio: string }
   | { type: 'match'; prompt: string; pairs: { en: string; fr: string }[]; explanation: string }
   | { type: 'speak'; prompt: string; answer: string; explanation: string }
-  | { type: 'translate'; prompt: string; direction: 'en2fr' | 'fr2en'; source: string; answer: string; explanation: string };
+  | { type: 'translate'; prompt: string; direction: 'en2fr' | 'fr2en'; source: string; answer: string; explanation: string }
+  | {
+      type: 'comprehension';
+      prompt: string;
+      passageTitle: string;
+      passageKind: 'text' | 'dialogue';
+      passageText?: string;
+      passageTurns?: { speaker: string; en: string }[];
+      options: string[];
+      answer: string;
+      explanation: string;
+    };
 
 export function shuffle<T>(items: readonly T[]): T[] {
   return [...items].sort(() => Math.random() - 0.5);
@@ -89,6 +100,22 @@ function matchQuestion(level: Level, pool: Sentence[]): Question {
   };
 }
 
+// Questions de compréhension issues d'un texte ou d'un dialogue attaché à la leçon.
+// Chaque question embarque le passage pour rester autonome dans le tirage mélangé.
+function comprehensionQuestions(c: Comprehension): Question[] {
+  return c.questions.map((drill) => ({
+    type: 'comprehension' as const,
+    prompt: drill.q,
+    passageTitle: c.title,
+    passageKind: c.kind,
+    passageText: c.text,
+    passageTurns: c.turns?.map((turn) => ({ speaker: turn.speaker, en: turn.en })),
+    options: shuffle(drill.options),
+    answer: drill.answer,
+    explanation: drill.exp ?? drill.answer,
+  }));
+}
+
 export function buildQuestions(level: Level, lesson: Lesson): Question[] {
   const pool = lesson.practice?.length ? [...lesson.practice] : shuffle(sentencesFor(level)).slice(0, TOTAL_QUESTIONS);
   const questions: Question[] = shuffle(lesson.drills ?? [])
@@ -103,6 +130,11 @@ export function buildQuestions(level: Level, lesson: Lesson): Question[] {
 
   // Une association de paires par leçon
   questions.push(matchQuestion(level, pool));
+
+  // Compréhension (texte / dialogue) : jusqu'à 3 questions si la leçon en a.
+  if (lesson.comprehension?.questions?.length) {
+    questions.push(...comprehensionQuestions(lesson.comprehension).slice(0, 3));
+  }
 
   const types = typeCycleFor(level);
   shuffle(pool)

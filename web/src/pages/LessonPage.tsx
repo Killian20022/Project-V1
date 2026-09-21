@@ -1,4 +1,4 @@
-import { ChevronLeft, Volume2, AlertTriangle, KeyRound, ArrowRight } from 'lucide-react';
+import { ChevronLeft, Volume2, AlertTriangle, KeyRound, ArrowRight, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { LessonExplainer } from '@/components/LessonExplainer';
@@ -112,6 +112,68 @@ export function LessonPage({
                 <li key={item} dangerouslySetInnerHTML={{ __html: `• ${item}` }} />
               ))}
             </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {lesson.comprehension && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-5">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 font-bold text-primary">
+                <BookOpen className="size-4" />
+                {lesson.comprehension.kind === 'dialogue' ? 'Dialogue' : 'Lecture'} — {lesson.comprehension.title}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Écouter"
+                onClick={() =>
+                  speak(
+                    lesson.comprehension!.kind === 'dialogue'
+                      ? (lesson.comprehension!.turns ?? []).map((t) => t.en).join('. ')
+                      : lesson.comprehension!.text ?? '',
+                  )
+                }
+              >
+                <Volume2 />
+              </Button>
+            </div>
+            {lesson.comprehension.intro && (
+              <p className="mb-3 text-sm text-muted-foreground">{lesson.comprehension.intro}</p>
+            )}
+            {lesson.comprehension.kind === 'text' ? (
+              <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">
+                {lesson.comprehension.text}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {(lesson.comprehension.turns ?? []).map((turn, i) => (
+                  <div key={i} className="flex items-start gap-2 text-sm">
+                    <span className="min-w-16 shrink-0 font-semibold text-primary">{turn.speaker} :</span>
+                    <span className="flex-1">
+                      <span className="text-foreground/90">{turn.en}</span>
+                      <span className="block text-xs text-muted-foreground">{turn.fr}</span>
+                    </span>
+                    <button
+                      onClick={() => speak(turn.en)}
+                      aria-label="Écouter la réplique"
+                      className="text-muted-foreground hover:text-primary"
+                    >
+                      <Volume2 className="size-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {lesson.comprehension.translation && (
+              <p className="mt-3 whitespace-pre-line text-xs italic text-muted-foreground">
+                {lesson.comprehension.translation}
+              </p>
+            )}
+            <p className="mt-3 text-xs text-muted-foreground">
+              💡 Des questions de compréhension t'attendent dans les exercices.
+            </p>
           </CardContent>
         </Card>
       )}

@@ -16,6 +16,7 @@ const TYPE_LABEL: Record<string, string> = {
   match: 'Associe les paires',
   speak: 'Prononciation',
   translate: 'Traduction',
+  comprehension: 'Compréhension',
 };
 
 // Reconnaissance vocale du navigateur (Chrome/Edge)
@@ -176,7 +177,75 @@ export function ExercisePage({
       <Card className="mt-5">
         <CardContent className="space-y-4 p-6">
           <div className="text-xs font-semibold uppercase tracking-wide text-primary">{TYPE_LABEL[question.type]}</div>
-          <div className="text-lg font-semibold">{question.prompt}</div>
+          {question.type !== 'comprehension' && <div className="text-lg font-semibold">{question.prompt}</div>}
+
+          {question.type === 'comprehension' && (
+            <div className="space-y-4">
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm font-bold text-primary">{question.passageTitle}</div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Écouter le passage"
+                      onClick={() =>
+                        speak(
+                          question.passageKind === 'dialogue'
+                            ? (question.passageTurns ?? []).map((t) => t.en).join('. ')
+                            : question.passageText ?? '',
+                        )
+                      }
+                    >
+                      <Volume2 />
+                    </Button>
+                  </div>
+                  {question.passageKind === 'text' ? (
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">{question.passageText}</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {(question.passageTurns ?? []).map((turn, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm">
+                          <span className="min-w-16 shrink-0 font-semibold text-primary">{turn.speaker} :</span>
+                          <span className="flex-1 text-foreground/90">{turn.en}</span>
+                          <button
+                            onClick={() => speak(turn.en)}
+                            aria-label="Écouter la réplique"
+                            className="text-muted-foreground hover:text-primary"
+                          >
+                            <Volume2 className="size-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              <div className="text-lg font-semibold">{question.prompt}</div>
+              <div className="grid gap-2">
+                {question.options.map((option) => {
+                  const isAnswer = result !== null && option === question.answer;
+                  const isWrong = result === false && option === answer;
+                  return (
+                    <button
+                      key={option}
+                      disabled={result !== null}
+                      onClick={() => grade(option)}
+                      className={`rounded-lg border px-4 py-3 text-left transition ${
+                        isAnswer
+                          ? 'border-emerald-500 bg-emerald-500/10'
+                          : isWrong
+                            ? 'border-red-500 bg-red-500/10'
+                            : 'border-border hover:border-primary/60 hover:bg-secondary'
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {question.type === 'listen' && (
             <Button variant="outline" onClick={() => speak(question.audio ?? question.answer)}>

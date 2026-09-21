@@ -27,6 +27,26 @@ export interface LessonExplainerSpec {
   steps: readonly LessonExplainerStep[];
 }
 
+// Réplique d'un dialogue : qui parle, la phrase en anglais, et sa traduction.
+export interface DialogueTurn {
+  speaker: string;
+  en: string;
+  fr: string;
+}
+
+// Compréhension écrite (un texte) ou orale (un dialogue), suivie de questions.
+// Contenu additif rangé à part (voir data/comprehension.ts), fusionné aux leçons
+// par content.ts — on ne touche jamais au gros curriculum.ts.
+export interface Comprehension {
+  kind: 'text' | 'dialogue';
+  title: string;
+  intro?: string; // consigne en français, ex. « Lis le texte puis réponds. »
+  text?: string; // pour kind 'text' : le passage en anglais (peut contenir des \n)
+  turns?: readonly DialogueTurn[]; // pour kind 'dialogue'
+  translation?: string; // traduction française du texte (optionnelle, affichée en référence)
+  questions: readonly Drill[]; // réutilise Drill { q, options, answer, exp? }
+}
+
 export interface Lesson {
   t: 'G' | 'V';
   title: string;
@@ -40,6 +60,7 @@ export interface Lesson {
   drills?: readonly Drill[];
   practice?: readonly Sentence[];
   explainer?: LessonExplainerSpec;
+  comprehension?: Comprehension;
 }
 
 // Carte de révision espacée : une par phrase déjà étudiée.
