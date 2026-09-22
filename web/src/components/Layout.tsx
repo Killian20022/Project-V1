@@ -8,6 +8,8 @@ import type { GameState, Page } from '../types';
 const NAV: { label: string; page: Page }[] = [
   { label: 'Base', page: 'home' },
   { label: 'Missions', page: 'learn' },
+  { label: 'Business', page: 'business' },
+  { label: 'Grammaire', page: 'grammar' },
   { label: 'Galaxie', page: 'island' },
   { label: 'Armurerie', page: 'shop' },
   { label: 'Médailles', page: 'trophies' },

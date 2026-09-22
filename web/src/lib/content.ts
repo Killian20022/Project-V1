@@ -1,7 +1,8 @@
 import { CURRICULUM } from '../data/curriculum';
 import { SENTENCES } from '../data/sentences';
 import { COMPREHENSION } from '../data/comprehension';
-import type { Lesson, Level, Sentence } from '../types';
+import { BUSINESS_MODULES, BUSINESS_CATEGORIES } from '../data/business';
+import type { BusinessModule, Lesson, Level, Sentence } from '../types';
 
 export const LEVELS: Level[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
@@ -36,4 +37,40 @@ export function lessonsFor(level: Level): Lesson[] {
 
 export function sentencesFor(level: Level): Sentence[] {
   return [...((SENTENCES as unknown as Record<Level, readonly Sentence[]>)[level] ?? [])];
+}
+
+// ── Parcours Business English (formation pro) ─────────────────────────────
+// Contenu additif rangé dans data/business.ts, indépendant du curriculum.
+export function businessModules(): readonly BusinessModule[] {
+  return BUSINESS_MODULES;
+}
+
+export function businessCategories(): readonly string[] {
+  return BUSINESS_CATEGORIES;
+}
+
+// Identifiant de complétion stocké dans state.completed pour un module donné.
+export function businessDoneId(id: string): string {
+  return `biz:${id}`;
+}
+
+// ── Hub Grammaire ─────────────────────────────────────────────────────────
+// Agrège toutes les leçons de grammaire (t === 'G') de tous les niveaux en une
+// liste consultable/recherchable. On conserve l'index d'origine dans le niveau
+// (nécessaire au moteur d'exercices). Aucun contenu réécrit : réutilise le
+// curriculum existant via lessonsFor().
+export interface GrammarEntry {
+  level: Level;
+  index: number;
+  lesson: Lesson;
+}
+
+export function grammarEntries(): GrammarEntry[] {
+  const entries: GrammarEntry[] = [];
+  for (const level of LEVELS) {
+    lessonsFor(level).forEach((lesson, index) => {
+      if (lesson.t === 'G') entries.push({ level, index, lesson });
+    });
+  }
+  return entries;
 }

@@ -88,6 +88,76 @@ export function completeLesson(
   };
 }
 
+// Complétion d'un module Business English. Ne touche PAS state.lessons (la
+// progression de la campagne galaxie) : on marque simplement l'id dans
+// state.completed et on crédite XP/pièces + stats. L'ajout des phrases au SRS
+// est géré à part par l'appelant (addCards, comme pour une leçon classique).
+export function completeBusiness(
+  state: GameState,
+  moduleId: string,
+  correct: number,
+  total: number,
+  maxCombo = 0,
+): GameState {
+  const doneId = `biz:${moduleId}`;
+  const firstCompletion = !state.completed.includes(doneId);
+  const earnedXp = correct * 10;
+  const earnedCoins = 10 + Math.round((correct / Math.max(1, total)) * 10) + (firstCompletion ? 5 : 0);
+  const today = new Date().toDateString();
+  const dailyXP = state.dailyDate === today ? state.dailyXP + earnedXp : earnedXp;
+  const perfect = correct === total;
+  return {
+    ...state,
+    points: state.points + earnedXp,
+    coins: state.coins + earnedCoins,
+    dailyDate: today,
+    dailyXP,
+    lastActive: today,
+    completed: firstCompletion ? [...state.completed, doneId] : state.completed,
+    stats: {
+      ...state.stats,
+      exercises: (state.stats.exercises ?? 0) + total,
+      correct: (state.stats.correct ?? 0) + correct,
+      perfect: (state.stats.perfect ?? 0) + (perfect ? 1 : 0),
+      coinsEarned: (state.stats.coinsEarned ?? 0) + earnedCoins,
+      bestCombo: Math.max(state.stats.bestCombo ?? 0, maxCombo),
+      business: (state.stats.business ?? 0) + (firstCompletion ? 1 : 0),
+    },
+  };
+}
+
+// Entraînement libre (Hub Grammaire) : donne XP/pièces + alimente les stats,
+// mais N'AVANCE PAS la campagne (state.lessons) — sinon on débloquerait des
+// missions en avance. Le SRS est géré par l'appelant (addCards). Récompense
+// volontairement plus faible qu'une mission (rejouable à l'infini).
+export function completePractice(
+  state: GameState,
+  correct: number,
+  total: number,
+  maxCombo = 0,
+): GameState {
+  const earnedXp = correct * 5;
+  const earnedCoins = 5;
+  const today = new Date().toDateString();
+  const dailyXP = state.dailyDate === today ? state.dailyXP + earnedXp : earnedXp;
+  return {
+    ...state,
+    points: state.points + earnedXp,
+    coins: state.coins + earnedCoins,
+    dailyDate: today,
+    dailyXP,
+    lastActive: today,
+    stats: {
+      ...state.stats,
+      exercises: (state.stats.exercises ?? 0) + total,
+      correct: (state.stats.correct ?? 0) + correct,
+      coinsEarned: (state.stats.coinsEarned ?? 0) + earnedCoins,
+      bestCombo: Math.max(state.stats.bestCombo ?? 0, maxCombo),
+      practice: (state.stats.practice ?? 0) + 1,
+    },
+  };
+}
+
 export function loadSavedWords(): SavedWord[] {
   try {
     const words = JSON.parse(localStorage.getItem('eq_words') ?? '[]') as Array<{ word: string; def?: string; definition?: string }>;

@@ -1,5 +1,5 @@
 export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
-export type Page = 'home' | 'learn' | 'shop' | 'island' | 'trophies' | 'dictionary' | 'account';
+export type Page = 'home' | 'learn' | 'business' | 'grammar' | 'shop' | 'island' | 'trophies' | 'dictionary' | 'account';
 
 export interface Sentence {
   en: string;
@@ -45,6 +45,18 @@ export interface Comprehension {
   turns?: readonly DialogueTurn[]; // pour kind 'dialogue'
   translation?: string; // traduction française du texte (optionnelle, affichée en référence)
   questions: readonly Drill[]; // réutilise Drill { q, options, answer, exp? }
+}
+
+// Module du parcours Business English (formation pro / B2B).
+// C'est une leçon classique (réutilise tout le moteur d'exercices) enrichie d'un
+// identifiant stable, d'un niveau CEFR nominal (badge + SRS) et d'une catégorie.
+// Contenu additif rangé à part (voir data/business.ts) — on ne touche jamais au
+// curriculum grand public.
+export interface BusinessModule extends Lesson {
+  id: string; // slug stable, ex. « emails » → complété = `biz:emails`
+  level: Level; // CEFR nominal (affichage + rattachement SRS)
+  category: string; // regroupement dans la page Business, ex. « Écrit »
+  goal?: string; // objectif court affiché sur la carte du module
 }
 
 export interface Lesson {

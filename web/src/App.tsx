@@ -3,7 +3,8 @@ import { useUser } from '@clerk/clerk-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { completeLesson, loadGameState, saveGameState } from '@/lib/state';
+import { completeBusiness, completeLesson, completePractice, loadGameState, saveGameState } from '@/lib/state';
+import type { GrammarEntry } from '@/lib/content';
 import { addCards, applyReview, countDue, dueCards } from '@/lib/srs';
 import { buildReviewQuestion, shuffle } from '@/lib/exercises';
 import type { Question } from '@/lib/exercises';
@@ -14,11 +15,15 @@ import { LessonPage } from '@/pages/LessonPage';
 import { ExercisePage } from '@/pages/ExercisePage';
 import { IslandPage, ShopPage, TrophiesPage } from '@/pages/WorldPages';
 import { DictionaryPage } from '@/pages/DictionaryPage';
+import { BusinessPage } from '@/pages/BusinessPage';
+import { GrammarPage } from '@/pages/GrammarPage';
 import { BossPage } from '@/pages/BossPage';
 import { HyperspaceIntro } from '@/components/HyperspaceIntro';
-import type { GameState, Lesson, Level, Page, SrsCard } from './types';
+import type { BusinessModule, GameState, Lesson, Level, Page, SrsCard } from './types';
 
-type LessonSelection = { level: Level; index: number; lesson: Lesson };
+// bizId → module Business (complétion à part). practice → entraînement libre
+// (Hub Grammaire) qui n'avance pas la campagne. Sinon : mission de campagne.
+type LessonSelection = { level: Level; index: number; lesson: Lesson; bizId?: string; practice?: boolean };
 type ReviewSession = { items: { card: SrsCard; question: Question }[] };
 
 export default function App() {
@@ -117,6 +122,23 @@ export default function App() {
     setLesson(null);
   }
 
+  // Ouvre un module Business : réutilise le flux leçon (LessonPage → ExercisePage)
+  // mais marqué bizId pour router la complétion vers completeBusiness.
+  function openBusiness(module: BusinessModule) {
+    setPage('business');
+    setLesson({ level: module.level, index: 0, lesson: module, bizId: module.id });
+    setExercising(false);
+    setResult(null);
+  }
+
+  // Ouvre une fiche du Hub Grammaire (mode practice : pas d'avance campagne).
+  function openGrammar(entry: GrammarEntry) {
+    setPage('grammar');
+    setLesson({ level: entry.level, index: entry.index, lesson: entry.lesson, practice: true });
+    setExercising(false);
+    setResult(null);
+  }
+
   function finishLesson(correct: number, total: number, maxCombo = 0) {
     if (!lesson) return;
     const sel = lesson;
@@ -125,6 +147,10 @@ export default function App() {
       const withCards = sel.lesson.practice?.length
         ? { ...current, srs: addCards(current.srs, sel.level, sel.lesson.practice) }
         : current;
+      // Module Business : complétion à part (ne touche pas la campagne galaxie).
+      if (sel.bizId) return completeBusiness(withCards, sel.bizId, correct, total, maxCombo);
+      // Entraînement libre depuis le Hub Grammaire : XP + SRS, sans avance campagne.
+      if (sel.practice) return completePractice(withCards, correct, total, maxCombo);
       return completeLesson(withCards, sel.level, sel.index, correct, total, maxCombo);
     });
     setResult({ correct, total });
@@ -239,9 +265,10 @@ export default function App() {
             className="mt-6 w-full"
             size="lg"
             onClick={() => {
+              const back = lesson?.bizId ? 'business' : lesson?.practice ? 'grammar' : 'learn';
               setResult(null);
               setLesson(null);
-              setPage('learn');
+              setPage(back);
             }}
           >
             Retour au parcours
@@ -273,6 +300,10 @@ export default function App() {
         onBoss={(level) => startBoss(level)}
       />
     );
+  } else if (page === 'business') {
+    content = <BusinessPage state={state} onOpenModule={openBusiness} />;
+  } else if (page === 'grammar') {
+    content = <GrammarPage onOpenGrammar={openGrammar} />;
   } else if (page === 'island') {
     content = <IslandPage state={state} navigate={navigate} />;
   } else if (page === 'shop') {
