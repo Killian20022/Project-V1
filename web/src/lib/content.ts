@@ -63,13 +63,63 @@ export interface GrammarEntry {
   level: Level;
   index: number;
   lesson: Lesson;
+  category: string; // clé de famille grammaticale (voir GRAMMAR_CATEGORIES)
+}
+
+// Familles grammaticales, dans l'ordre pédagogique d'affichage.
+export interface GrammarCategory {
+  key: string;
+  label: string;
+  description: string;
+}
+
+export const GRAMMAR_CATEGORIES: readonly GrammarCategory[] = [
+  { key: 'tenses', label: 'Temps & conjugaison', description: 'Présent, passé, futur, aspects perfect' },
+  { key: 'modals', label: 'Modaux', description: 'can, must, should, déduction…' },
+  { key: 'conditionals', label: 'Conditionnels & hypothèses', description: 'if, wish, subjonctif' },
+  { key: 'nouns', label: 'Noms & déterminants', description: 'articles, pluriels, quantité' },
+  { key: 'adjectives', label: 'Adjectifs & comparaisons', description: 'comparatifs, superlatifs, adverbes' },
+  { key: 'prepositions', label: 'Prépositions & phrasal verbs', description: 'in/on/at, verbes à particule' },
+  { key: 'structure', label: 'Structure de la phrase', description: 'relatives, passif, discours rapporté…' },
+  { key: 'style', label: 'Style & discours', description: 'connecteurs, cohésion, registre' },
+];
+
+// Classe une fiche par mots-clés de son titre. Règles ORDONNÉES : la première
+// qui matche gagne (l'ordre évite les conflits, ex. « passif (présent) » doit
+// tomber dans « structure » avant que « présent » ne l'envoie dans « tenses »).
+export function categorizeGrammar(title: string): string {
+  const t = title.toLowerCase();
+  const has = (...kw: string[]) => kw.some((k) => t.includes(k));
+
+  if (has('conditionnel', 'wish', 'if only', 'subjonctif')) return 'conditionals';
+  if (has('modau', 'can /', 'can/')) return 'modals';
+  if (has('préposition', 'phrasal', 'particule')) return 'prepositions';
+  if (
+    has(
+      'passif', 'relati', 'discours rapporté', 'gérondif', 'infinitif', 'inversion',
+      'cleft', 'mise en relief', 'ellipse', 'substitution', 'emphatique', 'interrogatif',
+    )
+  )
+    return 'structure';
+  if (
+    has(
+      'présent', 'present', 'passé', 'past', 'futur', 'prétérit', 'perfect', 'continu',
+      'for, since', 'used to', 'irréguli', 'to be', 'have got', 'temps',
+    )
+  )
+    return 'tenses';
+  if (has('article', 'possessif', 'pluriel', 'this, that', 'there is', 'some, any', 'quantité')) return 'nouns';
+  if (has('comparatif', 'superlatif', 'adverbe', 'so, such', 'enough')) return 'adjectives';
+  if (has('connecteur', 'nominalisation', 'hedging', 'ponctuation', 'style natif', 'cohésion', 'cohérence'))
+    return 'style';
+  return 'structure';
 }
 
 export function grammarEntries(): GrammarEntry[] {
   const entries: GrammarEntry[] = [];
   for (const level of LEVELS) {
     lessonsFor(level).forEach((lesson, index) => {
-      if (lesson.t === 'G') entries.push({ level, index, lesson });
+      if (lesson.t === 'G') entries.push({ level, index, lesson, category: categorizeGrammar(lesson.title) });
     });
   }
   return entries;
