@@ -56,14 +56,14 @@ const UNITS = [
 ];
 
 const BUILDINGS: { key: string; fem: boolean; name: string; price: number; max: number }[] = [
-  { key: 'maison-1', fem: true, name: 'Maison', price: 150, max: 4 },
-  { key: 'maison-2', fem: true, name: 'Maison à étage', price: 180, max: 4 },
-  { key: 'maison-3', fem: true, name: 'Chaumière', price: 140, max: 4 },
-  { key: 'tour', fem: true, name: 'Tour de guet', price: 320, max: 3 },
-  { key: 'caserne', fem: true, name: 'Caserne', price: 420, max: 2 },
-  { key: 'archerie', fem: true, name: 'Archerie', price: 420, max: 2 },
-  { key: 'monastere', fem: false, name: 'Monastère', price: 520, max: 1 },
-  { key: 'chateau', fem: false, name: 'Château', price: 1000, max: 1 },
+  { key: 'maison-1', fem: true, name: 'Maison', price: 150, max: 10 },
+  { key: 'maison-2', fem: true, name: 'Maison à étage', price: 180, max: 10 },
+  { key: 'maison-3', fem: true, name: 'Chaumière', price: 140, max: 10 },
+  { key: 'tour', fem: true, name: 'Tour de guet', price: 320, max: 6 },
+  { key: 'caserne', fem: true, name: 'Caserne', price: 420, max: 4 },
+  { key: 'archerie', fem: true, name: 'Archerie', price: 420, max: 4 },
+  { key: 'monastere', fem: false, name: 'Monastère', price: 520, max: 3 },
+  { key: 'chateau', fem: false, name: 'Château', price: 1000, max: 2 },
 ];
 
 function buildingKey(b: string, f: Faction): string {
@@ -85,7 +85,7 @@ const soldiers: ShopItem[] = FACTIONS.flatMap(({ id: f }) =>
     price: u.price + (f === 'noir' ? 30 : 0),
     category: 'soldats' as const,
     faction: f,
-    max: 5,
+    max: 25,
     walks: true,
     blurb: u.blurb,
   })),
@@ -103,32 +103,32 @@ const buildings: ShopItem[] = FACTIONS.flatMap(({ id: f }) =>
 );
 
 const nature: ShopItem[] = [
-  { id: 'sapin-1', name: 'Sapin', price: 40, category: 'nature', max: 12 },
-  { id: 'sapin-2', name: 'Grand sapin', price: 50, category: 'nature', max: 12 },
-  { id: 'arbre-jaune', name: 'Arbre doré', price: 45, category: 'nature', max: 12 },
-  { id: 'arbre-orange', name: 'Arbre d’automne', price: 45, category: 'nature', max: 12 },
-  { id: 'buisson-1', name: 'Buisson rond', price: 20, category: 'nature', max: 12 },
-  { id: 'buisson-2', name: 'Petit buisson', price: 15, category: 'nature', max: 12 },
-  { id: 'buisson-3', name: 'Fougère', price: 20, category: 'nature', max: 12 },
-  { id: 'buisson-4', name: 'Touffe d’herbes', price: 15, category: 'nature', max: 12 },
-  { id: 'souche-1', name: 'Souche', price: 15, category: 'nature', max: 8 },
-  { id: 'souche-2', name: 'Vieille souche', price: 15, category: 'nature', max: 8 },
+  { id: 'sapin-1', name: 'Sapin', price: 40, category: 'nature', max: 30 },
+  { id: 'sapin-2', name: 'Grand sapin', price: 50, category: 'nature', max: 30 },
+  { id: 'arbre-jaune', name: 'Arbre doré', price: 45, category: 'nature', max: 30 },
+  { id: 'arbre-orange', name: 'Arbre d’automne', price: 45, category: 'nature', max: 30 },
+  { id: 'buisson-1', name: 'Buisson rond', price: 20, category: 'nature', max: 30 },
+  { id: 'buisson-2', name: 'Petit buisson', price: 15, category: 'nature', max: 30 },
+  { id: 'buisson-3', name: 'Fougère', price: 20, category: 'nature', max: 30 },
+  { id: 'buisson-4', name: 'Touffe d’herbes', price: 15, category: 'nature', max: 30 },
+  { id: 'souche-1', name: 'Souche', price: 15, category: 'nature', max: 20 },
+  { id: 'souche-2', name: 'Vieille souche', price: 15, category: 'nature', max: 20 },
 ];
 
 const resources: ShopItem[] = [
-  { id: 'rocher-1', name: 'Caillou', price: 10, category: 'ressources', max: 10 },
-  { id: 'rocher-2', name: 'Pierre', price: 12, category: 'ressources', max: 10 },
-  { id: 'rocher-3', name: 'Rocher moussu', price: 15, category: 'ressources', max: 10 },
-  { id: 'rocher-4', name: 'Gros rocher', price: 18, category: 'ressources', max: 10 },
-  { id: 'bois', name: 'Tas de bois', price: 25, category: 'ressources', max: 8 },
-  { id: 'or-petit', name: 'Pépite d’or', price: 80, category: 'ressources', max: 5 },
-  { id: 'or', name: 'Filon d’or', price: 150, category: 'ressources', max: 5 },
-  { id: 'or-gros', name: 'Mine d’or', price: 260, category: 'ressources', max: 3 },
+  { id: 'rocher-1', name: 'Caillou', price: 10, category: 'ressources', max: 20 },
+  { id: 'rocher-2', name: 'Pierre', price: 12, category: 'ressources', max: 20 },
+  { id: 'rocher-3', name: 'Rocher moussu', price: 15, category: 'ressources', max: 20 },
+  { id: 'rocher-4', name: 'Gros rocher', price: 18, category: 'ressources', max: 20 },
+  { id: 'bois', name: 'Tas de bois', price: 25, category: 'ressources', max: 20 },
+  { id: 'or-petit', name: 'Pépite d’or', price: 80, category: 'ressources', max: 10 },
+  { id: 'or', name: 'Filon d’or', price: 150, category: 'ressources', max: 10 },
+  { id: 'or-gros', name: 'Mine d’or', price: 260, category: 'ressources', max: 6 },
 ];
 
 const animals: ShopItem[] = [
-  { id: 'mouton', name: 'Mouton', price: 50, category: 'animaux', max: 10, walks: true, blurb: 'Bêêê !' },
-  { id: 'mouton-qui-broute', name: 'Mouton gourmand', price: 55, category: 'animaux', max: 10, blurb: 'Il broute sans s’arrêter' },
+  { id: 'mouton', name: 'Mouton', price: 50, category: 'animaux', max: 30, walks: true, blurb: 'Bêêê !' },
+  { id: 'mouton-qui-broute', name: 'Mouton gourmand', price: 55, category: 'animaux', max: 30, blurb: 'Il broute sans s’arrêter' },
 ];
 
 export const SHOP: ShopItem[] = [...soldiers, ...buildings, ...nature, ...resources, ...animals];

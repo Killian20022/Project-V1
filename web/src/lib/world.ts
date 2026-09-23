@@ -104,6 +104,7 @@ type Ent = {
   actEnd?: number;
   agent?: boolean; // personnage ou animal qui vit sa vie
   id?: string; // index du personnage dans le décor (pour mémoriser son déplacement)
+  bounceT0?: number; // petit rebond à l'atterrissage
 };
 
 export function createWorld(
@@ -113,7 +114,10 @@ export function createWorld(
     unlocked: Set<number>;
     missionsDone: number;
     onMove?: (k: string, x: number, y: number) => void;
-    onSelect?: (k: string | null) => void;
+    onSelect?: (k: string | null, info?: { id: string; bought: boolean }) => void;
+    onMoveMode?: (active: boolean) => void;
+    decorRemoved?: string[]; // personnages du décor supprimés par le joueur
+    onDecorRemove?: (id: string) => void;
     decorPos?: Record<string, [number, number]>; // personnages du décor déplacés par le joueur
     onDecorMove?: (id: string, x: number, y: number) => void;
   },
@@ -142,6 +146,13 @@ export function createWorld(
   let last = performance.now();
   let t = 0;
   let selected: string | null = null;
+  let moveEnt: Ent | null = null; // mode « Déplacer » (bouton) : on touche une case pour poser
+  let ghost: { x: number; y: number } | null = null;
+  let flashBad = 0; // instant du dernier refus (case rouge qui tremble)
+  const effects: { x: number; y: number; t0: number; kind: 'dust' | 'ring' }[] = [];
+  const dust = img('sprites/dust.png');
+  const keyOf = (e: Ent) => (e.placed ? e.placed.k : `decor:${e.id}`);
+  const findByKey = (k: string) => [...placed, ...decor].find((e) => (e.placed || e.agent) && keyOf(e) === k);
 
   const walkableCell = (cx: number, cy: number) => islandAt(cx, cy) >= 0 && levelAt(cx, cy) > 0 && !blockedAt(cx, cy);
 
@@ -151,6 +162,7 @@ export function createWorld(
   WORLD.decor.forEach(([key, x0, y0, cloud], index) => {
     const def = SPRITES[key];
     if (!def) return;
+    if (opts.decorRemoved?.includes(String(index))) return;
     const saved = opts.decorPos?.[String(index)];
     const x = saved && !cloud ? saved[0] : x0;
     const y = saved && !cloud ? saved[1] + def.feet : y0;
@@ -349,7 +361,7 @@ export function createWorld(
   }
   function update(dt: number) {
     for (const e of placed) {
-      if (!e.agent || e === drag?.ent) continue;
+      if (!e.agent || e === drag?.ent || e === moveEnt) continue;
       if (e.home!.isl < 0 || !unlocked.has(e.home!.isl)) continue;
       stepAgent(e, dt);
     }
@@ -361,7 +373,81 @@ export function createWorld(
   }
 
   // ---------- Dessin ----------
-  function drawSprite(e: Ent, alpha = 1) {
+  function roundRect(x: number, y: number, w: number, h: number, r: number) {
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
+  }
+  function drawPlacement(px: number, py: number) {
+    const cx = Math.floor(px / TS);
+    const cy = Math.floor(py / TS);
+    const ok = canPlaceAt(px, py, unlocked);
+    const pulse = (Math.sin(t * 7) + 1) / 2;
+    // grille des cases voisines disponibles (s'estompe avec la distance)
+    for (let dy = -3; dy <= 3; dy++)
+      for (let dx = -4; dx <= 4; dx++) {
+        const nx = cx + dx;
+        const ny = cy + dy;
+        const d = Math.hypot(dx, dy * 1.2);
+        if (d > 4.2 || (dx === 0 && dy === 0)) continue;
+        if (!canPlaceAt(nx * TS + TS / 2, ny * TS + TS / 2, unlocked)) continue;
+        const a = 0.28 * (1 - d / 4.6);
+        ctx.fillStyle = `rgba(255, 255, 255, ${a * 0.45})`;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${a})`;
+        ctx.lineWidth = 2;
+        roundRect(nx * TS + 4, ny * TS + 4, TS - 8, TS - 8, 10);
+        ctx.fill();
+        ctx.stroke();
+      }
+    // case visée : elle s'illumine et respire (rouge qui tremble si c'est interdit)
+    const shake = !ok && t - flashBad < 0.35 ? Math.sin((t - flashBad) * 60) * 5 : 0;
+    const grow = 3 * pulse;
+    const x0 = cx * TS + 2 - grow + shake;
+    const y0 = cy * TS + 2 - grow;
+    const size = TS - 4 + grow * 2;
+    ctx.save();
+    ctx.shadowColor = ok ? 'rgba(90, 255, 130, 1)' : 'rgba(255, 70, 60, 1)';
+    ctx.shadowBlur = 18 + 16 * pulse;
+    ctx.fillStyle = ok ? `rgba(90, 255, 130, ${0.28 + 0.22 * pulse})` : `rgba(255, 70, 60, ${0.3 + 0.2 * pulse})`;
+    roundRect(x0, y0, size, size, 12);
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = ok ? `rgba(200, 255, 210, ${0.8 + 0.2 * pulse})` : `rgba(255, 190, 180, ${0.8 + 0.2 * pulse})`;
+    ctx.stroke();
+    ctx.restore();
+    // reflet qui balaie la case
+    if (ok) {
+      const sweep = (t * 1.6) % 1;
+      ctx.save();
+      roundRect(x0, y0, size, size, 12);
+      ctx.clip();
+      const gx = x0 + sweep * size * 2 - size * 0.5;
+      const grad = ctx.createLinearGradient(gx - 20, y0, gx + 20, y0 + size);
+      grad.addColorStop(0, 'rgba(255,255,255,0)');
+      grad.addColorStop(0.5, 'rgba(255,255,255,0.55)');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(x0, y0, size, size);
+      ctx.restore();
+    }
+    // flèches aux quatre coins
+    ctx.fillStyle = ok ? 'rgba(220, 255, 225, 0.95)' : 'rgba(255, 210, 200, 0.95)';
+    const m = 6 + 4 * pulse;
+    const c = [
+      [x0 - m, y0 - m, 1, 1],
+      [x0 + size + m, y0 - m, -1, 1],
+      [x0 - m, y0 + size + m, 1, -1],
+      [x0 + size + m, y0 + size + m, -1, -1],
+    ];
+    for (const [ax, ay, sx, sy] of c) {
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(ax + 12 * sx, ay);
+      ctx.lineTo(ax, ay + 12 * sy);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  function drawSprite(e: Ent, alpha = 1, lift = 0) {
     const def = e.def;
     const run = e.moving && def.run;
     const act = !run && e.acting !== undefined && e.acting >= 0 ? def.act?.[e.acting] : undefined;
@@ -370,21 +456,47 @@ export function createWorld(
     if (!im.complete || !im.naturalWidth) return;
     const fps = run ? 12 : act ? 10 : def.fps || 8;
     const f = sheet.n > 1 ? (act ? Math.floor((t - (e.actT0 ?? 0)) * fps) : Math.floor(t * fps + e.ph)) % sheet.n : 0;
-    const bottom = e.y + def.feet;
+    // ombre portée quand on le soulève
+    if (lift) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+      ctx.beginPath();
+      ctx.ellipse(e.x, e.y + 2, 22, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const bob = lift ? Math.sin(t * 8) * 3 : 0;
+    const bottom = e.y + def.feet + lift + bob;
     const dx = e.x - def.fw / 2;
     const dy = bottom - def.fh;
-    ctx.globalAlpha = alpha;
-    if (e.face === -1) {
+    // rebond à l'atterrissage
+    const ba = e.bounceT0 !== undefined ? t - e.bounceT0 : 9;
+    if (ba < 0.45) {
+      const k = Math.sin((ba / 0.45) * Math.PI) * (1 - ba / 0.45);
       ctx.save();
-      ctx.translate(e.x * 2, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(im, f * def.fw, 0, def.fw, def.fh, dx, dy, def.fw, def.fh);
+      ctx.translate(e.x, e.y);
+      ctx.scale(1 + 0.12 * k, 1 - 0.18 * k);
+      ctx.translate(-e.x, -e.y);
+      ctx.globalAlpha = alpha;
+      drawFrame();
       ctx.restore();
-    } else {
-      ctx.drawImage(im, f * def.fw, 0, def.fw, def.fh, dx, dy, def.fw, def.fh);
+      ctx.globalAlpha = 1;
+      return;
     }
+    ctx.globalAlpha = alpha;
+    drawFrame();
     ctx.globalAlpha = 1;
+    function drawFrame() {
+      if (e.face === -1) {
+        ctx.save();
+        ctx.translate(e.x * 2, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(im, f * def.fw, 0, def.fw, def.fh, dx, dy, def.fw, def.fh);
+        ctx.restore();
+      } else {
+        ctx.drawImage(im, f * def.fw, 0, def.fw, def.fh, dx, dy, def.fw, def.fh);
+      }
+    }
   }
+
 
   function hitBox(e: Ent) {
     const def = e.def;
@@ -424,12 +536,25 @@ export function createWorld(
       if (sw > 0 && sh > 0) ctx.drawImage(land, sx, sy, sw, sh, sx, sy, sw, sh);
     }
     // sélection
-    const sel = selected ? placed.find((p) => p.placed!.k === selected) : null;
-    if (sel && !drag) {
-      ctx.fillStyle = 'rgba(255, 230, 140, 0.35)';
+    const sel = selected ? findByKey(selected) : null;
+    if (sel && !drag?.ent && !moveEnt) {
+      const pulse = (Math.sin(t * 5) + 1) / 2;
+      ctx.save();
+      ctx.shadowColor = 'rgba(255, 220, 110, 0.9)';
+      ctx.shadowBlur = 12 + 10 * pulse;
+      ctx.strokeStyle = `rgba(255, 226, 120, ${0.65 + 0.35 * pulse})`;
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.ellipse(sel.x, sel.y, 28, 10, 0, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.ellipse(sel.x, sel.y, 30 + 3 * pulse, 11 + pulse, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    // zone de pose : grille lumineuse façon jeu de stratégie
+    const placing = drag?.ent && drag.moved ? drag.ent : moveEnt && ghost ? moveEnt : null;
+    if (placing) {
+      const px = placing === moveEnt ? ghost!.x : placing.x;
+      const py = placing === moveEnt ? ghost!.y : placing.y;
+      drawPlacement(px, py);
     }
     // sprites triés par profondeur
     const all = [...decor, ...placed].filter((e) => {
@@ -437,14 +562,46 @@ export function createWorld(
       return e.x + e.def.fw / 2 > vx0 && e.x - e.def.fw / 2 < vx1 && b > vy0 && b - e.def.fh < vy1;
     });
     all.sort((a, b) => a.y - b.y);
-    for (const e of all) drawSprite(e, drag?.ent === e ? 0.85 : 1);
-
-    // zone de dépôt pendant le glisser
-    if (drag?.ent) {
-      const ok = canPlaceAt(drag.ent.x, drag.ent.y, unlocked);
-      ctx.strokeStyle = ok ? 'rgba(120, 255, 140, 0.9)' : 'rgba(255, 90, 80, 0.95)';
-      ctx.lineWidth = 3 / cam.z;
-      ctx.strokeRect(Math.floor(drag.ent.x / TS) * TS, Math.floor(drag.ent.y / TS) * TS, TS, TS);
+    for (const e of all) {
+      if (e === moveEnt) drawSprite(e, 0.35);
+      else if (drag?.ent === e && drag.moved) drawSprite(e, 0.9, -14);
+      else drawSprite(e);
+    }
+    if (moveEnt && ghost) {
+      const saved = { x: moveEnt.x, y: moveEnt.y };
+      moveEnt.x = ghost.x;
+      moveEnt.y = ghost.y;
+      drawSprite(moveEnt, 0.85, -14);
+      moveEnt.x = saved.x;
+      moveEnt.y = saved.y;
+    }
+    // effets : poussière et onde lumineuse à l'atterrissage
+    for (let i = effects.length - 1; i >= 0; i--) {
+      const fx = effects[i];
+      const age = t - fx.t0;
+      if (fx.kind === 'dust') {
+        const f = Math.floor(age * 22);
+        if (f >= 10) {
+          effects.splice(i, 1);
+          continue;
+        }
+        if (dust.complete && dust.naturalWidth) ctx.drawImage(dust, f * 64, 0, 64, 64, fx.x - 64, fx.y - 96, 128, 128);
+      } else {
+        if (age > 0.6) {
+          effects.splice(i, 1);
+          continue;
+        }
+        const k = age / 0.6;
+        ctx.save();
+        ctx.strokeStyle = `rgba(140, 255, 160, ${1 - k})`;
+        ctx.shadowColor = 'rgba(120, 255, 150, 0.9)';
+        ctx.shadowBlur = 16;
+        ctx.lineWidth = 4 * (1 - k) + 1;
+        ctx.beginPath();
+        ctx.ellipse(fx.x, fx.y, 20 + 50 * k, 8 + 18 * k, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     // brouillard sur les îles verrouillées
@@ -538,19 +695,62 @@ export function createWorld(
       drag = null;
       return;
     }
-    const ent = pick(p.x, p.y);
+    // mode « Déplacer » : le glisser déplace la carte, un simple toucher pose le personnage
+    const ent = moveEnt ? undefined : pick(p.x, p.y);
+    if (moveEnt) ghost = s2w(p.x, p.y);
     drag = { ent, ox: cam.x, oy: cam.y, sx: p.x, sy: p.y, moved: false, start: ent ? { x: ent.x, y: ent.y } : { x: 0, y: 0 } };
     if (ent) {
       ent.moving = false;
       ent.acting = -1;
-      selected = ent.placed ? ent.placed.k : null;
-      opts.onSelect?.(selected);
+      select(ent);
     }
+  }
+  function select(ent: Ent | null) {
+    selected = ent ? keyOf(ent) : null;
+    opts.onSelect?.(selected, ent ? { id: ent.placed ? ent.placed.id : ent.key, bought: !!ent.placed } : undefined);
+  }
+  // pose un personnage (ou bâtiment) sur une case ; renvoie false si c'est interdit
+  function dropAt(ent: Ent, wx: number, wy: number) {
+    if (!canPlaceAt(wx, wy, unlocked)) {
+      flashBad = t;
+      return false;
+    }
+    const x = Math.round(wx);
+    const y = Math.round(wy);
+    const cx = Math.floor(x / TS);
+    const cy = Math.floor(y / TS);
+    ent.x = x;
+    ent.y = y;
+    ent.home = { isl: islandAt(cx, cy), lvl: levelAt(cx, cy) };
+    ent.wait = 2;
+    ent.moving = false;
+    ent.bounceT0 = t;
+    effects.push({ x, y, t0: t, kind: 'ring' }, { x, y, t0: t, kind: 'dust' });
+    if (ent.placed) {
+      ent.placed.x = x;
+      ent.placed.y = y;
+      ent.orig = { x, y };
+      opts.onMove?.(ent.placed.k, x, y);
+    } else {
+      // personnage du décor : il vit désormais autour de son nouvel emplacement
+      ent.origin = { x, y };
+      ent.walks = !!ent.def.run;
+      if (ent.id) opts.onDecorMove?.(ent.id, x, y);
+    }
+    return true;
+  }
+  function endMove() {
+    moveEnt = null;
+    ghost = null;
+    opts.onMoveMode?.(false);
   }
   function onMove(ev: PointerEvent) {
     const p = localXY(ev);
     if (!pointers.has(ev.pointerId)) {
-      canvas.style.cursor = pick(p.x, p.y) ? 'grab' : 'default';
+      if (moveEnt) {
+        ghost = s2w(p.x, p.y);
+        canvas.style.cursor = 'crosshair';
+      } else canvas.style.cursor = pick(p.x, p.y) ? 'grab' : 'default';
       return;
     }
     pointers.set(ev.pointerId, p);
@@ -564,6 +764,7 @@ export function createWorld(
     const dx = p.x - drag.sx;
     const dy = p.y - drag.sy;
     if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+    if (moveEnt && !drag.moved) ghost = s2w(p.x, p.y);
     if (drag.ent) {
       const w = s2w(p.x, p.y);
       drag.ent.x = w.x;
@@ -587,36 +788,17 @@ export function createWorld(
     if (!drag) return;
     const d = drag;
     drag = null;
-    if (d.ent) {
-      if (d.moved) {
-        if (canPlaceAt(d.ent.x, d.ent.y, unlocked)) {
-          const x = Math.round(d.ent.x);
-          const y = Math.round(d.ent.y);
-          const cx = Math.floor(x / TS);
-          const cy = Math.floor(y / TS);
-          d.ent.home = { isl: islandAt(cx, cy), lvl: levelAt(cx, cy) };
-          d.ent.wait = 2;
-          if (d.ent.placed) {
-            d.ent.placed.x = x;
-            d.ent.placed.y = y;
-            d.ent.orig = { x, y };
-            opts.onMove?.(d.ent.placed.k, x, y);
-          } else {
-            // personnage du décor : il vit désormais autour de son nouvel emplacement
-            d.ent.x = x;
-            d.ent.y = y;
-            d.ent.origin = { x, y };
-            d.ent.walks = !!d.ent.def.run;
-            if (d.ent.id) opts.onDecorMove?.(d.ent.id, x, y);
-          }
-        } else {
-          d.ent.x = d.start.x;
-          d.ent.y = d.start.y;
-        }
+    if (moveEnt && !d.moved) {
+      const w = s2w(d.sx, d.sy);
+      ghost = w;
+      if (dropAt(moveEnt, w.x, w.y)) endMove();
+    } else if (d.ent) {
+      if (d.moved && !dropAt(d.ent, d.ent.x, d.ent.y)) {
+        d.ent.x = d.start.x;
+        d.ent.y = d.start.y;
       }
-    } else if (!d.moved) {
-      selected = null;
-      opts.onSelect?.(null);
+    } else if (!d.moved && !moveEnt) {
+      select(null);
     }
     canvas.style.cursor = 'default';
   }
@@ -694,6 +876,33 @@ export function createWorld(
       clamp();
     },
     setPlaced,
+    /** Active le mode « Déplacer » pour l'élément sélectionné. */
+    startMove(k: string) {
+      const e = findByKey(k);
+      if (!e) return false;
+      moveEnt = e;
+      e.moving = false;
+      e.acting = -1;
+      ghost = null;
+      opts.onMoveMode?.(true);
+      return true;
+    },
+    cancelMove() {
+      if (moveEnt) endMove();
+    },
+    /** Retire un personnage du décor de la carte. */
+    removeDecor(id: string) {
+      const i = decor.findIndex((e) => e.id === id);
+      if (i < 0) return;
+      const e = decor[i];
+      effects.push({ x: e.x, y: e.y, t0: t, kind: 'dust' });
+      decor.splice(i, 1);
+      if (moveEnt === e) endMove();
+      select(null);
+    },
+    deselect() {
+      select(null);
+    },
     setUnlocked(set: Set<number>, done: number) {
       if (set.size !== unlocked.size) fogDirty = true;
       unlocked = set;

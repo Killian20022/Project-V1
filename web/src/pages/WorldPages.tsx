@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ShoppingBag, Check, Lock, Plus, Minus, LocateFixed, Scan, Trash2, MapPin, X } from 'lucide-react';
+import { ShoppingBag, Check, Lock, Plus, Minus, LocateFixed, Scan, Trash2, MapPin, X, Move } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sprite } from '@/components/Sprite';
@@ -7,7 +7,7 @@ import { CATEGORIES, FACTIONS, SHOP, SHOP_MAP, type Faction, type ShopCategory }
 import { TROPHIES, type Trophy } from '@/lib/trophies';
 import { createWorld, findSpot, nextUnlock, unlockedIslands, WORLD } from '@/lib/world';
 import { LEVELS, lessonCount } from '@/lib/content';
-import { uiUrl } from '@/lib/sprites';
+import { SPRITES, uiUrl } from '@/lib/sprites';
 import type { GameState, Page } from '../types';
 
 type SetState = React.Dispatch<React.SetStateAction<GameState>>;
@@ -28,6 +28,9 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<ReturnType<typeof createWorld> | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [selInfo, setSelInfo] = useState<{ id: string; bought: boolean } | null>(null);
+  const [moving, setMoving] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
 
   const done = questsDone(state);
   const unlocked = useMemo(() => unlockedIslands(done), [done]);
@@ -47,8 +50,14 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
           ...current,
           placed: (current.placed ?? []).map((p) => (p.k === k ? { ...p, x, y } : p)),
         })),
-      onSelect: setSelected,
+      onSelect: (k, info) => {
+        setSelected(k);
+        setSelInfo(info ?? null);
+        setConfirmDel(false);
+      },
+      onMoveMode: setMoving,
       decorPos: state.decorPos ?? {},
+      decorRemoved: state.decorRemoved ?? [],
       onDecorMove: (id, x, y) =>
         setState((current) => ({ ...current, decorPos: { ...(current.decorPos ?? {}), [id]: [x, y] } })),
     });
@@ -78,18 +87,38 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
     engineRef.current?.setUnlocked(unlocked, done);
   }, [unlocked, done]);
 
-  const sel = selected ? (state.placed ?? []).find((p) => p.k === selected) : null;
-  const selItem = sel ? SHOP_MAP[sel.id] : null;
+  const sel = selected && selInfo?.bought ? (state.placed ?? []).find((p) => p.k === selected) : null;
+  const selItem = selInfo ? SHOP_MAP[selInfo.id] : null;
+  const selName = selItem?.name ?? (selInfo ? SPRITES[selInfo.id]?.name ?? 'Habitant' : '');
+  const refund = sel && selItem ? Math.floor(selItem.price / 2) : 0;
+  const isUnit = selInfo ? !!SPRITES[selInfo.id]?.run || selItem?.category === 'soldats' || selItem?.category === 'animaux' : false;
 
-  function sell() {
-    if (!sel || !selItem) return;
-    const refund = Math.floor(selItem.price / 2);
-    setState((current) => ({
-      ...current,
-      coins: current.coins + refund,
-      placed: (current.placed ?? []).filter((p) => p.k !== sel.k),
-    }));
+  function startMove() {
+    if (selected && engineRef.current?.startMove(selected)) setConfirmDel(false);
+  }
+
+  function remove() {
+    if (!selected || !selInfo) return;
+    if (sel) {
+      setState((current) => ({
+        ...current,
+        coins: current.coins + refund,
+        placed: (current.placed ?? []).filter((p) => p.k !== sel.k),
+      }));
+      engineRef.current?.deselect();
+    } else if (selected.startsWith('decor:')) {
+      const id = selected.slice(6);
+      engineRef.current?.removeDecor(id);
+      setState((current) => ({ ...current, decorRemoved: [...new Set([...(current.decorRemoved ?? []), id])] }));
+    }
     setSelected(null);
+    setSelInfo(null);
+    setConfirmDel(false);
+  }
+
+  function closePanel() {
+    engineRef.current?.cancelMove();
+    engineRef.current?.deselect();
   }
 
   return (
@@ -101,7 +130,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
       <div className="pointer-events-none absolute left-3 top-3 hidden sm:block md:left-6 md:top-5">
         <h1 className="ribbon text-xl md:text-2xl">L’archipel d’English Sword</h1>
         <p className="mt-1 hidden max-w-sm rounded-md bg-[#2b1a0d]/75 px-3 py-1.5 text-xs text-[#ffeccc] md:block">
-          Glisse pour explorer · molette pour zoomer · attrape n’importe quel personnage pour le déplacer (jamais dans l’eau)
+          Glisse pour explorer · molette pour zoomer · touche un personnage pour le déplacer ou le supprimer
         </p>
       </div>
 
@@ -118,20 +147,54 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         <MapPin className="size-4" /> {openBig} / {BIG_ISLANDS} îles libérées
       </div>
 
-      {sel && selItem && (
-        <div className="absolute bottom-20 left-1/2 w-[min(92vw,360px)] -translate-x-1/2 md:bottom-6">
-          <div className="paper-dark flex items-center gap-3 p-1">
-            <Sprite k={sel.id} height={56} crop={SHOP_MAP[sel.id]?.category === 'soldats' ? 0.2 : 0} />
-            <div className="min-w-0 flex-1">
-              <div className="font-display truncate text-[#ffe7a6]">{selItem.name}</div>
-              <div className="text-[11px] text-[#e8dcc2]/80">Glisse-le pour le déplacer sur une île libérée.</div>
-            </div>
-            <Button size="icon" variant="destructive" title={`Vendre (+${Math.floor(selItem.price / 2)} or)`} onClick={sell}>
-              <Trash2 />
+      {moving && (
+        <div className="absolute left-1/2 top-16 z-10 -translate-x-1/2 md:top-5">
+          <div className="flex items-center gap-3 rounded-lg border-2 border-[#8cff9e] bg-[#1d2b14]/90 px-4 py-2 text-sm font-bold text-[#d8ffdc] shadow-[0_0_24px_rgba(120,255,150,0.45)]">
+            <Move className="size-4 animate-pulse" /> Touche une case verte pour y poser : {selName}
+            <Button size="sm" variant="secondary" onClick={() => engineRef.current?.cancelMove()}>
+              Annuler
             </Button>
-            <button className="grid h-8 w-8 place-items-center text-[#ffeccc]" onClick={() => setSelected(null)} aria-label="Fermer">
-              <X className="size-4" />
-            </button>
+          </div>
+        </div>
+      )}
+
+      {selected && selInfo && !moving && (
+        <div className="absolute bottom-20 left-1/2 z-10 w-[min(94vw,400px)] -translate-x-1/2 md:bottom-6">
+          <div className="paper-dark p-1">
+            <div className="flex items-center gap-3">
+              <Sprite k={selInfo.id} height={56} crop={isUnit ? 0.2 : 0} />
+              <div className="min-w-0 flex-1">
+                <div className="font-display truncate text-[#ffe7a6]">{selName}</div>
+                <div className="text-[11px] text-[#e8dcc2]/80">
+                  {sel ? 'Acheté au marché' : 'Habitant de l’archipel'} · glisse-le ou utilise « Déplacer »
+                </div>
+              </div>
+              <button className="grid h-8 w-8 shrink-0 place-items-center text-[#ffeccc]" onClick={closePanel} aria-label="Fermer">
+                <X className="size-4" />
+              </button>
+            </div>
+            {confirmDel ? (
+              <div className="mt-2 flex items-center gap-2 rounded-md bg-[#2b1a0d]/60 p-2">
+                <span className="flex-1 text-xs text-[#ffeccc]">
+                  {sel ? `Vendre pour ${refund} or ?` : 'Renvoyer ce personnage pour de bon ?'}
+                </span>
+                <Button size="sm" variant="destructive" onClick={remove}>
+                  <Trash2 /> Oui
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => setConfirmDel(false)}>
+                  Non
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <Button size="sm" onClick={startMove}>
+                  <Move /> Déplacer
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => setConfirmDel(true)}>
+                  <Trash2 /> {sel ? `Vendre (+${refund})` : 'Supprimer'}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
