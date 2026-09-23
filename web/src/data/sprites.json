@@ -1,0 +1,1033 @@
+{
+"maison-bleue-1": {
+"name": "Maison bleue 1",
+"src": "sprites/buildings-blue-buildings-house1.png",
+"fw": 128,
+"fh": 192,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"maison-bleue-2": {
+"name": "Maison bleue 2",
+"src": "sprites/buildings-blue-buildings-house2.png",
+"fw": 128,
+"fh": 192,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"maison-bleue-3": {
+"name": "Maison bleue 3",
+"src": "sprites/buildings-blue-buildings-house3.png",
+"fw": 128,
+"fh": 192,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"maison-rouge-1": {
+"name": "Maison rouge 1",
+"src": "sprites/buildings-red-buildings-house1.png",
+"fw": 128,
+"fh": 192,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"maison-rouge-2": {
+"name": "Maison rouge 2",
+"src": "sprites/buildings-red-buildings-house2.png",
+"fw": 128,
+"fh": 192,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"maison-rouge-3": {
+"name": "Maison rouge 3",
+"src": "sprites/buildings-red-buildings-house3.png",
+"fw": 128,
+"fh": 192,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"chateau": {
+"name": "Chateau",
+"src": "sprites/buildings-blue-buildings-castle.png",
+"fw": 320,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"tour": {
+"name": "Tour",
+"src": "sprites/buildings-blue-buildings-tower.png",
+"fw": 128,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"caserne": {
+"name": "Caserne",
+"src": "sprites/buildings-blue-buildings-barracks.png",
+"fw": 192,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"archerie": {
+"name": "Archerie",
+"src": "sprites/buildings-blue-buildings-archery.png",
+"fw": 192,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"monastere": {
+"name": "Monastere",
+"src": "sprites/buildings-blue-buildings-monastery.png",
+"fw": 192,
+"fh": 320,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"sapin-1": {
+"name": "Sapin 1",
+"src": "sprites/terrain-resources-wood-trees-tree1.png",
+"fw": 192,
+"fh": 256,
+"n": 8,
+"fps": 7,
+"feet": 20
+},
+"sapin-2": {
+"name": "Sapin 2",
+"src": "sprites/terrain-resources-wood-trees-tree2.png",
+"fw": 192,
+"fh": 256,
+"n": 8,
+"fps": 7,
+"feet": 20
+},
+"arbre-jaune": {
+"name": "Arbre jaune",
+"src": "sprites/terrain-resources-wood-trees-tree3.png",
+"fw": 192,
+"fh": 192,
+"n": 8,
+"fps": 7,
+"feet": 20
+},
+"arbre-orange": {
+"name": "Arbre orange",
+"src": "sprites/terrain-resources-wood-trees-tree4.png",
+"fw": 192,
+"fh": 192,
+"n": 8,
+"fps": 7,
+"feet": 20
+},
+"souche-1": {
+"name": "Souche 1",
+"src": "sprites/terrain-resources-wood-trees-stump-1.png",
+"fw": 192,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"souche-2": {
+"name": "Souche 2",
+"src": "sprites/terrain-resources-wood-trees-stump-2.png",
+"fw": 192,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"buisson-1": {
+"name": "Buisson 1",
+"src": "sprites/terrain-decorations-bushes-bushe1.png",
+"fw": 128,
+"fh": 128,
+"n": 8,
+"fps": 7,
+"feet": 0
+},
+"buisson-2": {
+"name": "Buisson 2",
+"src": "sprites/terrain-decorations-bushes-bushe2.png",
+"fw": 128,
+"fh": 128,
+"n": 8,
+"fps": 7,
+"feet": 0
+},
+"buisson-3": {
+"name": "Buisson 3",
+"src": "sprites/terrain-decorations-bushes-bushe3.png",
+"fw": 128,
+"fh": 128,
+"n": 8,
+"fps": 7,
+"feet": 0
+},
+"buisson-4": {
+"name": "Buisson 4",
+"src": "sprites/terrain-decorations-bushes-bushe4.png",
+"fw": 128,
+"fh": 128,
+"n": 8,
+"fps": 7,
+"feet": 0
+},
+"rocher-1": {
+"name": "Rocher 1",
+"src": "sprites/terrain-decorations-rocks-rock1.png",
+"fw": 64,
+"fh": 64,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"rocher-2": {
+"name": "Rocher 2",
+"src": "sprites/terrain-decorations-rocks-rock2.png",
+"fw": 64,
+"fh": 64,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"rocher-3": {
+"name": "Rocher 3",
+"src": "sprites/terrain-decorations-rocks-rock3.png",
+"fw": 64,
+"fh": 64,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"rocher-4": {
+"name": "Rocher 4",
+"src": "sprites/terrain-decorations-rocks-rock4.png",
+"fw": 64,
+"fh": 64,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"rocher-eau-1": {
+"name": "Rocher eau 1",
+"src": "sprites/terrain-decorations-rocks-in-the-water-water-rocks-01.png",
+"fw": 64,
+"fh": 64,
+"n": 16,
+"fps": 8,
+"feet": 0
+},
+"rocher-eau-2": {
+"name": "Rocher eau 2",
+"src": "sprites/terrain-decorations-rocks-in-the-water-water-rocks-02.png",
+"fw": 64,
+"fh": 64,
+"n": 16,
+"fps": 8,
+"feet": 0
+},
+"rocher-eau-3": {
+"name": "Rocher eau 3",
+"src": "sprites/terrain-decorations-rocks-in-the-water-water-rocks-03.png",
+"fw": 64,
+"fh": 64,
+"n": 16,
+"fps": 8,
+"feet": 0
+},
+"rocher-eau-4": {
+"name": "Rocher eau 4",
+"src": "sprites/terrain-decorations-rocks-in-the-water-water-rocks-04.png",
+"fw": 64,
+"fh": 64,
+"n": 16,
+"fps": 8,
+"feet": 0
+},
+"mouton": {
+"name": "Mouton",
+"src": "sprites/terrain-resources-meat-sheep-sheep-idle.png",
+"fw": 128,
+"fh": 128,
+"n": 6,
+"fps": 10,
+"feet": 22,
+"run": {
+"src": "sprites/terrain-resources-meat-sheep-sheep-move.png",
+"n": 4
+}
+},
+"mouton-qui-broute": {
+"name": "Mouton qui broute",
+"src": "sprites/terrain-resources-meat-sheep-sheep-grass.png",
+"fw": 128,
+"fh": 128,
+"n": 12,
+"fps": 10,
+"feet": 22
+},
+"or-petit": {
+"name": "Or petit",
+"src": "sprites/terrain-resources-gold-gold-stones-gold-stone-1.png",
+"fw": 128,
+"fh": 128,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"or": {
+"name": "Or",
+"src": "sprites/terrain-resources-gold-gold-stones-gold-stone-3.png",
+"fw": 128,
+"fh": 128,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"or-gros": {
+"name": "Or gros",
+"src": "sprites/terrain-resources-gold-gold-stones-gold-stone-5.png",
+"fw": 128,
+"fh": 128,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"bois": {
+"name": "Bois",
+"src": "sprites/terrain-resources-wood-wood-resource-wood-resource.png",
+"fw": 64,
+"fh": 64,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"canard": {
+"name": "Canard",
+"src": "sprites/terrain-decorations-rubber-duck-rubber-duck.png",
+"fw": 32,
+"fh": 32,
+"n": 3,
+"fps": 10,
+"feet": 0
+},
+"villageois": {
+"name": "Villageois",
+"src": "sprites/units-blue-units-pawn-pawn-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 8,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-blue-units-pawn-pawn-run.png",
+"n": 6
+}
+},
+"guerrier": {
+"name": "Guerrier",
+"src": "sprites/units-blue-units-warrior-warrior-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 8,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-blue-units-warrior-warrior-run.png",
+"n": 6
+}
+},
+"lancier": {
+"name": "Lancier",
+"src": "sprites/units-blue-units-lancer-lancer-idle.png",
+"fw": 320,
+"fh": 320,
+"n": 12,
+"fps": 10,
+"feet": 122,
+"run": {
+"src": "sprites/units-blue-units-lancer-lancer-run.png",
+"n": 6
+}
+},
+"archer": {
+"name": "Archer",
+"src": "sprites/units-blue-units-archer-archer-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 6,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-blue-units-archer-archer-run.png",
+"n": 4
+}
+},
+"moine": {
+"name": "Moine",
+"src": "sprites/units-blue-units-monk-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 6,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-blue-units-monk-run.png",
+"n": 4
+}
+},
+"nuage-1": {
+"name": "Nuage 1",
+"src": "sprites/terrain-decorations-clouds-clouds-01.png",
+"fw": 576,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"nuage-2": {
+"name": "Nuage 2",
+"src": "sprites/terrain-decorations-clouds-clouds-02.png",
+"fw": 576,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"nuage-3": {
+"name": "Nuage 3",
+"src": "sprites/terrain-decorations-clouds-clouds-03.png",
+"fw": 576,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"nuage-4": {
+"name": "Nuage 4",
+"src": "sprites/terrain-decorations-clouds-clouds-04.png",
+"fw": 576,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"nuage-5": {
+"name": "Nuage 5",
+"src": "sprites/terrain-decorations-clouds-clouds-05.png",
+"fw": 576,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"nuage-6": {
+"name": "Nuage 6",
+"src": "sprites/terrain-decorations-clouds-clouds-06.png",
+"fw": 576,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"nuage-7": {
+"name": "Nuage 7",
+"src": "sprites/terrain-decorations-clouds-clouds-07.png",
+"fw": 576,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"nuage-8": {
+"name": "Nuage 8",
+"src": "sprites/terrain-decorations-clouds-clouds-08.png",
+"fw": 576,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"guerrier-noir": {
+"name": "Guerrier noir",
+"src": "sprites/units-black-units-warrior-warrior-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 8,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-black-units-warrior-warrior-run.png",
+"n": 6
+}
+},
+"lancier-noir": {
+"name": "Lancier noir",
+"src": "sprites/units-black-units-lancer-lancer-idle.png",
+"fw": 320,
+"fh": 320,
+"n": 12,
+"fps": 10,
+"feet": 122,
+"run": {
+"src": "sprites/units-black-units-lancer-lancer-run.png",
+"n": 6
+}
+},
+"archer-noir": {
+"name": "Archer noir",
+"src": "sprites/units-black-units-archer-archer-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 6,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-black-units-archer-archer-run.png",
+"n": 4
+}
+},
+"moine-noir": {
+"name": "Moine noir",
+"src": "sprites/units-black-units-monk-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 6,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-black-units-monk-run.png",
+"n": 4
+}
+},
+"villageois-noir": {
+"name": "Villageois noir",
+"src": "sprites/units-black-units-pawn-pawn-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 8,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-black-units-pawn-pawn-run.png",
+"n": 6
+}
+},
+"chateau-noir": {
+"name": "Chateau noir",
+"src": "sprites/buildings-black-buildings-castle.png",
+"fw": 320,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"tour-noire": {
+"name": "Tour noire",
+"src": "sprites/buildings-black-buildings-tower.png",
+"fw": 128,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"caserne-noire": {
+"name": "Caserne noire",
+"src": "sprites/buildings-black-buildings-barracks.png",
+"fw": 192,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"archerie-noire": {
+"name": "Archerie noire",
+"src": "sprites/buildings-black-buildings-archery.png",
+"fw": 192,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"monastere-noir": {
+"name": "Monastere noir",
+"src": "sprites/buildings-black-buildings-monastery.png",
+"fw": 192,
+"fh": 320,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"maison-noire-1": {
+"name": "Maison noire 1",
+"src": "sprites/buildings-black-buildings-house1.png",
+"fw": 128,
+"fh": 192,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"maison-noire-2": {
+"name": "Maison noire 2",
+"src": "sprites/buildings-black-buildings-house2.png",
+"fw": 128,
+"fh": 192,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"maison-noire-3": {
+"name": "Maison noire 3",
+"src": "sprites/buildings-black-buildings-house3.png",
+"fw": 128,
+"fh": 192,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"guerrier-rouge": {
+"name": "Guerrier rouge",
+"src": "sprites/units-red-units-warrior-warrior-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 8,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-red-units-warrior-warrior-run.png",
+"n": 6
+}
+},
+"lancier-rouge": {
+"name": "Lancier rouge",
+"src": "sprites/units-red-units-lancer-lancer-idle.png",
+"fw": 320,
+"fh": 320,
+"n": 12,
+"fps": 10,
+"feet": 122,
+"run": {
+"src": "sprites/units-red-units-lancer-lancer-run.png",
+"n": 6
+}
+},
+"archer-rouge": {
+"name": "Archer rouge",
+"src": "sprites/units-red-units-archer-archer-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 6,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-red-units-archer-archer-run.png",
+"n": 4
+}
+},
+"moine-rouge": {
+"name": "Moine rouge",
+"src": "sprites/units-red-units-monk-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 6,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-red-units-monk-run.png",
+"n": 4
+}
+},
+"villageois-rouge": {
+"name": "Villageois rouge",
+"src": "sprites/units-red-units-pawn-pawn-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 8,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-red-units-pawn-pawn-run.png",
+"n": 6
+}
+},
+"chateau-rouge": {
+"name": "Chateau rouge",
+"src": "sprites/buildings-red-buildings-castle.png",
+"fw": 320,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"tour-rouge": {
+"name": "Tour rouge",
+"src": "sprites/buildings-red-buildings-tower.png",
+"fw": 128,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"caserne-rouge": {
+"name": "Caserne rouge",
+"src": "sprites/buildings-red-buildings-barracks.png",
+"fw": 192,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"archerie-rouge": {
+"name": "Archerie rouge",
+"src": "sprites/buildings-red-buildings-archery.png",
+"fw": 192,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"monastere-rouge": {
+"name": "Monastere rouge",
+"src": "sprites/buildings-red-buildings-monastery.png",
+"fw": 192,
+"fh": 320,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"guerrier-violet": {
+"name": "Guerrier violet",
+"src": "sprites/units-purple-units-warrior-warrior-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 8,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-purple-units-warrior-warrior-run.png",
+"n": 6
+}
+},
+"lancier-violet": {
+"name": "Lancier violet",
+"src": "sprites/units-purple-units-lancer-lancer-idle.png",
+"fw": 320,
+"fh": 320,
+"n": 12,
+"fps": 10,
+"feet": 122,
+"run": {
+"src": "sprites/units-purple-units-lancer-lancer-run.png",
+"n": 6
+}
+},
+"archer-violet": {
+"name": "Archer violet",
+"src": "sprites/units-purple-units-archer-archer-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 6,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-purple-units-archer-archer-run.png",
+"n": 4
+}
+},
+"moine-violet": {
+"name": "Moine violet",
+"src": "sprites/units-purple-units-monk-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 6,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-purple-units-monk-run.png",
+"n": 4
+}
+},
+"villageois-violet": {
+"name": "Villageois violet",
+"src": "sprites/units-purple-units-pawn-pawn-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 8,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-purple-units-pawn-pawn-run.png",
+"n": 6
+}
+},
+"chateau-violet": {
+"name": "Chateau violet",
+"src": "sprites/buildings-purple-buildings-castle.png",
+"fw": 320,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"tour-violette": {
+"name": "Tour violette",
+"src": "sprites/buildings-purple-buildings-tower.png",
+"fw": 128,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"caserne-violette": {
+"name": "Caserne violette",
+"src": "sprites/buildings-purple-buildings-barracks.png",
+"fw": 192,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"archerie-violette": {
+"name": "Archerie violette",
+"src": "sprites/buildings-purple-buildings-archery.png",
+"fw": 192,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"monastere-violet": {
+"name": "Monastere violet",
+"src": "sprites/buildings-purple-buildings-monastery.png",
+"fw": 192,
+"fh": 320,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"maison-violette-1": {
+"name": "Maison violette 1",
+"src": "sprites/buildings-purple-buildings-house1.png",
+"fw": 128,
+"fh": 192,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"maison-violette-2": {
+"name": "Maison violette 2",
+"src": "sprites/buildings-purple-buildings-house2.png",
+"fw": 128,
+"fh": 192,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"maison-violette-3": {
+"name": "Maison violette 3",
+"src": "sprites/buildings-purple-buildings-house3.png",
+"fw": 128,
+"fh": 192,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"guerrier-jaune": {
+"name": "Guerrier jaune",
+"src": "sprites/units-yellow-units-warrior-warrior-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 8,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-yellow-units-warrior-warrior-run.png",
+"n": 6
+}
+},
+"lancier-jaune": {
+"name": "Lancier jaune",
+"src": "sprites/units-yellow-units-lancer-lancer-idle.png",
+"fw": 320,
+"fh": 320,
+"n": 12,
+"fps": 10,
+"feet": 122,
+"run": {
+"src": "sprites/units-yellow-units-lancer-lancer-run.png",
+"n": 6
+}
+},
+"archer-jaune": {
+"name": "Archer jaune",
+"src": "sprites/units-yellow-units-archer-archer-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 6,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-yellow-units-archer-archer-run.png",
+"n": 4
+}
+},
+"moine-jaune": {
+"name": "Moine jaune",
+"src": "sprites/units-yellow-units-monk-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 6,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-yellow-units-monk-run.png",
+"n": 4
+}
+},
+"villageois-jaune": {
+"name": "Villageois jaune",
+"src": "sprites/units-yellow-units-pawn-pawn-idle.png",
+"fw": 192,
+"fh": 192,
+"n": 8,
+"fps": 10,
+"feet": 58,
+"run": {
+"src": "sprites/units-yellow-units-pawn-pawn-run.png",
+"n": 6
+}
+},
+"chateau-jaune": {
+"name": "Chateau jaune",
+"src": "sprites/buildings-yellow-buildings-castle.png",
+"fw": 320,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"tour-jaune": {
+"name": "Tour jaune",
+"src": "sprites/buildings-yellow-buildings-tower.png",
+"fw": 128,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"caserne-jaune": {
+"name": "Caserne jaune",
+"src": "sprites/buildings-yellow-buildings-barracks.png",
+"fw": 192,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"archerie-jaune": {
+"name": "Archerie jaune",
+"src": "sprites/buildings-yellow-buildings-archery.png",
+"fw": 192,
+"fh": 256,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"monastere-jaune": {
+"name": "Monastere jaune",
+"src": "sprites/buildings-yellow-buildings-monastery.png",
+"fw": 192,
+"fh": 320,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"maison-jaune-1": {
+"name": "Maison jaune 1",
+"src": "sprites/buildings-yellow-buildings-house1.png",
+"fw": 128,
+"fh": 192,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"maison-jaune-2": {
+"name": "Maison jaune 2",
+"src": "sprites/buildings-yellow-buildings-house2.png",
+"fw": 128,
+"fh": 192,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"maison-jaune-3": {
+"name": "Maison jaune 3",
+"src": "sprites/buildings-yellow-buildings-house3.png",
+"fw": 128,
+"fh": 192,
+"n": 1,
+"fps": 0,
+"feet": 0
+},
+"feu-1": {
+"name": "Feu 1",
+"src": "sprites/particle-fx-fire-01.png",
+"fw": 64,
+"fh": 64,
+"n": 8,
+"fps": 12,
+"feet": 0
+},
+"feu-2": {
+"name": "Feu 2",
+"src": "sprites/particle-fx-fire-02.png",
+"fw": 64,
+"fh": 64,
+"n": 10,
+"fps": 12,
+"feet": 0
+},
+"feu-3": {
+"name": "Feu 3",
+"src": "sprites/particle-fx-fire-03.png",
+"fw": 64,
+"fh": 64,
+"n": 12,
+"fps": 12,
+"feet": 0
+},
+"explosion": {
+"name": "Explosion",
+"src": "sprites/particle-fx-explosion-01.png",
+"fw": 192,
+"fh": 192,
+"n": 8,
+"fps": 12,
+"feet": 0
+},
+"ecume": {
+"name": "Écume",
+"src": "sprites/foam.png",
+"fw": 192,
+"fh": 192,
+"n": 16,
+"fps": 10,
+"feet": 0
+}
+}

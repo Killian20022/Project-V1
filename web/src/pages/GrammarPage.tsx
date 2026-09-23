@@ -97,11 +97,11 @@ export function GrammarPage({ onOpenGrammar }: { onOpenGrammar: (entry: GrammarE
     <div>
       {/* En-tête */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-[0_0_14px_hsl(var(--brand-gold)/0.35)]">
+        <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-[#9b6fc2] to-[#5e3a86] text-white shadow-[0_0_14px_hsl(var(--brand-gold)/0.35)]">
           <BookOpen />
         </div>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">Hub Grammaire</h1>
+          <h1 className="text-3xl text-[#ffe7a6]">Grammaire du royaume</h1>
           <p className="text-muted-foreground">
             {all.length} fiches classées par famille — trouve un point précis et révise-le quand tu veux.
           </p>
@@ -156,7 +156,7 @@ export function GrammarPage({ onOpenGrammar }: { onOpenGrammar: (entry: GrammarE
               })()}
             </div>
             <div>
-              <h2 className="text-xl font-bold">{activeCat.label}</h2>
+              <h2 className="text-2xl">{activeCat.label}</h2>
               <p className="text-sm text-muted-foreground">{activeCat.description}</p>
             </div>
           </div>
@@ -201,7 +201,7 @@ export function GrammarPage({ onOpenGrammar }: { onOpenGrammar: (entry: GrammarE
                       </span>
                     </div>
                     <div className="flex-1">
-                      <div className="font-bold">{cat.label}</div>
+                      <div className="font-display text-lg">{cat.label}</div>
                       <p className="mt-1 text-sm text-muted-foreground">{cat.description}</p>
                     </div>
                     <div className="flex items-center justify-between text-sm">

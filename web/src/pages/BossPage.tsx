@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { LEVELS, LEVEL_INFO, sentencesFor } from '@/lib/content';
 import { shuffle } from '@/lib/exercises';
+import { Sprite } from '@/components/Sprite';
 import type { Level } from '../types';
 
 const QUESTION_TIME = 15; // secondes par question
@@ -11,14 +12,14 @@ const BOSS_MAX = 100;
 const PLAYER_MAX = 100;
 const PLAYER_HIT = 16; // dégâts subis sur mauvaise réponse / temps écoulé
 
-// Le boss dépend du grade affronté.
-const BOSSES: Record<Level, { name: string; img: string; taunt: string }> = {
-  A1: { name: 'Stormtrooper', img: 'chip_stormtrooper.png', taunt: 'Halte ! On ne passe pas.' },
-  A2: { name: 'Boba Fett', img: 'chip_boba.png', taunt: 'Une prime, rien de personnel.' },
-  B1: { name: 'Le Rancor', img: 'chip_rancor.png', taunt: 'GROAAAR !' },
-  B2: { name: 'AT-AT', img: 'chip_atat.png', taunt: 'Cible verrouillée.' },
-  C1: { name: 'Dark Vador', img: 'chip_vader.png', taunt: 'Ton manque de vocabulaire me déçoit.' },
-  C2: { name: "L'Empereur", img: 'chip_vader.png', taunt: 'Tout se déroule comme je l’avais prévu.' },
+// Le boss dépend du rang affronté (sprites Tiny Swords des armées ennemies).
+const BOSSES: Record<Level, { name: string; sprite: string; taunt: string }> = {
+  A1: { name: 'Le Pillard rouge', sprite: 'villageois-rouge', taunt: 'Ton or ou ta vie, manant !' },
+  A2: { name: 'Le Lancier félon', sprite: 'lancier-rouge', taunt: 'Nul ne franchit ce pont.' },
+  B1: { name: 'Le Moine maudit', sprite: 'moine-noir', taunt: 'Tes mots ne te sauveront point.' },
+  B2: { name: 'L’Archer de l’ombre', sprite: 'archer-noir', taunt: 'Ma flèche ne manque jamais sa cible.' },
+  C1: { name: 'Le Capitaine noir', sprite: 'lancier-noir', taunt: 'Ton vocabulaire est bien maigre, chevalier.' },
+  C2: { name: 'Le Chevalier noir', sprite: 'guerrier-noir', taunt: 'L’Île Noire ne tombera jamais !' },
 };
 
 type BossQ = { prompt: string; sub: string; options: string[]; answer: string };
@@ -46,7 +47,6 @@ function buildBossQuestion(level: Level): BossQ {
   return { prompt: s.fr, sub: 'Traduis en anglais', options: shuffle([s.en, ...distractors]), answer: s.en };
 }
 
-const asset = (file: string) => `${import.meta.env.BASE_URL}assets/${file}`;
 
 export function BossPage({
   level,
@@ -144,13 +144,13 @@ export function BossPage({
           </h2>
           <p className="mt-2 text-muted-foreground">
             {won
-              ? `Beau duel, ${LEVEL_INFO[level].name}. La Force de l'anglais est avec toi.`
-              : 'La prochaine fois sera la bonne. Révise et reviens plus fort.'}
+              ? `Victoire, ${LEVEL_INFO[level].name} ! Les bardes chanteront ton anglais.`
+              : 'Relève-toi, chevalier. Révise et reviens plus fort.'}
           </p>
           {won && (
             <div className="mt-4 inline-flex items-center gap-4 rounded-xl bg-secondary px-5 py-3 text-sm font-semibold">
               <span className="text-primary">+{reward.xp} XP</span>
-              <span className="text-accent">+{reward.coins} 🪙</span>
+              <span className="text-accent">+{reward.coins} pièces d’or</span>
             </div>
           )}
           <div className="mt-6 flex flex-col gap-2">
@@ -175,8 +175,8 @@ export function BossPage({
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <div className="flex items-center justify-between">
-        <div className="inline-flex items-center gap-2 text-sm font-semibold text-primary">
-          <Swords className="size-4" /> Duel · {LEVEL_INFO[level].name}
+        <div className="ribbon ribbon-red text-base">
+          <Swords className="size-4" /> Duel · rang {LEVEL_INFO[level].name}
         </div>
         <Button variant="ghost" size="sm" onClick={onExit}>
           <X /> Abandonner
@@ -186,16 +186,15 @@ export function BossPage({
       {/* Boss */}
       <Card className="overflow-hidden">
         <CardContent className="flex items-center gap-4 p-5">
-          <img
-            src={asset(boss.img)}
-            alt=""
-            className={`h-20 w-20 shrink-0 object-contain transition-transform ${hitFlash === 'boss' ? '-translate-y-1 scale-110' : ''}`}
-            style={{ imageRendering: 'pixelated', filter: hitFlash === 'boss' ? 'brightness(1.8) drop-shadow(0 0 10px #ff5a4a)' : undefined }}
-            draggable={false}
-          />
+          <div
+            className={`shrink-0 transition-transform ${hitFlash === 'boss' ? '-translate-y-1 scale-110' : ''}`}
+            style={{ filter: hitFlash === 'boss' ? 'brightness(1.8) drop-shadow(0 0 10px #ff5a4a)' : undefined }}
+          >
+            <Sprite k={boss.sprite} height={130} crop={0.26} flip />
+          </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between">
-              <span className="font-black">{boss.name}</span>
+              <span className="font-display text-lg">{boss.name}</span>
               <span className="text-xs text-muted-foreground">{bossHp} / {BOSS_MAX}</span>
             </div>
             <div className="mt-1 h-3 w-full overflow-hidden rounded-full bg-secondary">

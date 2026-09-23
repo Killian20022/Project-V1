@@ -1,33 +1,52 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   English Sword — thème médiéval (pixel art Tiny Swords)
+   Dehors : nuit sur la mer (texte clair). Dans les cartes : parchemin (texte brun).
+   ============================================================ */
 :root {
-  /* Palette « English Wars » — espace profond, or impérial, sabres laser */
-  --background: 222 42% 6%;         /* deep space #070a12 */
-  --foreground: 220 20% 92%;
-  --card: 222 32% 10%;              /* surface élevée */
-  --card-foreground: 220 20% 92%;
-  --primary: 45 96% 58%;            /* or #f5c518 (logo Star Wars) */
-  --primary-foreground: 45 70% 8%;
-  --secondary: 220 26% 15%;         /* surface neutre (pastilles, nav actif) */
-  --secondary-foreground: 220 20% 90%;
-  --muted: 220 24% 13%;
-  --muted-foreground: 220 12% 62%;
-  --accent: 199 100% 60%;           /* bleu sabre #33ccff */
-  --accent-foreground: 210 100% 8%;
-  --border: 220 26% 20%;
-  --input: 220 26% 22%;
-  --ring: 45 96% 58%;               /* focus or */
-  --radius: 0.75rem;
+  --background: 196 44% 8%;
+  --foreground: 42 55% 91%;
+  --card: 43 52% 82%;
+  --card-foreground: 28 45% 15%;
+  --primary: 43 88% 58%;            /* or */
+  --primary-foreground: 28 70% 10%;
+  --secondary: 196 32% 15%;
+  --secondary-foreground: 42 55% 91%;
+  --muted: 196 28% 13%;
+  --muted-foreground: 40 22% 72%;
+  --accent: 180 42% 47%;            /* mer Tiny Swords */
+  --accent-foreground: 190 60% 8%;
+  --border: 196 26% 24%;
+  --input: 196 26% 26%;
+  --ring: 43 88% 58%;
+  --radius: 0.6rem;
 
-  /* Couleurs de marque English Wars */
-  --brand-gold: 45 96% 58%;         /* or impérial */
-  --brand-blue: 199 100% 60%;       /* sabre bleu */
-  --brand-red: 0 90% 60%;           /* sabre rouge Sith */
-  --brand-green: 128 66% 52%;       /* sabre vert */
-  --brand-gold-shadow: 40 85% 28%;  /* ombre 3D des boutons */
+  --brand-gold: 43 88% 58%;
+  --brand-blue: 207 55% 50%;
+  --brand-red: 3 62% 52%;
+  --brand-wood: 25 45% 24%;
+  --brand-sea: 178 42% 48%;
+}
+
+/* Variables « parchemin » : tout ce qui est dans une carte devient lisible sur fond clair */
+.paper,
+.paper-light {
+  --foreground: 28 48% 15%;
+  --card-foreground: 28 48% 15%;
+  --muted-foreground: 30 26% 34%;
+  --secondary: 40 42% 72%;
+  --secondary-foreground: 28 48% 15%;
+  --muted: 40 40% 76%;
+  --border: 32 32% 56%;
+  --input: 32 32% 56%;
+  --primary: 207 58% 36%;           /* bleu royal lisible sur parchemin */
+  --primary-foreground: 45 90% 96%;
+  --accent: 3 55% 42%;
+  --ring: 207 58% 36%;
+  color: hsl(var(--foreground));
 }
 
 * {
@@ -42,16 +61,9 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.55), transparent 60%),
-    radial-gradient(2px 2px at 70% 18%, rgba(255,255,255,0.40), transparent 60%),
-    radial-gradient(1.5px 1.5px at 85% 62%, rgba(255,255,255,0.45), transparent 60%),
-    radial-gradient(1.5px 1.5px at 33% 78%, rgba(255,255,255,0.35), transparent 60%),
-    radial-gradient(2px 2px at 52% 46%, rgba(255,255,255,0.30), transparent 60%),
-    radial-gradient(1100px 620px at 82% -14%, hsl(var(--brand-gold) / 0.16), transparent 60%),
-    radial-gradient(880px 520px at -6% 4%, hsl(var(--brand-blue) / 0.12), transparent 55%),
-    radial-gradient(760px 560px at 50% 118%, hsl(var(--brand-red) / 0.07), transparent 62%),
-    linear-gradient(180deg, hsl(222 42% 8%), hsl(224 44% 4%));
-  background-attachment: fixed;
+    linear-gradient(180deg, rgba(7, 22, 28, 0.84), rgba(6, 16, 22, 0.93)),
+    url('/ts/map-medium.jpg') center / cover fixed,
+    #0b1d22;
   color: hsl(var(--foreground));
   font-family: 'Nunito', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-weight: 500;
@@ -62,36 +74,136 @@ h1,
 h2,
 h3,
 .font-display {
-  font-family: 'Orbitron', 'Baloo 2', 'Nunito', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'MedievalSharp', 'Nunito', Georgia, serif;
   letter-spacing: 0.01em;
+  font-weight: 400;
 }
 
-/* Effets premium réutilisables — teintés English Wars */
-.glass {
+.pixel {
+  image-rendering: pixelated;
+}
+
+/* ---------- Parchemin (cartes) ---------- */
+.paper {
+  border-style: solid;
+  border-width: 18px 22px 20px 22px;
+  border-image: url('/ts/ui/paper.png') 44 52 45 52 / 18px 22px 20px 22px stretch;
+  background: #eee1c6 padding-box;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+}
+.paper-dark {
+  border-style: solid;
+  border-width: 16px 18px;
+  border-image: url('/ts/ui/paper-dark.png') 44 55 43 55 / 16px 18px stretch;
+  background: #525b66 padding-box;
+  image-rendering: pixelated;
+  color: hsl(42 55% 91%);
+}
+.wood-panel {
+  border-style: solid;
+  border-width: 22px 22px 26px 22px;
+  border-image: url('/ts/ui/wood.png') 85 84 103 84 fill / 22px 22px 26px 22px round;
+  image-rendering: pixelated;
+}
+
+/* ---------- Rubans et plaques (titres) ---------- */
+.ribbon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 4px 6px;
+  border-style: solid;
+  border-width: 0 40px;
+  border-image: url('/ts/ui/ribbon-blue.png') 0 97 0 98 fill / 0 40px round;
+  image-rendering: pixelated;
+  color: #fff8e6;
+  font-family: 'MedievalSharp', Georgia, serif;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+}
+.ribbon-red { border-image-source: url('/ts/ui/ribbon-red.png'); }
+.ribbon-yellow { border-image-source: url('/ts/ui/ribbon-yellow.png'); }
+.ribbon-purple { border-image-source: url('/ts/ui/ribbon-purple.png'); }
+.ribbon-slate { border-image-source: url('/ts/ui/ribbon-slate.png'); }
+
+.sword-plate {
+  display: inline-flex;
+  align-items: center;
+  min-height: 52px;
+  padding: 0 6px 2px;
+  border-style: solid;
+  border-width: 0 36px 0 42px;
+  border-image: url('/ts/ui/sword-blue.png') 0 92 0 105 fill / 0 36px 0 42px stretch;
+  image-rendering: pixelated;
+  color: #3a2614;
+  font-family: 'MedievalSharp', Georgia, serif;
+}
+
+/* ---------- Boutons pixel ---------- */
+.btn-pixel {
+  border-style: solid;
+  border-width: 9px 10px 11px 10px;
+  border-image: url('/ts/ui/btn-blue.png') 47 45 47 45 fill / 9px 10px 11px 10px stretch;
+  image-rendering: pixelated;
+  color: #fffbe9;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+.btn-pixel:active:not(:disabled) {
+  border-image-source: url('/ts/ui/btn-blue-pressed.png');
+  transform: translateY(2px);
+}
+.btn-pixel-red {
+  border-image-source: url('/ts/ui/btn-red.png');
+}
+.btn-pixel-red:active:not(:disabled) {
+  border-image-source: url('/ts/ui/btn-red.png');
+}
+
+/* ---------- Barre de navigation en bois ---------- */
+.wood-bar {
   background:
-    linear-gradient(180deg, hsl(var(--brand-gold) / 0.10), hsl(222 32% 9% / 0.6));
-  backdrop-filter: blur(10px);
-  border: 1px solid hsl(var(--brand-gold) / 0.16);
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.06) 0 2px, transparent 2px 38px),
+    linear-gradient(180deg, #7a4e2b 0%, #5c3a1f 55%, #472c17 100%);
+  border-bottom: 4px solid #2b1a0d;
+  box-shadow: inset 0 2px 0 rgba(255, 220, 160, 0.25), 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.glass {
+  background: hsl(var(--foreground) / 0.06);
+  border: 1px solid hsl(var(--border));
+  backdrop-filter: blur(6px);
 }
 
 .glow-primary {
-  box-shadow: 0 0 0 1px hsl(var(--brand-gold) / 0.30), 0 10px 40px -12px hsl(var(--brand-gold) / 0.5);
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.3), 0 8px 26px -12px hsl(var(--primary) / 0.5);
 }
 
 .text-glow {
-  text-shadow: 0 0 24px hsl(var(--brand-gold) / 0.45);
+  text-shadow: 0 0 18px hsl(var(--brand-gold) / 0.45), 0 2px 0 rgba(0, 0, 0, 0.5);
 }
 
-/* Bouton « 3D » (ombre portée solide + enfoncement) */
-.btn-3d {
-  box-shadow: 0 4px 0 hsl(var(--brand-gold-shadow));
-  transition: transform 0.06s ease, box-shadow 0.06s ease, filter 0.15s ease;
-}
-.btn-3d:active {
-  transform: translateY(3px);
-  box-shadow: 0 1px 0 hsl(var(--brand-gold-shadow));
+/* ---------- Sprites animés (feuilles Tiny Swords) ---------- */
+@keyframes ts-sprite {
+  from { background-position-x: 0; }
+  to { background-position-x: var(--sheet-w); }
 }
 
+/* ---------- Barres de défilement ---------- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(25 40% 32%);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--brand-gold) / 0.8);
+}
+
+/* ---------- Animations ---------- */
 /* Animations de l'île / galaxie */
 @keyframes eq-bob {
   0%, 100% { transform: translateY(0); }
@@ -155,6 +267,33 @@ h3,
 }
 .eq-splash { animation: eq-splash 0.9s ease-out forwards; }
 
+/* --- Course des petits clones (bas de page) --- */
+@keyframes eq-run {
+  0%   { transform: translateY(0) rotate(-4deg); }
+  25%  { transform: translateY(-5px) rotate(3deg); }
+  50%  { transform: translateY(0) rotate(-4deg); }
+  75%  { transform: translateY(-5px) rotate(3deg); }
+  100% { transform: translateY(0) rotate(-4deg); }
+}
+.eq-run { animation: eq-run 0.5s ease-in-out infinite; transform-origin: bottom center; }
+@keyframes eq-roll {
+  0%   { transform: rotate(-12deg) translateY(0); }
+  50%  { transform: rotate(12deg) translateY(-2px); }
+  100% { transform: rotate(-12deg) translateY(0); }
+}
+.eq-roll { animation: eq-roll 0.5s ease-in-out infinite; transform-origin: bottom center; }
+
+
+@keyframes flag-wave {
+  0%, 100% { transform: skewY(0deg); }
+  50% { transform: skewY(-2deg); }
+}
+.flag-wave { animation: flag-wave 3s ease-in-out infinite; transform-origin: left center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .eq-bob, .eq-sway, .eq-drift, .eq-shimmer, .flag-wave { animation: none; }
+}
+
 /* --- Mini-explication animée de leçon (flashcards + lecture guidée) --- */
 @keyframes eq-flip {
   0% { transform: rotateY(-90deg); opacity: 0; }
@@ -173,238 +312,3 @@ h3,
   background-position: left center;
   animation: eq-sweep linear forwards;
 }
-
-/* Barres de défilement */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-thumb {
-  background: hsl(220 24% 22%);
-  border-radius: 999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--brand-gold) / 0.7);
-}
-
-/* --- Course des petits clones (bas de page) --- */
-@keyframes eq-run {
-  0%   { transform: translateY(0) rotate(-4deg); }
-  25%  { transform: translateY(-5px) rotate(3deg); }
-  50%  { transform: translateY(0) rotate(-4deg); }
-  75%  { transform: translateY(-5px) rotate(3deg); }
-  100% { transform: translateY(0) rotate(-4deg); }
-}
-.eq-run { animation: eq-run 0.5s ease-in-out infinite; transform-origin: bottom center; }
-@keyframes eq-roll {
-  0%   { transform: rotate(-12deg) translateY(0); }
-  50%  { transform: rotate(12deg) translateY(-2px); }
-  100% { transform: rotate(-12deg) translateY(0); }
-}
-.eq-roll { animation: eq-roll 0.5s ease-in-out infinite; transform-origin: bottom center; }
-
-/* --- Ambiance spatiale Star Wars (discrète) --- */
-@keyframes sw-twinkle { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.9; } }
-.sw-stars {
-  position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(1.5px 1.5px at 15% 22%, rgba(255, 255, 255, 0.7), transparent 60%),
-    radial-gradient(1.5px 1.5px at 62% 15%, rgba(255, 255, 255, 0.6), transparent 60%),
-    radial-gradient(1.5px 1.5px at 80% 55%, rgba(255, 255, 255, 0.6), transparent 60%),
-    radial-gradient(1.5px 1.5px at 35% 70%, rgba(255, 255, 255, 0.55), transparent 60%),
-    radial-gradient(1.5px 1.5px at 48% 40%, rgba(255, 255, 255, 0.5), transparent 60%),
-    radial-gradient(1.5px 1.5px at 90% 30%, rgba(255, 255, 255, 0.5), transparent 60%),
-    radial-gradient(1.5px 1.5px at 25% 88%, rgba(255, 255, 255, 0.5), transparent 60%),
-    radial-gradient(1.5px 1.5px at 70% 82%, rgba(255, 255, 255, 0.5), transparent 60%);
-  animation: sw-twinkle 5s ease-in-out infinite;
-}
-@keyframes sw-shoot {
-  0% { transform: translate(0, 0) rotate(20deg); opacity: 0; }
-  3% { opacity: 1; }
-  10% { transform: translate(-420px, 150px) rotate(20deg); opacity: 0; }
-  100% { transform: translate(-420px, 150px) rotate(20deg); opacity: 0; }
-}
-.sw-shoot {
-  position: absolute;
-  right: -60px;
-  width: 160px;
-  height: 2px;
-  background: linear-gradient(to left, rgba(255, 255, 255, 0.9), rgba(120, 190, 255, 0.4), transparent);
-  border-radius: 2px;
-  filter: drop-shadow(0 0 6px rgba(140, 200, 255, 0.7));
-  animation: sw-shoot 16s linear infinite;
-  opacity: 0;
-}
-
-/* --- Cycle de course (sprite-sheet 8 images) pour les petits clones --- */
-@keyframes run-cycle { from { background-position: 0 0; } to { background-position: -352px 0; } }
-.run-clone {
-  width: 44px;
-  height: 52px;
-  background-repeat: no-repeat;
-  image-rendering: pixelated;
-  animation: run-cycle 1.15s steps(8) infinite; /* au ralenti : on voit bien les foulées */
-}
-
-/* --- Décor de l'accueil : profondeur, orbites et étoiles --- */
-.sb-scene { isolation: isolate; }
-.sb-nebula {
-  position: absolute;
-  inset: -8%;
-  background:
-    radial-gradient(ellipse 42% 44% at 82% 20%, hsl(var(--brand-blue) / 0.16), transparent 75%),
-    radial-gradient(ellipse 35% 38% at 9% 78%, hsl(var(--brand-gold) / 0.11), transparent 76%),
-    radial-gradient(ellipse 44% 38% at 57% 53%, hsl(var(--brand-red) / 0.065), transparent 79%);
-  animation: sb-nebula-drift 44s ease-in-out infinite alternate;
-}
-.sb-stars { position: absolute; inset: 0; }
-.sb-stars-far {
-  opacity: 0.8;
-  background-image:
-    radial-gradient(1px 1px at 8% 14%, hsl(var(--foreground) / 0.65) 80%, transparent),
-    radial-gradient(1px 1px at 22% 40%, hsl(var(--foreground) / 0.55) 80%, transparent),
-    radial-gradient(1px 1px at 33% 12%, hsl(var(--brand-blue) / 0.7) 80%, transparent),
-    radial-gradient(1px 1px at 45% 62%, hsl(var(--foreground) / 0.7) 80%, transparent),
-    radial-gradient(1px 1px at 55% 28%, hsl(var(--brand-gold) / 0.65) 80%, transparent),
-    radial-gradient(1px 1px at 66% 74%, hsl(var(--foreground) / 0.7) 80%, transparent),
-    radial-gradient(1px 1px at 74% 40%, hsl(var(--brand-blue) / 0.6) 80%, transparent),
-    radial-gradient(1px 1px at 84% 20%, hsl(var(--foreground) / 0.75) 80%, transparent),
-    radial-gradient(1px 1px at 90% 66%, hsl(var(--foreground) / 0.6) 80%, transparent),
-    radial-gradient(1px 1px at 18% 84%, hsl(var(--foreground) / 0.65) 80%, transparent),
-    radial-gradient(1px 1px at 38% 88%, hsl(var(--brand-blue) / 0.6) 80%, transparent),
-    radial-gradient(1px 1px at 60% 92%, hsl(var(--foreground) / 0.6) 80%, transparent);
-  background-size: 330px 270px;
-  animation: sw-twinkle 8s ease-in-out infinite;
-}
-.sb-stars-near {
-  opacity: 0.7;
-  background-image:
-    radial-gradient(2px 2px at 11% 24%, hsl(var(--foreground) / 0.95) 50%, transparent),
-    radial-gradient(2px 2px at 71% 10%, hsl(var(--brand-gold) / 0.9) 50%, transparent),
-    radial-gradient(2px 2px at 89% 53%, hsl(var(--brand-blue) / 0.9) 50%, transparent),
-    radial-gradient(2px 2px at 34% 79%, hsl(var(--foreground) / 0.85) 50%, transparent),
-    radial-gradient(2px 2px at 58% 43%, hsl(var(--foreground) / 0.8) 50%, transparent);
-  background-size: 510px 390px;
-  animation: sw-twinkle 5.5s ease-in-out infinite reverse;
-}
-.sb-horizon {
-  position: absolute;
-  left: -20%; right: -20%; bottom: -48%; height: 72%;
-  border-radius: 50%;
-  border-top: 1px solid hsl(var(--brand-blue) / 0.18);
-  box-shadow: 0 -12px 70px -38px hsl(var(--brand-blue) / 0.35);
-  transform: rotate(-7deg);
-}
-.sb-orbit {
-  position: absolute;
-  width: 74vw; height: 74vw;
-  min-width: 700px; min-height: 700px;
-  border: 1px solid hsl(var(--brand-gold) / 0.07);
-  border-radius: 50%;
-  transform: rotate(-23deg) scaleY(0.43);
-}
-.sb-orbit-one { top: -47vw; left: -20vw; }
-.sb-orbit-two { right: -29vw; bottom: -50vw; border-color: hsl(var(--brand-blue) / 0.07); }
-.sb-shooting-star {
-  position: absolute;
-  top: 18%; right: -18%;
-  width: 170px; height: 1px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, hsl(var(--brand-blue) / 0.22), hsl(var(--foreground) / 0.85));
-  box-shadow: 0 0 12px hsl(var(--brand-blue) / 0.32);
-  opacity: 0;
-  transform: rotate(-25deg);
-  animation: sb-shoot 19s linear infinite;
-}
-.sb-shooting-star-two {
-  top: 47%;
-  width: 110px;
-  background: linear-gradient(90deg, transparent, hsl(var(--brand-gold) / 0.2), hsl(var(--foreground) / 0.72));
-  animation-delay: -10s;
-  animation-duration: 27s;
-}
-.sb-world {
-  position: absolute;
-  animation: sb-float 30s ease-in-out infinite;
-  opacity: 0.92;
-}
-.sb-world-image {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 0 18px hsl(var(--brand-blue) / 0.12));
-}
-.sb-world-mustafar .sb-world-image {
-  filter: drop-shadow(0 0 20px hsl(var(--brand-red) / 0.2));
-}
-.sb-world-name {
-  display: block;
-  margin-top: 4px;
-  color: hsl(var(--foreground) / 0.62);
-  font: 600 9px/1.2 'Orbitron', sans-serif;
-  letter-spacing: 0.14em;
-  text-align: center;
-  text-transform: uppercase;
-  text-shadow: 0 2px 9px hsl(var(--background));
-  white-space: nowrap;
-}
-.sb-world-tatooine::before, .sb-world-tatooine::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  background: hsl(var(--brand-gold) / 0.9);
-  box-shadow: 0 0 12px hsl(var(--brand-gold) / 0.52);
-}
-.sb-world-tatooine::before { width: 9px; height: 9px; top: -5px; right: -7px; }
-.sb-world-tatooine::after { width: 5px; height: 5px; top: 10px; right: -18px; }
-@keyframes sb-nebula-drift {
-  from { transform: translate3d(-2%, 0, 0); }
-  to { transform: translate3d(2%, -2%, 0); }
-}
-@keyframes sb-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-13px); }
-}
-@keyframes sb-shoot {
-  0%, 78% { opacity: 0; transform: translate3d(0, 0, 0) rotate(-25deg); }
-  80% { opacity: 0.85; }
-  87%, 100% { opacity: 0; transform: translate3d(-65vw, 29vw, 0) rotate(-25deg); }
-}
-@media (max-width: 640px) {
-  .sb-world { display: none; }
-  .sb-world-mobile { display: block; opacity: 0.55; scale: 0.75; }
-  .sb-orbit { display: none; }
-  .sb-horizon { bottom: -40%; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sb-nebula, .sb-stars, .sb-world, .sb-shooting-star { animation: none; }
-  .sb-shooting-star { display: none; }
-}
-
-/* --- Duel au sabre laser (Luke vs Vador) --- */
-@keyframes saber-g { 0%, 100% { filter: drop-shadow(0 0 3px rgba(120, 255, 140, 0.5)); } 50% { filter: drop-shadow(0 0 10px rgba(120, 255, 140, 0.95)); } }
-@keyframes saber-r { 0%, 100% { filter: drop-shadow(0 0 3px rgba(255, 80, 70, 0.5)); } 50% { filter: drop-shadow(0 0 10px rgba(255, 80, 70, 0.95)); } }
-.saber-luke { animation: saber-g 1.5s ease-in-out infinite; }
-.saber-vader { animation: saber-r 1.5s ease-in-out infinite; }
-
-/* --- Entrée en vitesse lumière (hyperespace) --- */
-.ew-intro {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  background: #02040a;
-  opacity: 1;
-  transition: opacity 0.55s ease;
-}
-.ew-intro-out { opacity: 0; }
-.ew-intro-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
-.ew-intro-flash {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 50% 50%, #ffffff, #dfeaff 60%, #bcd4ff);
-  opacity: 0;
-  transition: opacity 0.16s ease;
-}
-.ew-intro-flash.on { opacity: 1; }

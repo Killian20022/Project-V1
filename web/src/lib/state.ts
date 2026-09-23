@@ -1,4 +1,25 @@
 import type { GameState, Level, SavedWord } from '../types';
+import { SHOP_MAP } from '../data/shop';
+
+// Anciens articles (thème précédent) : retirés de la carte et remboursés en pièces d'or.
+const OLD_PRICES: Record<string, number> = {
+  r2d2: 120, bb8: 160, stormtrooper: 180, boba: 240, chewie: 260, yoda: 320,
+  tie: 140, xwing: 160, rancor: 200, bantha: 220, atat: 400,
+  chicken: 40, cow: 60, farmer: 80, tree: 30, bush: 20, rock: 15, sunflower: 20,
+  nest: 20, chest: 50, bridge: 40, coop: 60,
+};
+
+/** Retire les objets qui n'existent plus au marché et rembourse leur prix. */
+export function migrateState(state: GameState): GameState {
+  const placed = state.placed ?? [];
+  const keep = placed.filter((p) => SHOP_MAP[p.id]);
+  if (keep.length === placed.length && !(state.island ?? []).length) return state;
+  const refund = placed
+    .filter((p) => !SHOP_MAP[p.id])
+    .reduce((sum, p) => sum + (OLD_PRICES[p.id] ?? 100), 0);
+  return { ...state, placed: keep, island: [], coins: state.coins + refund };
+}
+
 
 export const DEFAULT_STATE: GameState = {
   points: 0,
@@ -27,24 +48,16 @@ export function loadGameState(): GameState {
     const saved = localStorage.getItem('eq_v4');
     if (!saved) return DEFAULT_STATE;
     const parsed = JSON.parse(saved) as Partial<GameState>;
-    return {
+    return migrateState({
       ...DEFAULT_STATE,
       ...parsed,
       lessons: { ...DEFAULT_STATE.lessons, ...(parsed.lessons ?? {}) },
       stats: { ...DEFAULT_STATE.stats, ...(parsed.stats ?? {}) },
       srs: { ...(parsed.srs ?? {}) },
       island: parsed.island ?? [],
-      placed:
-        parsed.placed && parsed.placed.length
-          ? parsed.placed
-          : (parsed.island ?? []).map((id, i) => ({
-              k: `${id}-${i}`,
-              id,
-              x: 24 + (i % 4) * 14,
-              y: 30 + Math.floor(i / 4) * 16,
-            })),
+      placed: parsed.placed ?? [],
       trophies: parsed.trophies ?? [],
-    };
+    });
   } catch {
     return DEFAULT_STATE;
   }
@@ -89,7 +102,7 @@ export function completeLesson(
 }
 
 // Complétion d'un module Business English. Ne touche PAS state.lessons (la
-// progression de la campagne galaxie) : on marque simplement l'id dans
+// progression de la campagne) : on marque simplement l'id dans
 // state.completed et on crédite XP/pièces + stats. L'ajout des phrases au SRS
 // est géré à part par l'appelant (addCards, comme pour une leçon classique).
 export function completeBusiness(

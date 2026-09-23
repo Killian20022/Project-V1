@@ -3,7 +3,7 @@ import { useUser } from '@clerk/clerk-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { completeBusiness, completeLesson, completePractice, loadGameState, saveGameState } from '@/lib/state';
+import { completeBusiness, completeLesson, completePractice, loadGameState, migrateState, saveGameState } from '@/lib/state';
 import type { GrammarEntry } from '@/lib/content';
 import { addCards, applyReview, countDue, dueCards } from '@/lib/srs';
 import { buildReviewQuestion, shuffle } from '@/lib/exercises';
@@ -18,7 +18,6 @@ import { DictionaryPage } from '@/pages/DictionaryPage';
 import { BusinessPage } from '@/pages/BusinessPage';
 import { GrammarPage } from '@/pages/GrammarPage';
 import { BossPage } from '@/pages/BossPage';
-import { HyperspaceIntro } from '@/components/HyperspaceIntro';
 import type { BusinessModule, GameState, Lesson, Level, Page, SrsCard } from './types';
 
 // bizId → module Business (complétion à part). practice → entraînement libre
@@ -56,7 +55,7 @@ export default function App() {
       .then((remote) => {
         if (cancelled) return;
         if (remote) {
-          setState((current) => ({ ...current, ...remote }));
+          setState((current) => migrateState({ ...current, ...remote }));
         } else {
           // Aucune sauvegarde en ligne : on envoie la progression locale actuelle
           setState((current) => {
@@ -147,7 +146,7 @@ export default function App() {
       const withCards = sel.lesson.practice?.length
         ? { ...current, srs: addCards(current.srs, sel.level, sel.lesson.practice) }
         : current;
-      // Module Business : complétion à part (ne touche pas la campagne galaxie).
+      // Module Business : complétion à part (ne touche pas la campagne).
       if (sel.bizId) return completeBusiness(withCards, sel.bizId, correct, total, maxCombo);
       // Entraînement libre depuis le Hub Grammaire : XP + SRS, sans avance campagne.
       if (sel.practice) return completePractice(withCards, correct, total, maxCombo);
@@ -217,8 +216,8 @@ export default function App() {
       <Card className="mx-auto max-w-lg text-center">
         <CardContent className="p-8">
           <div className="text-5xl">🧠</div>
-          <h2 className="mt-4 text-2xl font-bold">Révision terminée !</h2>
-          <div className="mt-2 text-4xl font-black text-primary">
+          <h2 className="mt-4 text-3xl">Entraînement terminé !</h2>
+          <div className="font-display mt-2 text-5xl text-primary">
             {reviewResult.correct}/{reviewResult.total}
           </div>
           <p className="mt-2 text-muted-foreground">Les cartes ont été reprogrammées selon tes réponses.</p>
@@ -256,11 +255,11 @@ export default function App() {
       <Card className="mx-auto max-w-lg text-center">
         <CardContent className="p-8">
           <div className="text-5xl">{ratio === 1 ? '🏆' : ratio >= 0.7 ? '✅' : '🔁'}</div>
-          <h2 className="mt-4 text-2xl font-bold">Leçon terminée !</h2>
-          <div className="mt-2 text-4xl font-black text-primary">
+          <h2 className="mt-4 text-3xl">Quête accomplie !</h2>
+          <div className="font-display mt-2 text-5xl text-primary">
             {result.correct}/{result.total}
           </div>
-          <p className="mt-2 text-muted-foreground">Ta progression et tes récompenses ont été enregistrées.</p>
+          <p className="mt-2 text-muted-foreground">Ton butin (XP et pièces d’or) a été ajouté à ton trésor.</p>
           <Button
             className="mt-6 w-full"
             size="lg"
@@ -271,7 +270,7 @@ export default function App() {
               setPage(back);
             }}
           >
-            Retour au parcours
+            Retour aux quêtes
           </Button>
         </CardContent>
       </Card>
@@ -305,9 +304,9 @@ export default function App() {
   } else if (page === 'grammar') {
     content = <GrammarPage onOpenGrammar={openGrammar} />;
   } else if (page === 'island') {
-    content = <IslandPage state={state} navigate={navigate} />;
+    content = <IslandPage state={state} setState={setState} navigate={navigate} />;
   } else if (page === 'shop') {
-    content = <ShopPage state={state} setState={setState} />;
+    content = <ShopPage state={state} setState={setState} navigate={navigate} />;
   } else if (page === 'trophies') {
     content = <TrophiesPage state={state} />;
   } else if (page === 'dictionary') {
@@ -327,7 +326,6 @@ export default function App() {
 
   return (
     <>
-      <HyperspaceIntro />
       <Layout
         page={page}
         onNavigate={navigate}

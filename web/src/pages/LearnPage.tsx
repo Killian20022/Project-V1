@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LEVELS, LEVEL_INFO, lessonCount, lessonsFor } from '@/lib/content';
 import { countDue } from '@/lib/srs';
-import { Character } from '@/components/Character';
+import { Sprite } from '@/components/Sprite';
+import { uiUrl } from '@/lib/sprites';
 import type { GameState, Lesson, Level } from '../types';
 
 export function LearnPage({
@@ -24,8 +25,8 @@ export function LearnPage({
   if (!selectedLevel) {
     return (
       <div>
-        <h1 className="text-2xl font-bold">Missions</h1>
-        <p className="text-muted-foreground">Choisis un grade pour voir ta campagne.</p>
+        <h1 className="ribbon text-2xl">Les quêtes du royaume</h1>
+        <p className="mt-3 text-muted-foreground">Choisis ton rang pour voir ta campagne. Chaque rang est une île de l’archipel.</p>
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {LEVELS.map((lv) => {
             const total = lessonCount(lv);
@@ -34,22 +35,26 @@ export function LearnPage({
             return (
               <Card
                 key={lv}
-                className="cursor-pointer transition hover:-translate-y-0.5 hover:border-primary/60"
+                className="cursor-pointer transition hover:-translate-y-0.5"
                 onClick={() => onSelectLevel(lv)}
               >
                 <CardHeader>
-                  <div
-                    className={`grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br ${LEVEL_INFO[lv].gradient} text-lg font-black text-white`}
-                  >
-                    {lv}
+                  <div className="flex items-center gap-3">
+                    <img src={uiUrl(LEVEL_INFO[lv].avatar)} alt="" className="pixel h-14 w-14" />
+                    <span
+                      className={`grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br ${LEVEL_INFO[lv].gradient} text-sm font-black text-white shadow`}
+                    >
+                      {lv}
+                    </span>
+                    <span className="ml-auto text-xs font-semibold text-muted-foreground">{LEVEL_INFO[lv].island}</span>
                   </div>
                   <CardTitle className="mt-2">{LEVEL_INFO[lv].name}</CardTitle>
                   <CardDescription>{LEVEL_INFO[lv].description}</CardDescription>
-                  <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
-                    <div className="h-full rounded-full bg-gradient-to-r from-primary to-accent" style={{ width: `${pct}%` }} />
+                  <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full border border-[#3a2412]/40 bg-secondary">
+                    <div className="h-full rounded-full bg-gradient-to-r from-[#f7c948] to-[#e08a2e]" style={{ width: `${pct}%` }} />
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {Math.min(done, total)}/{total} missions
+                    {Math.min(done, total)}/{total} quêtes
                   </div>
                 </CardHeader>
               </Card>
@@ -68,23 +73,25 @@ export function LearnPage({
   return (
     <div>
       <Button variant="ghost" size="sm" onClick={() => onSelectLevel(null)}>
-        <ChevronLeft /> Tous les grades
+        <ChevronLeft /> Tous les rangs
       </Button>
       <div className="mt-3 flex flex-wrap items-center gap-4">
-        <div className={`grid h-14 w-14 place-items-center rounded-xl bg-gradient-to-br ${info.gradient} text-xl font-black text-white`}>
-          {selectedLevel}
-        </div>
+        <img src={uiUrl(info.avatar)} alt="" className="pixel h-16 w-16" />
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">{info.name}</h1>
-          <p className="text-muted-foreground">{info.description}</p>
+          <h1 className="text-3xl">
+            {info.name} <span className="text-lg text-muted-foreground">· {selectedLevel}</span>
+          </h1>
+          <p className="text-muted-foreground">
+            {info.description} · {info.island}
+          </p>
         </div>
         {dueHere > 0 && (
           <Button onClick={() => onReview(selectedLevel)}>
             <Brain /> Entraînement ({dueHere})
           </Button>
         )}
-        <Button variant="outline" onClick={() => onBoss(selectedLevel)}>
-          <Swords /> Boss du grade
+        <Button variant="destructive" onClick={() => onBoss(selectedLevel)}>
+          <Swords /> Boss du rang
         </Button>
       </div>
 
@@ -96,8 +103,8 @@ export function LearnPage({
           return (
             <Card
               key={`${selectedLevel}-${index}`}
-              className={`transition ${locked ? 'opacity-60' : 'cursor-pointer hover:border-primary/60'} ${
-                isCurrent ? 'border-primary/70 ring-1 ring-primary/40' : ''
+              className={`transition ${locked ? 'opacity-70 saturate-50' : 'cursor-pointer hover:-translate-y-0.5'} ${
+                isCurrent ? 'drop-shadow-[0_0_12px_rgba(247,201,72,0.7)]' : ''
               }`}
               onClick={() => {
                 if (!locked) onOpenLesson(selectedLevel, index, lesson);
@@ -117,9 +124,9 @@ export function LearnPage({
                       {lesson.t === 'V' ? <BookText className="size-3" /> : <GraduationCap className="size-3" />}
                       {lesson.t === 'V' ? 'Vocabulaire' : 'Grammaire'}
                     </span>
-                    <span className="text-xs text-muted-foreground">Mission {index + 1}</span>
+                    <span className="text-xs text-muted-foreground">Quête {index + 1}</span>
                   </div>
-                  <div className="truncate font-semibold">{lesson.title}</div>
+                  <div className="font-display truncate text-lg">{lesson.title}</div>
                 </div>
                 {isCurrent && <span className="shrink-0 text-xs font-semibold text-primary">À faire</span>}
               </CardContent>
@@ -128,10 +135,10 @@ export function LearnPage({
         })}
       </div>
 
-      <div className="flex items-end justify-center gap-8 pb-6 pt-8">
-        <Character file="chip_r2d2.png" size={72} />
-        <Character file="chip_boba.png" size={104} />
-        <Character file="chip_bb8.png" size={70} flip />
+      <div className="flex items-end justify-center gap-2 pb-6 pt-8">
+        <Sprite k="villageois" height={80} crop={0.2} />
+        <Sprite k="guerrier" height={100} crop={0.2} />
+        <Sprite k="mouton" height={60} crop={0.15} flip />
       </div>
     </div>
   );

@@ -1,26 +1,135 @@
-export type ShopItem = {
-  id: string;
+// Marché « English Sword » — tout ce qu'on peut acheter puis poser sur la carte du royaume.
+// Chaque article pointe vers un sprite Tiny Swords (voir src/data/sprites.json).
+
+export type ShopCategory = 'soldats' | 'batiments' | 'nature' | 'ressources' | 'animaux';
+export type Faction = 'bleu' | 'rouge' | 'jaune' | 'violet' | 'noir';
+
+export interface ShopItem {
+  id: string; // = clé du sprite
   name: string;
   price: number;
-  kind: 'char' | 'decor';
-  file: string;
+  category: ShopCategory;
+  faction?: Faction;
+  max: number; // exemplaires maximum
+  walks?: boolean; // se promène tout seul sur l'île
   blurb?: string;
-};
+}
 
-// Boutique « English Wars » — compagnons (se promènent tout seuls sur Endor)
-// et véhicules / créatures à poser. Les visuels sont les sprites Star Wars.
-export const SHOP: ShopItem[] = [
-  { id: 'r2d2', name: 'R2-D2', price: 120, kind: 'char', file: 'chip_r2d2.png', blurb: 'Astromech loyal' },
-  { id: 'bb8', name: 'BB-8', price: 160, kind: 'char', file: 'chip_bb8.png', blurb: 'Toujours de bonne humeur' },
-  { id: 'stormtrooper', name: 'Stormtrooper', price: 180, kind: 'char', file: 'chip_stormtrooper.png', blurb: 'Patrouille impériale' },
-  { id: 'boba', name: 'Boba Fett', price: 240, kind: 'char', file: 'chip_boba.png', blurb: 'Chasseur de primes' },
-  { id: 'chewie', name: 'Chewbacca', price: 260, kind: 'char', file: 'chip_chewie.png', blurb: 'Copilote wookiee' },
-  { id: 'yoda', name: 'Maître Yoda', price: 320, kind: 'char', file: 'chip_yoda.png', blurb: 'La Force, puissante en lui' },
-  { id: 'tie', name: 'TIE Fighter', price: 140, kind: 'decor', file: 'chip_tie.png' },
-  { id: 'xwing', name: 'X-Wing', price: 160, kind: 'decor', file: 'chip_xwing.png' },
-  { id: 'rancor', name: 'Rancor', price: 200, kind: 'decor', file: 'chip_rancor.png' },
-  { id: 'bantha', name: 'Bantha', price: 220, kind: 'decor', file: 'chip_bantha.png' },
-  { id: 'atat', name: 'TB-TT · AT-AT', price: 400, kind: 'decor', file: 'chip_atat.png' },
+export const CATEGORIES: { id: ShopCategory; label: string; hint: string }[] = [
+  { id: 'soldats', label: 'Soldats', hint: 'Ils patrouillent tout seuls sur tes îles' },
+  { id: 'batiments', label: 'Bâtiments', hint: 'Bâtis ton village, ton château, ta forteresse' },
+  { id: 'nature', label: 'Arbres & buissons', hint: 'Pour une île verdoyante' },
+  { id: 'ressources', label: 'Rochers & trésors', hint: 'Pierres, or et bois' },
+  { id: 'animaux', label: 'Animaux', hint: 'Des moutons qui broutent' },
 ];
 
-export const SHOP_MAP = Object.fromEntries(SHOP.map((item) => [item.id, item]));
+export const FACTIONS: { id: Faction; label: string; color: string }[] = [
+  { id: 'bleu', label: 'Bleu', color: '#3f8fd1' },
+  { id: 'rouge', label: 'Rouge', color: '#d1473f' },
+  { id: 'jaune', label: 'Jaune', color: '#d9b233' },
+  { id: 'violet', label: 'Violet', color: '#9b5fc2' },
+  { id: 'noir', label: 'Noir', color: '#4a4f5c' },
+];
+
+// Suffixe des clés de sprites selon la faction (le bleu n'a pas de suffixe).
+const SUFFIX: Record<Faction, { m: string; f: string }> = {
+  bleu: { m: '', f: '' },
+  rouge: { m: '-rouge', f: '-rouge' },
+  jaune: { m: '-jaune', f: '-jaune' },
+  violet: { m: '-violet', f: '-violette' },
+  noir: { m: '-noir', f: '-noire' },
+};
+const LABEL: Record<Faction, { m: string; f: string }> = {
+  bleu: { m: 'bleu', f: 'bleue' },
+  rouge: { m: 'rouge', f: 'rouge' },
+  jaune: { m: 'jaune', f: 'jaune' },
+  violet: { m: 'violet', f: 'violette' },
+  noir: { m: 'noir', f: 'noire' },
+};
+
+const UNITS = [
+  { key: 'villageois', name: 'Villageois', price: 60, blurb: 'Travailleur infatigable' },
+  { key: 'moine', name: 'Moine', price: 120, blurb: 'Soigne les blessés' },
+  { key: 'archer', name: 'Archer', price: 150, blurb: 'Vise juste de loin' },
+  { key: 'guerrier', name: 'Guerrier', price: 180, blurb: 'Épée et bouclier' },
+  { key: 'lancier', name: 'Lancier', price: 220, blurb: 'Garde d’élite' },
+];
+
+const BUILDINGS: { key: string; fem: boolean; name: string; price: number; max: number }[] = [
+  { key: 'maison-1', fem: true, name: 'Maison', price: 150, max: 4 },
+  { key: 'maison-2', fem: true, name: 'Maison à étage', price: 180, max: 4 },
+  { key: 'maison-3', fem: true, name: 'Chaumière', price: 140, max: 4 },
+  { key: 'tour', fem: true, name: 'Tour de guet', price: 320, max: 3 },
+  { key: 'caserne', fem: true, name: 'Caserne', price: 420, max: 2 },
+  { key: 'archerie', fem: true, name: 'Archerie', price: 420, max: 2 },
+  { key: 'monastere', fem: false, name: 'Monastère', price: 520, max: 1 },
+  { key: 'chateau', fem: false, name: 'Château', price: 1000, max: 1 },
+];
+
+function buildingKey(b: string, f: Faction): string {
+  const s = SUFFIX[f];
+  if (b.startsWith('maison-')) {
+    const n = b.split('-')[1];
+    if (f === 'bleu') return `maison-bleue-${n}`;
+    const fem = { rouge: 'rouge', jaune: 'jaune', violet: 'violette', noir: 'noire' }[f];
+    return `maison-${fem}-${n}`;
+  }
+  const fem = ['tour', 'caserne', 'archerie'].includes(b);
+  return b + (fem ? s.f : s.m);
+}
+
+const soldiers: ShopItem[] = FACTIONS.flatMap(({ id: f }) =>
+  UNITS.map((u) => ({
+    id: u.key + SUFFIX[f].m,
+    name: `${u.name} ${LABEL[f].m}`,
+    price: u.price + (f === 'noir' ? 30 : 0),
+    category: 'soldats' as const,
+    faction: f,
+    max: 5,
+    walks: true,
+    blurb: u.blurb,
+  })),
+);
+
+const buildings: ShopItem[] = FACTIONS.flatMap(({ id: f }) =>
+  BUILDINGS.map((b) => ({
+    id: buildingKey(b.key, f),
+    name: `${b.name} ${b.fem ? LABEL[f].f : LABEL[f].m}`,
+    price: b.price,
+    category: 'batiments' as const,
+    faction: f,
+    max: b.max,
+  })),
+);
+
+const nature: ShopItem[] = [
+  { id: 'sapin-1', name: 'Sapin', price: 40, category: 'nature', max: 12 },
+  { id: 'sapin-2', name: 'Grand sapin', price: 50, category: 'nature', max: 12 },
+  { id: 'arbre-jaune', name: 'Arbre doré', price: 45, category: 'nature', max: 12 },
+  { id: 'arbre-orange', name: 'Arbre d’automne', price: 45, category: 'nature', max: 12 },
+  { id: 'buisson-1', name: 'Buisson rond', price: 20, category: 'nature', max: 12 },
+  { id: 'buisson-2', name: 'Petit buisson', price: 15, category: 'nature', max: 12 },
+  { id: 'buisson-3', name: 'Fougère', price: 20, category: 'nature', max: 12 },
+  { id: 'buisson-4', name: 'Touffe d’herbes', price: 15, category: 'nature', max: 12 },
+  { id: 'souche-1', name: 'Souche', price: 15, category: 'nature', max: 8 },
+  { id: 'souche-2', name: 'Vieille souche', price: 15, category: 'nature', max: 8 },
+];
+
+const resources: ShopItem[] = [
+  { id: 'rocher-1', name: 'Caillou', price: 10, category: 'ressources', max: 10 },
+  { id: 'rocher-2', name: 'Pierre', price: 12, category: 'ressources', max: 10 },
+  { id: 'rocher-3', name: 'Rocher moussu', price: 15, category: 'ressources', max: 10 },
+  { id: 'rocher-4', name: 'Gros rocher', price: 18, category: 'ressources', max: 10 },
+  { id: 'bois', name: 'Tas de bois', price: 25, category: 'ressources', max: 8 },
+  { id: 'or-petit', name: 'Pépite d’or', price: 80, category: 'ressources', max: 5 },
+  { id: 'or', name: 'Filon d’or', price: 150, category: 'ressources', max: 5 },
+  { id: 'or-gros', name: 'Mine d’or', price: 260, category: 'ressources', max: 3 },
+];
+
+const animals: ShopItem[] = [
+  { id: 'mouton', name: 'Mouton', price: 50, category: 'animaux', max: 10, walks: true, blurb: 'Bêêê !' },
+  { id: 'mouton-qui-broute', name: 'Mouton gourmand', price: 55, category: 'animaux', max: 10, blurb: 'Il broute sans s’arrêter' },
+];
+
+export const SHOP: ShopItem[] = [...soldiers, ...buildings, ...nature, ...resources, ...animals];
+export const SHOP_MAP: Record<string, ShopItem> = Object.fromEntries(SHOP.map((item) => [item.id, item]));

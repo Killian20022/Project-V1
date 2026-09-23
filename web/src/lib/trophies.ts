@@ -1,4 +1,4 @@
-import { SHOP } from '../data/shop';
+import { SHOP_MAP } from '../data/shop';
 import { lessonCount, TOTAL_LESSONS } from './content';
 import type { GameState } from '../types';
 
@@ -15,10 +15,10 @@ export type Trophy = {
 
 const lessonsDone = (s: GameState) => Object.values(s.lessons).reduce((a, b) => a + (b ?? 0), 0);
 const stat = (s: GameState, k: string) => s.stats[k] ?? 0;
-const owned = (s: GameState) => {
-  const ids = s.placed?.length ? s.placed.map((p) => p.id) : (s.island ?? []);
-  return [...new Set(ids)];
-};
+const placedOf = (s: GameState) => (s.placed ?? []).filter((p) => SHOP_MAP[p.id]);
+const countCat = (s: GameState, cat: string) => placedOf(s).filter((p) => SHOP_MAP[p.id].category === cat).length;
+const factionsOwned = (s: GameState) =>
+  new Set(placedOf(s).filter((p) => SHOP_MAP[p.id].category === 'soldats').map((p) => SHOP_MAP[p.id].faction)).size;
 
 export const TROPHIES: Trophy[] = [
   { id: 'first', category: 'Progression', tier: 'bronze', icon: '🎓', name: 'Premiers pas', desc: 'Terminer ta 1re leçon', goal: 1, progress: lessonsDone },
@@ -48,10 +48,14 @@ export const TROPHIES: Trophy[] = [
   { id: 'cb20', category: 'Performance', tier: 'gold', icon: '⚡', name: 'Combo x20', desc: 'Enchaîner 20 bonnes réponses', goal: 20, progress: (s) => stat(s, 'bestCombo') },
   { id: 'cor100', category: 'Performance', tier: 'silver', icon: '📚', name: 'Studieux', desc: '100 bonnes réponses', goal: 100, progress: (s) => stat(s, 'correct') },
   { id: 'cor1000', category: 'Performance', tier: 'gold', icon: '📖', name: 'Érudit', desc: '1 000 bonnes réponses', goal: 1000, progress: (s) => stat(s, 'correct') },
-  { id: 'buy1', category: 'Île & Boutique', tier: 'bronze', icon: '🛒', name: 'Premier achat', desc: 'Acheter 1 objet', goal: 1, progress: (s) => owned(s).length },
-  { id: 'farm', category: 'Île & Boutique', tier: 'silver', icon: '🐔', name: 'Basse-cour', desc: 'Posséder poule + vache', goal: 2, progress: (s) => ['chicken', 'cow'].filter((x) => owned(s).includes(x)).length },
-  { id: 'collec', category: 'Île & Boutique', tier: 'gold', icon: '🐄', name: 'Collectionneur', desc: 'Posséder les 3 personnages', goal: 3, progress: (s) => ['chicken', 'cow', 'farmer'].filter((x) => owned(s).includes(x)).length },
-  { id: 'island', category: 'Île & Boutique', tier: 'gold', icon: '🏆', name: 'Île complète', desc: 'Posséder tous les objets', goal: SHOP.length, progress: (s) => owned(s).length },
-  { id: 'coin2k', category: 'Île & Boutique', tier: 'silver', icon: '💰', name: 'Économe', desc: 'Gagner 2 000 pièces', goal: 2000, progress: (s) => stat(s, 'coinsEarned') },
-  { id: 'coin10k', category: 'Île & Boutique', tier: 'gold', icon: '💰', name: 'Fortune', desc: 'Gagner 10 000 pièces', goal: 10000, progress: (s) => stat(s, 'coinsEarned') },
+  { id: 'buy1', category: 'Royaume & Marché', tier: 'bronze', icon: '🛒', name: 'Premier achat', desc: 'Acheter 1 objet au marché', goal: 1, progress: (s) => placedOf(s).length },
+  { id: 'army10', category: 'Royaume & Marché', tier: 'silver', icon: '⚔️', name: 'Petite armée', desc: 'Recruter 10 soldats', goal: 10, progress: (s) => countCat(s, 'soldats') },
+  { id: 'army25', category: 'Royaume & Marché', tier: 'gold', icon: '🛡️', name: 'Grande armée', desc: 'Recruter 25 soldats', goal: 25, progress: (s) => countCat(s, 'soldats') },
+  { id: 'banners', category: 'Royaume & Marché', tier: 'gold', icon: '🚩', name: 'Cinq bannières', desc: 'Avoir des soldats des 5 couleurs', goal: 5, progress: factionsOwned },
+  { id: 'village', category: 'Royaume & Marché', tier: 'silver', icon: '🏘️', name: 'Bâtisseur', desc: 'Construire 5 bâtiments', goal: 5, progress: (s) => countCat(s, 'batiments') },
+  { id: 'castle', category: 'Royaume & Marché', tier: 'gold', icon: '🏰', name: 'Seigneur du château', desc: 'Construire un château', goal: 1, progress: (s) => placedOf(s).filter((p) => p.id.startsWith('chateau')).length },
+  { id: 'forest', category: 'Royaume & Marché', tier: 'bronze', icon: '🌲', name: 'Forestier', desc: 'Planter 10 arbres ou buissons', goal: 10, progress: (s) => countCat(s, 'nature') },
+  { id: 'flock', category: 'Royaume & Marché', tier: 'bronze', icon: '🐑', name: 'Berger', desc: 'Élever 5 moutons', goal: 5, progress: (s) => countCat(s, 'animaux') },
+  { id: 'coin2k', category: 'Royaume & Marché', tier: 'silver', icon: '💰', name: 'Économe', desc: 'Gagner 2 000 pièces', goal: 2000, progress: (s) => stat(s, 'coinsEarned') },
+  { id: 'coin10k', category: 'Royaume & Marché', tier: 'gold', icon: '💰', name: 'Fortune', desc: 'Gagner 10 000 pièces', goal: 10000, progress: (s) => stat(s, 'coinsEarned') },
 ];

@@ -21,7 +21,7 @@ export function LessonPage({
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <Button variant="ghost" size="sm" onClick={onBack}>
-        <ChevronLeft /> Parcours
+        <ChevronLeft /> Quêtes
       </Button>
 
       <div className="flex items-center gap-2">
@@ -29,11 +29,11 @@ export function LessonPage({
           {lesson.t === 'V' ? 'Vocabulaire' : 'Grammaire'}
         </span>
         <span className="text-sm text-muted-foreground">
-          {level} · Leçon {index + 1}
+          {level} · Quête {index + 1}
         </span>
       </div>
 
-      <h1 className="text-3xl font-black">{lesson.title}</h1>
+      <h1 className="text-4xl text-[#ffe7a6]">{lesson.title}</h1>
       {lesson.intro && <p className="text-muted-foreground" dangerouslySetInnerHTML={{ __html: lesson.intro }} />}
 
       <LessonExplainer title={lesson.title} forms={lesson.forms} examples={lesson.examples} explainer={lesson.explainer} />
@@ -41,7 +41,7 @@ export function LessonPage({
       {lesson.forms && (
         <Card>
           <CardContent className="p-5">
-            <div className="mb-3 font-bold">{lesson.formsTitle ?? 'Les formes'}</div>
+            <div className="font-display mb-3 text-xl">{lesson.formsTitle ?? 'Les formes'}</div>
             <table className="w-full text-sm">
               <tbody>
                 {lesson.forms.map(([left, right]) => (
@@ -59,7 +59,7 @@ export function LessonPage({
       {lesson.sections?.map((section) => (
         <Card key={section.h}>
           <CardContent className="p-5">
-            <div className="mb-2 font-bold">{section.h}</div>
+            <div className="font-display mb-2 text-xl">{section.h}</div>
             <div className="text-sm leading-relaxed text-muted-foreground" dangerouslySetInnerHTML={{ __html: section.body }} />
           </CardContent>
         </Card>
@@ -67,7 +67,7 @@ export function LessonPage({
 
       {!!lesson.examples?.length && (
         <div>
-          <div className="mb-2 font-bold">Exemples</div>
+          <div className="font-display mb-2 text-xl">Exemples</div>
           <div className="space-y-2">
             {lesson.examples.map(([en, fr]) => (
               <Card key={en}>
@@ -89,7 +89,7 @@ export function LessonPage({
       {!!lesson.pitfalls?.length && (
         <Card className="border-orange-500/40 bg-orange-500/5">
           <CardContent className="p-5">
-            <div className="mb-2 flex items-center gap-2 font-bold text-orange-400">
+            <div className="mb-2 flex items-center gap-2 font-bold text-[#b4531d]">
               <AlertTriangle className="size-4" /> À éviter
             </div>
             <ul className="space-y-1 text-sm text-muted-foreground">

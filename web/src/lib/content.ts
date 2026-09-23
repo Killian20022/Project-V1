@@ -14,15 +14,15 @@ export function lessonCount(level: Level): number {
 // Total de leçons tous niveaux confondus
 export const TOTAL_LESSONS = LEVELS.reduce((sum, lv) => sum + lessonCount(lv), 0);
 
-// Grades « English Wars » : la progression Jedi, du Youngling au Grand Maître.
-// Le code CEFR (A1…C2) reste affiché sur le badge — la pédagogie est inchangée.
-export const LEVEL_INFO: Record<Level, { name: string; description: string; gradient: string }> = {
-  A1: { name: 'Youngling', description: 'Premiers mots et phrases', gradient: 'from-sky-300 to-cyan-400' },
-  A2: { name: 'Padawan', description: 'Communiquer au quotidien', gradient: 'from-cyan-400 to-sky-500' },
-  B1: { name: 'Chevalier Jedi', description: 'Devenir autonome', gradient: 'from-emerald-400 to-teal-500' },
-  B2: { name: 'Maître Jedi', description: "S'exprimer avec aisance", gradient: 'from-amber-400 to-yellow-500' },
-  C1: { name: 'Gardien de la Force', description: 'Nuancer son expression', gradient: 'from-orange-400 to-amber-500' },
-  C2: { name: 'Grand Maître', description: 'Comprendre avec précision', gradient: 'from-yellow-400 to-amber-600' },
+// Rangs « English Sword » : de l'écuyer au roi. Le code CEFR (A1…C2) reste affiché
+// sur le blason — la pédagogie est inchangée. `avatar` = portrait Tiny Swords.
+export const LEVEL_INFO: Record<Level, { name: string; description: string; gradient: string; avatar: string; island: string }> = {
+  A1: { name: 'Écuyer', description: 'Premiers mots et phrases', gradient: 'from-[#5b8fb9] to-[#2f5f8a]', avatar: 'avatars_04.png', island: 'Royaume bleu' },
+  A2: { name: 'Soldat', description: 'Communiquer au quotidien', gradient: 'from-[#c9a33a] to-[#8e6b1c]', avatar: 'avatars_02.png', island: 'Ferme jaune' },
+  B1: { name: 'Garde royal', description: 'Devenir autonome', gradient: 'from-[#9b6fc2] to-[#5e3a86]', avatar: 'avatars_03.png', island: 'Monastère violet' },
+  B2: { name: 'Chevalier', description: "S'exprimer avec aisance", gradient: 'from-[#4a9ec9] to-[#23608a]', avatar: 'avatars_01.png', island: 'Avant-poste' },
+  C1: { name: 'Seigneur', description: 'Nuancer son expression', gradient: 'from-[#d9b233] to-[#a0741a]', avatar: 'avatars_11.png', island: 'Mine d’or' },
+  C2: { name: 'Roi', description: 'Comprendre avec précision', gradient: 'from-[#4a4f5c] to-[#1e2129]', avatar: 'avatars_21.png', island: 'Île Noire' },
 };
 
 export function lessonsFor(level: Level): Lesson[] {

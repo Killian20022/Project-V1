@@ -4,20 +4,24 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-bold leading-none transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 disabled:grayscale-[0.4] [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
-        default:
-          'bg-[#f5c518] text-[#0b0a04] shadow-[0_4px_0_#8a6a1e] hover:brightness-110 active:translate-y-[3px] active:shadow-[0_1px_0_#8a6a1e]',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        outline: 'border border-input bg-transparent hover:bg-secondary hover:text-secondary-foreground',
-        ghost: 'hover:bg-secondary hover:text-secondary-foreground',
+        // Bouton pixel bleu Tiny Swords (image 9-slice)
+        default: 'btn-pixel rounded-none hover:brightness-110',
+        destructive: 'btn-pixel btn-pixel-red rounded-none hover:brightness-110',
+        // Bois sombre
+        secondary:
+          'border-2 border-[#2b1a0d] bg-[#5c3a1f] text-[#ffe9b8] shadow-[0_3px_0_#2b1a0d] hover:bg-[#6d4526] active:translate-y-[2px] active:shadow-[0_1px_0_#2b1a0d]',
+        outline:
+          'border-2 border-[hsl(var(--foreground)/0.35)] bg-transparent text-[hsl(var(--foreground))] hover:bg-[hsl(var(--foreground)/0.08)]',
+        ghost: 'text-[hsl(var(--foreground))] hover:bg-[hsl(var(--foreground)/0.1)]',
       },
       size: {
-        default: 'h-10 px-5 py-2',
-        sm: 'h-9 rounded-md px-3',
-        lg: 'h-12 rounded-lg px-8 text-base',
+        default: 'h-10 px-4',
+        sm: 'h-9 px-3 text-[13px]',
+        lg: 'h-12 px-6 text-base',
         icon: 'h-10 w-10',
       },
     },

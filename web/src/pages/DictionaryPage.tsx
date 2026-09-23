@@ -47,8 +47,8 @@ export function DictionaryPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <div>
-        <h1 className="text-2xl font-bold">Dictionnaire</h1>
-        <p className="text-muted-foreground">Cherche un mot anglais, écoute-le et crée ta collection perso.</p>
+        <h1 className="ribbon ribbon-slate text-2xl">Le grimoire</h1>
+        <p className="mt-2 text-muted-foreground">Cherche un mot anglais, écoute-le et crée ta collection perso.</p>
       </div>
 
       <form onSubmit={search} className="flex gap-2">

@@ -39,11 +39,11 @@ export function BusinessPage({
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3">
-        <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-800 text-white shadow-[0_0_14px_hsl(var(--brand-gold)/0.35)]">
+        <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-[#5c3a1f] to-[#2b1a0d] text-white shadow-[0_0_14px_hsl(var(--brand-gold)/0.35)]">
           <Briefcase />
         </div>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">Business English</h1>
+          <h1 className="text-3xl text-[#ffe7a6]">Business English</h1>
           <p className="text-muted-foreground">L’anglais du monde professionnel. Choisis le thème dont tu as besoin.</p>
         </div>
         <span className="rounded-full bg-secondary px-3 py-1 text-sm font-semibold">

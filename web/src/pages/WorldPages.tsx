@@ -1,73 +1,54 @@
-import { useEffect, useRef } from 'react';
-import { Coins, ShoppingBag, Check, Lock, Plus, Minus, LocateFixed, Scan } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ShoppingBag, Check, Lock, Plus, Minus, LocateFixed, Scan, Trash2, MapPin, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { SHOP } from '@/data/shop';
+import { Sprite } from '@/components/Sprite';
+import { CATEGORIES, FACTIONS, SHOP, SHOP_MAP, type Faction, type ShopCategory } from '@/data/shop';
 import { TROPHIES, type Trophy } from '@/lib/trophies';
-import { createGalaxy } from '@/lib/galaxy';
+import { createWorld, findSpot, nextUnlock, unlockedIslands, WORLD } from '@/lib/world';
 import { LEVELS, lessonCount } from '@/lib/content';
+import { uiUrl } from '@/lib/sprites';
 import type { GameState, Page } from '../types';
 
-const asset = (file: string) => `${import.meta.env.BASE_URL}assets/${file}`;
-const SHOP_MAP = Object.fromEntries(SHOP.map((s) => [s.id, s]));
-const MAX_PER_ITEM = 5;
-const ITEM_H = 46;
-
-// Taille d'affichage par article dans l'armurerie.
-const SIZE: Record<string, number> = {
-  atat: 96, xwing: 60, tie: 58, bantha: 70, rancor: 54, chewie: 56, boba: 52, stormtrooper: 52,
-};
-const sizeOf = (id: string) => SIZE[id] ?? ITEM_H;
-
-// ---- Déblocage progressif des zones selon les missions d'anglais réussies ----
-const INITIAL = [6, 7, 8, 11, 12, 13, 16, 17, 18];
-const EXPAND = [1, 2, 3, 9, 14, 19, 23, 22, 21, 15, 10, 5, 0, 4, 24, 20];
-const MISSIONS_PER_ZONE = 2;
-function computeUnlock(totalDone: number) {
-  const extra = Math.floor(totalDone / MISSIONS_PER_ZONE);
-  const unlocked = new Set<number>(INITIAL);
-  for (let i = 0; i < Math.min(extra, EXPAND.length); i++) unlocked.add(EXPAND[i]);
-  const allOpen = unlocked.size >= 25;
-  const nextIn = MISSIONS_PER_ZONE - (totalDone % MISSIONS_PER_ZONE);
-  const lockLabel = allOpen ? 'Zone légendaire' : `Termine ${nextIn} mission${nextIn > 1 ? 's' : ''} pour débloquer`;
-  return { unlocked, lockLabel };
-}
-
-function randomSpot(): { x: number; y: number } {
-  return { x: 10 + Math.random() * 80, y: 20 + Math.random() * 68 };
-}
-
-// Vignette d'article (armurerie), image pré-détourée à hauteur fixe.
-function Chip({ id, size = ITEM_H }: { id: string; size?: number }) {
-  return (
-    <img
-      src={asset(`chip_${id}.png`)}
-      alt=""
-      style={{ height: size, width: 'auto', imageRendering: 'pixelated' }}
-      draggable={false}
-    />
-  );
-}
+type SetState = React.Dispatch<React.SetStateAction<GameState>>;
 
 export function countOwned(state: GameState, id: string) {
   return (state.placed ?? []).filter((p) => p.id === id).length;
 }
 
-export function IslandPage({ state, navigate }: { state: GameState; navigate: (page: Page) => void }) {
+export function questsDone(state: GameState) {
+  return LEVELS.reduce((s, lv) => s + Math.min(state.lessons[lv] ?? 0, lessonCount(lv)), 0);
+}
+
+const BIG_ISLANDS = WORLD.islands.filter((i) => i.size > 12).length;
+
+// ======================= Carte du royaume =======================
+export function IslandPage({ state, setState, navigate }: { state: GameState; setState: SetState; navigate: (page: Page) => void }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const engineRef = useRef<ReturnType<typeof createGalaxy> | null>(null);
+  const engineRef = useRef<ReturnType<typeof createWorld> | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
 
-  const totalDone = LEVELS.reduce((s, lv) => s + Math.min(state.lessons[lv] ?? 0, lessonCount(lv)), 0);
-  const { unlocked, lockLabel } = computeUnlock(totalDone);
-  const openCount = unlocked.size;
+  const done = questsDone(state);
+  const unlocked = useMemo(() => unlockedIslands(done), [done]);
+  const openBig = WORLD.islands.filter((isl, i) => isl.size > 12 && unlocked.has(i)).length;
+  const next = nextUnlock(done);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return;
-    const owned = (state.placed ?? []).map((p) => p.id);
-    const eng = createGalaxy(canvas, { baseUrl: import.meta.env.BASE_URL, unlocked, lockLabel, owned });
+    const eng = createWorld(canvas, {
+      placed: state.placed ?? [],
+      unlocked,
+      missionsDone: done,
+      onMove: (k, x, y) =>
+        setState((current) => ({
+          ...current,
+          placed: (current.placed ?? []).map((p) => (p.k === k ? { ...p, x, y } : p)),
+        })),
+      onSelect: setSelected,
+    });
     engineRef.current = eng;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const measure = () => {
@@ -81,50 +62,86 @@ export function IslandPage({ state, navigate }: { state: GameState; navigate: (p
     return () => {
       ro.disconnect();
       eng.stop();
+      engineRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    const next = computeUnlock(totalDone);
-    engineRef.current?.setUnlocked(next.unlocked, next.lockLabel);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalDone]);
+    engineRef.current?.setPlaced(state.placed ?? []);
+  }, [state.placed]);
+
+  useEffect(() => {
+    engineRef.current?.setUnlocked(unlocked, done);
+  }, [unlocked, done]);
+
+  const sel = selected ? (state.placed ?? []).find((p) => p.k === selected) : null;
+  const selItem = sel ? SHOP_MAP[sel.id] : null;
+
+  function sell() {
+    if (!sel || !selItem) return;
+    const refund = Math.floor(selItem.price / 2);
+    setState((current) => ({
+      ...current,
+      coins: current.coins + refund,
+      placed: (current.placed ?? []).filter((p) => p.k !== sel.k),
+    }));
+    setSelected(null);
+  }
 
   return (
-    <section aria-label="Carte d'Endor" className="relative h-[calc(100dvh-7rem)] min-h-[34rem] w-full overflow-hidden bg-[#10261d] md:h-[calc(100dvh-4rem)]">
-      <div
-        ref={wrapRef}
-        className="absolute inset-0 touch-none overflow-hidden"
-      >
+    <section aria-label="Carte du royaume" className="relative h-full min-h-[28rem] w-full overflow-hidden bg-[#47aba9]">
+      <div ref={wrapRef} className="absolute inset-0 touch-none overflow-hidden">
         <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" style={{ touchAction: 'none' }} />
       </div>
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-[#07130d]/85 to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#07130d]/75 to-transparent" />
-      <div className="pointer-events-none absolute left-4 top-4 max-w-[75%] text-[#f6edd1] md:left-8 md:top-7">
-        <p className="text-[10px] font-bold uppercase tracking-[.35em] text-amber-300/85">Endor · 25 territoires</p>
-        <h1 className="font-display text-2xl font-black tracking-wide drop-shadow-lg md:text-4xl">Le village des anciens</h1>
-        <p className="mt-1 hidden text-xs text-[#d9e7cc] drop-shadow md:block">Glisse pour explorer · molette pour zoomer · les missions dévoilent la forêt</p>
+
+      <div className="pointer-events-none absolute left-3 top-3 hidden sm:block md:left-6 md:top-5">
+        <h1 className="ribbon text-xl md:text-2xl">L’archipel d’English Sword</h1>
+        <p className="mt-1 hidden max-w-sm rounded-md bg-[#2b1a0d]/75 px-3 py-1.5 text-xs text-[#ffeccc] md:block">
+          Glisse pour explorer · molette pour zoomer · attrape tes soldats et bâtiments pour les déplacer
+        </p>
       </div>
-      <div className="absolute right-4 top-4 flex flex-col items-end gap-2 md:right-8 md:top-7">
-        <Button size="sm" className="border border-amber-200/30 bg-[#15281f]/85 text-amber-100 backdrop-blur hover:bg-[#274535]" onClick={() => navigate('shop')}>
-          <ShoppingBag className="size-4" /> Armurerie
+
+      <div className="absolute right-3 top-3 flex flex-col items-end gap-2 md:right-6 md:top-5">
+        <Button size="sm" onClick={() => navigate('shop')}>
+          <ShoppingBag /> Marché
         </Button>
-        <span className="pointer-events-none rounded-full border border-white/15 bg-[#0b1b16]/75 px-3 py-1 text-[11px] text-[#e9e8d1] backdrop-blur">{lockLabel}</span>
+        <span className="pointer-events-none rounded-md bg-[#2b1a0d]/80 px-3 py-1 text-[11px] font-semibold text-[#ffeccc]">
+          {next ? `Prochaine île : ${next.name} dans ${next.remaining} quête${next.remaining > 1 ? 's' : ''}` : 'Tout l’archipel est libéré !'}
+        </span>
       </div>
-      <div className="pointer-events-none absolute bottom-5 left-4 rounded-xl border border-white/15 bg-[#0b1b16]/75 px-4 py-2 text-sm font-semibold text-[#f6edd1] shadow-xl backdrop-blur md:bottom-7 md:left-8">
-        {openCount} / 25 territoires ouverts
+
+      <div className="pointer-events-none absolute bottom-4 left-3 flex items-center gap-2 rounded-md bg-[#2b1a0d]/85 px-3 py-2 text-sm font-bold text-[#ffe7a6] shadow-xl md:bottom-6 md:left-6">
+        <MapPin className="size-4" /> {openBig} / {BIG_ISLANDS} îles libérées
       </div>
-      <div className="absolute bottom-5 right-4 flex gap-2 md:bottom-7 md:right-8">
+
+      {sel && selItem && (
+        <div className="absolute bottom-20 left-1/2 w-[min(92vw,360px)] -translate-x-1/2 md:bottom-6">
+          <div className="paper-dark flex items-center gap-3 p-1">
+            <Sprite k={sel.id} height={56} crop={SHOP_MAP[sel.id]?.category === 'soldats' ? 0.2 : 0} />
+            <div className="min-w-0 flex-1">
+              <div className="font-display truncate text-[#ffe7a6]">{selItem.name}</div>
+              <div className="text-[11px] text-[#e8dcc2]/80">Glisse-le pour le déplacer sur une île libérée.</div>
+            </div>
+            <Button size="icon" variant="destructive" title={`Vendre (+${Math.floor(selItem.price / 2)} or)`} onClick={sell}>
+              <Trash2 />
+            </Button>
+            <button className="grid h-8 w-8 place-items-center text-[#ffeccc]" onClick={() => setSelected(null)} aria-label="Fermer">
+              <X className="size-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="absolute bottom-4 right-3 flex gap-2 md:bottom-6 md:right-6">
         {[
           { label: 'Dézoomer', icon: Minus, action: () => engineRef.current?.zoomBy(1 / 1.3) },
           { label: 'Zoomer', icon: Plus, action: () => engineRef.current?.zoomBy(1.3) },
-          { label: 'Retour au village', icon: LocateFixed, action: () => engineRef.current?.goHome() },
-          { label: 'Voir les 25 territoires', icon: Scan, action: () => engineRef.current?.overview() },
+          { label: 'Retour au château', icon: LocateFixed, action: () => engineRef.current?.goHome() },
+          { label: 'Voir tout l’archipel', icon: Scan, action: () => engineRef.current?.overview() },
         ].map(({ label, icon: Icon, action }) => (
-          <Button key={label} size="icon" variant="outline" aria-label={label} title={label} onClick={action}
-            className="size-10 border-white/25 bg-[#0b1b16]/80 text-[#f6edd1] shadow-xl backdrop-blur hover:bg-[#34523a] hover:text-white">
-            <Icon className="size-4" />
+          <Button key={label} size="icon" variant="secondary" aria-label={label} title={label} onClick={action}>
+            <Icon />
           </Button>
         ))}
       </div>
@@ -132,85 +149,137 @@ export function IslandPage({ state, navigate }: { state: GameState; navigate: (p
   );
 }
 
-export function ShopPage({
-  state,
-  setState,
-}: {
-  state: GameState;
-  setState: React.Dispatch<React.SetStateAction<GameState>>;
-}) {
-  function buy(id: string, price: number) {
+// ======================= Marché =======================
+export function ShopPage({ state, setState, navigate }: { state: GameState; setState: SetState; navigate?: (page: Page) => void }) {
+  const [cat, setCat] = useState<ShopCategory>('soldats');
+  const [faction, setFaction] = useState<Faction | 'all'>('bleu');
+  const [bought, setBought] = useState<string | null>(null);
+  const unlocked = useMemo(() => unlockedIslands(questsDone(state)), [state]);
+
+  function buy(id: string) {
+    const item = SHOP_MAP[id];
+    if (!item) return;
     setState((current) => {
       const count = (current.placed ?? []).filter((p) => p.id === id).length;
-      if (count >= MAX_PER_ITEM || current.coins < price) return current;
+      if (count >= item.max || current.coins < item.price) return current;
       const k = `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-      const { x, y } = randomSpot();
-      return { ...current, coins: current.coins - price, placed: [...(current.placed ?? []), { k, id, x, y }] };
+      const { x, y } = findSpot(unlocked, current.placed ?? []);
+      return {
+        ...current,
+        coins: current.coins - item.price,
+        placed: [...(current.placed ?? []), { k, id, x: Math.round(x), y: Math.round(y) }],
+        stats: { ...current.stats, bought: (current.stats.bought ?? 0) + 1 },
+      };
     });
+    setBought(id);
+    window.setTimeout(() => setBought((b) => (b === id ? null : b)), 1400);
   }
 
-  const groups: { title: string; kind: 'char' | 'decor' }[] = [
-    { title: 'Escouade', kind: 'char' },
-    { title: 'Véhicules & créatures', kind: 'decor' },
-  ];
+  const hasFactions = cat === 'soldats' || cat === 'batiments';
+  const items = SHOP.filter((i) => i.category === cat && (!hasFactions || faction === 'all' || i.faction === faction));
+  const info = CATEGORIES.find((c) => c.id === cat)!;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Armurerie</h1>
-          <p className="text-muted-foreground">Transforme tes victoires en escouade et en véhicules pour ta base Endor.</p>
+          <h1 className="ribbon ribbon-yellow text-2xl">Le marché du royaume</h1>
+          <p className="mt-2 text-muted-foreground">Dépense ton or : tout ce que tu achètes apparaît sur tes îles.</p>
         </div>
-        <div className="flex items-center gap-2 rounded-full bg-secondary px-4 py-1.5 font-semibold">
-          <Coins className="text-amber-400" /> {state.coins} crédits
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded-full bg-[#2b1a0d]/80 px-4 py-1.5 font-bold text-[#ffe7a6]">
+            <img src={uiUrl('icon_03.png')} alt="" className="pixel h-6 w-6" /> {state.coins} or
+          </div>
+          {navigate && (
+            <Button variant="secondary" onClick={() => navigate('island')}>
+              <MapPin /> Voir mon royaume
+            </Button>
+          )}
         </div>
       </div>
 
-      {groups.map((group) => (
-        <div key={group.kind}>
-          <h2 className="mb-3 text-lg font-semibold">{group.title}</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {SHOP.filter((item) => item.kind === group.kind).map((item) => {
-              const count = countOwned(state, item.id);
-              const maxed = count >= MAX_PER_ITEM;
-              const canBuy = !maxed && state.coins >= item.price;
-              return (
-                <Card key={item.id} className={count > 0 ? 'border-primary/50' : ''}>
-                  <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
-                    <div className="grid h-24 w-full place-items-center rounded-xl bg-gradient-to-b from-[#f5c518]/10 to-transparent">
-                      <div className={count > 0 && item.kind === 'char' ? 'eq-bob' : ''}>
-                        <Chip id={item.id} size={sizeOf(item.id)} />
-                      </div>
-                    </div>
-                    <div className="font-semibold">{item.name}</div>
-                    {item.blurb && <div className="text-[11px] text-primary">{item.blurb}</div>}
-                    <div className="text-[11px] text-muted-foreground">
-                      {count}/{MAX_PER_ITEM} possédés
-                    </div>
-                    {maxed ? (
-                      <div className="flex items-center gap-1 text-sm font-semibold text-primary">
-                        <Check className="size-4" /> Max atteint
-                      </div>
-                    ) : (
-                      <Button size="sm" className="w-full" disabled={!canBuy} onClick={() => buy(item.id, item.price)}>
-                        {canBuy ? <Coins /> : <Lock />} {item.price}
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+      <div className="flex flex-wrap gap-2">
+        {CATEGORIES.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => setCat(c.id)}
+            className={`font-display rounded-md border-2 px-3 py-1.5 text-[15px] transition ${
+              cat === c.id ? 'border-[#f7c948] bg-[#5c3a1f] text-[#ffe7a6]' : 'border-[#5c3a1f] bg-[#2b1a0d]/60 text-[#ffeccc] hover:bg-[#3a2412]'
+            }`}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+
+      {hasFactions && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">Bannière :</span>
+          {[{ id: 'all' as const, label: 'Toutes', color: '#b9a88a' }, ...FACTIONS].map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFaction(f.id)}
+              className={`flex items-center gap-1.5 rounded-full border-2 px-3 py-1 text-sm font-semibold transition ${
+                faction === f.id ? 'border-[#f7c948] bg-[#2b1a0d] text-[#ffe7a6]' : 'border-transparent bg-[#2b1a0d]/50 text-[#ffeccc]'
+              }`}
+            >
+              <span className="h-3 w-3 rounded-full border border-black/40" style={{ background: f.color }} /> {f.label}
+            </button>
+          ))}
         </div>
-      ))}
+      )}
+
+      <p className="text-sm text-muted-foreground">{info.hint}</p>
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        {items.map((item) => {
+          const count = countOwned(state, item.id);
+          const maxed = count >= item.max;
+          const canBuy = !maxed && state.coins >= item.price;
+          const person = item.category === 'soldats' || item.category === 'animaux';
+          return (
+            <Card key={item.id}>
+              <CardContent className="flex flex-col items-center gap-1.5 p-2 text-center">
+                <div className="grid h-28 w-full place-items-end justify-center overflow-hidden">
+                  <Sprite k={item.id} height={item.category === 'batiments' ? 108 : person ? 100 : 84} crop={person ? (item.id.startsWith('lancier') ? 0.3 : 0.26) : 0} />
+                </div>
+                <div className="font-display leading-tight">{item.name}</div>
+                {item.blurb && <div className="text-[11px] text-[hsl(var(--accent))]">{item.blurb}</div>}
+                <div className="text-[11px] text-muted-foreground">
+                  {count}/{item.max} possédé{item.max > 1 ? 's' : ''}
+                </div>
+                {maxed ? (
+                  <div className="flex items-center gap-1 text-sm font-bold text-[hsl(var(--primary))]">
+                    <Check className="size-4" /> Maximum atteint
+                  </div>
+                ) : (
+                  <Button size="sm" className="w-full" disabled={!canBuy} onClick={() => buy(item.id)}>
+                    {bought === item.id ? (
+                      <>
+                        <Check /> Acheté !
+                      </>
+                    ) : (
+                      <>
+                        {canBuy ? <img src={uiUrl('icon_03.png')} alt="" className="pixel h-4 w-4" /> : <Lock />} {item.price}
+                      </>
+                    )}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+      {unlocked.size === 0 && <p className="text-sm text-muted-foreground">Aucune île libérée pour l’instant.</p>}
     </div>
   );
 }
 
-const TIER_RING: Record<Trophy['tier'], string> = {
-  bronze: 'ring-amber-700/50',
-  silver: 'ring-slate-400/50',
-  gold: 'ring-yellow-400/60',
+// ======================= Hauts faits =======================
+const TIER_BADGE: Record<Trophy['tier'], string> = {
+  bronze: 'bg-[#b87333]/25',
+  silver: 'bg-[#9aa4b1]/30',
+  gold: 'bg-[#f7c948]/35',
 };
 
 export function TrophiesPage({ state }: { state: GameState }) {
@@ -220,40 +289,40 @@ export function TrophiesPage({ state }: { state: GameState }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Médailles</h1>
-        <p className="text-muted-foreground">
-          {unlockedCount}/{TROPHIES.length} débloquées — tes hauts faits à travers la galaxie.
+        <h1 className="ribbon ribbon-purple text-2xl">Hauts faits</h1>
+        <p className="mt-2 text-muted-foreground">
+          {unlockedCount}/{TROPHIES.length} débloqués — tes exploits gravés dans les chroniques du royaume.
         </p>
       </div>
 
       {categories.map((category) => (
         <div key={category}>
-          <h2 className="mb-3 text-lg font-semibold">{category}</h2>
+          <h2 className="mb-3 text-2xl text-[#ffe7a6]">{category}</h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {TROPHIES.filter((t) => t.category === category).map((trophy) => {
               const progress = trophy.progress(state);
               const unlocked = progress >= trophy.goal;
               const pct = Math.min(100, Math.round((progress / trophy.goal) * 100));
               return (
-                <Card key={trophy.id} className={unlocked ? `ring-1 ${TIER_RING[trophy.tier]}` : 'opacity-80'}>
-                  <CardContent className="flex items-center gap-3 p-4">
+                <Card key={trophy.id} className={unlocked ? '' : 'opacity-80 saturate-50'}>
+                  <CardContent className="flex items-center gap-3 p-3">
                     <div
                       className={`grid h-12 w-12 shrink-0 place-items-center rounded-full text-2xl ${
-                        unlocked ? 'bg-primary/15' : 'bg-secondary grayscale'
+                        unlocked ? TIER_BADGE[trophy.tier] : 'bg-secondary grayscale'
                       }`}
                     >
                       {trophy.icon}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 font-semibold">
+                      <div className="font-display flex items-center gap-2">
                         {trophy.name}
-                        {unlocked && <Check className="size-4 text-primary" />}
+                        {unlocked && <Check className="size-4 text-[hsl(var(--primary))]" />}
                       </div>
                       <div className="text-xs text-muted-foreground">{trophy.desc}</div>
                       {!unlocked && (
                         <div className="mt-2">
                           <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                            <div className="h-full rounded-full bg-primary/70" style={{ width: `${pct}%` }} />
+                            <div className="h-full rounded-full bg-[hsl(var(--primary)/0.75)]" style={{ width: `${pct}%` }} />
                           </div>
                           <div className="mt-0.5 text-[11px] text-muted-foreground">
                             {Math.min(progress, trophy.goal)}/{trophy.goal}

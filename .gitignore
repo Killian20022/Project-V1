@@ -6,3 +6,7 @@ coverage/
 apps/api/prisma/dev.db
 *.log
 *.tsbuildinfo
+
+# Pack Tiny Swords : archive et fichiers Mac inutiles
+Tiled/Tiny Swords (Free Pack).zip
+__MACOSX/
