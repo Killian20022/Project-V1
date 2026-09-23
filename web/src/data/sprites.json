@@ -271,7 +271,13 @@
 "run": {
 "src": "sprites/terrain-resources-meat-sheep-sheep-move.png",
 "n": 4
+},
+"act": [
+{
+"src": "sprites/terrain-resources-meat-sheep-sheep-grass.png",
+"n": 12
 }
+]
 },
 "mouton-qui-broute": {
 "name": "Mouton qui broute",
@@ -338,7 +344,21 @@
 "run": {
 "src": "sprites/units-blue-units-pawn-pawn-run.png",
 "n": 6
+},
+"act": [
+{
+"src": "sprites/units-blue-units-pawn-pawn-interact-axe.png",
+"n": 6
+},
+{
+"src": "sprites/units-blue-units-pawn-pawn-interact-pickaxe.png",
+"n": 6
+},
+{
+"src": "sprites/units-blue-units-pawn-pawn-interact-hammer.png",
+"n": 3
 }
+]
 },
 "guerrier": {
 "name": "Guerrier",
@@ -351,7 +371,13 @@
 "run": {
 "src": "sprites/units-blue-units-warrior-warrior-run.png",
 "n": 6
+},
+"act": [
+{
+"src": "sprites/units-blue-units-warrior-warrior-attack1.png",
+"n": 4
 }
+]
 },
 "lancier": {
 "name": "Lancier",
@@ -364,7 +390,13 @@
 "run": {
 "src": "sprites/units-blue-units-lancer-lancer-run.png",
 "n": 6
+},
+"act": [
+{
+"src": "sprites/units-blue-units-lancer-lancer-right-attack.png",
+"n": 3
 }
+]
 },
 "archer": {
 "name": "Archer",
@@ -377,7 +409,13 @@
 "run": {
 "src": "sprites/units-blue-units-archer-archer-run.png",
 "n": 4
+},
+"act": [
+{
+"src": "sprites/units-blue-units-archer-archer-shoot.png",
+"n": 8
 }
+]
 },
 "moine": {
 "name": "Moine",
@@ -390,7 +428,13 @@
 "run": {
 "src": "sprites/units-blue-units-monk-run.png",
 "n": 4
+},
+"act": [
+{
+"src": "sprites/units-blue-units-monk-heal.png",
+"n": 11
 }
+]
 },
 "nuage-1": {
 "name": "Nuage 1",
@@ -475,7 +519,13 @@
 "run": {
 "src": "sprites/units-black-units-warrior-warrior-run.png",
 "n": 6
+},
+"act": [
+{
+"src": "sprites/units-black-units-warrior-warrior-attack1.png",
+"n": 4
 }
+]
 },
 "lancier-noir": {
 "name": "Lancier noir",
@@ -488,7 +538,13 @@
 "run": {
 "src": "sprites/units-black-units-lancer-lancer-run.png",
 "n": 6
+},
+"act": [
+{
+"src": "sprites/units-black-units-lancer-lancer-right-attack.png",
+"n": 3
 }
+]
 },
 "archer-noir": {
 "name": "Archer noir",
@@ -501,7 +557,13 @@
 "run": {
 "src": "sprites/units-black-units-archer-archer-run.png",
 "n": 4
+},
+"act": [
+{
+"src": "sprites/units-black-units-archer-archer-shoot.png",
+"n": 8
 }
+]
 },
 "moine-noir": {
 "name": "Moine noir",
@@ -514,7 +576,13 @@
 "run": {
 "src": "sprites/units-black-units-monk-run.png",
 "n": 4
+},
+"act": [
+{
+"src": "sprites/units-black-units-monk-heal.png",
+"n": 11
 }
+]
 },
 "villageois-noir": {
 "name": "Villageois noir",
@@ -527,7 +595,21 @@
 "run": {
 "src": "sprites/units-black-units-pawn-pawn-run.png",
 "n": 6
+},
+"act": [
+{
+"src": "sprites/units-black-units-pawn-pawn-interact-axe.png",
+"n": 6
+},
+{
+"src": "sprites/units-black-units-pawn-pawn-interact-pickaxe.png",
+"n": 6
+},
+{
+"src": "sprites/units-black-units-pawn-pawn-interact-hammer.png",
+"n": 3
 }
+]
 },
 "chateau-noir": {
 "name": "Chateau noir",
@@ -612,7 +694,13 @@
 "run": {
 "src": "sprites/units-red-units-warrior-warrior-run.png",
 "n": 6
+},
+"act": [
+{
+"src": "sprites/units-red-units-warrior-warrior-attack1.png",
+"n": 4
 }
+]
 },
 "lancier-rouge": {
 "name": "Lancier rouge",
@@ -625,7 +713,13 @@
 "run": {
 "src": "sprites/units-red-units-lancer-lancer-run.png",
 "n": 6
+},
+"act": [
+{
+"src": "sprites/units-red-units-lancer-lancer-right-attack.png",
+"n": 3
 }
+]
 },
 "archer-rouge": {
 "name": "Archer rouge",
@@ -638,7 +732,13 @@
 "run": {
 "src": "sprites/units-red-units-archer-archer-run.png",
 "n": 4
+},
+"act": [
+{
+"src": "sprites/units-red-units-archer-archer-shoot.png",
+"n": 8
 }
+]
 },
 "moine-rouge": {
 "name": "Moine rouge",
@@ -651,7 +751,13 @@
 "run": {
 "src": "sprites/units-red-units-monk-run.png",
 "n": 4
+},
+"act": [
+{
+"src": "sprites/units-red-units-monk-heal.png",
+"n": 11
 }
+]
 },
 "villageois-rouge": {
 "name": "Villageois rouge",
@@ -664,7 +770,21 @@
 "run": {
 "src": "sprites/units-red-units-pawn-pawn-run.png",
 "n": 6
+},
+"act": [
+{
+"src": "sprites/units-red-units-pawn-pawn-interact-axe.png",
+"n": 6
+},
+{
+"src": "sprites/units-red-units-pawn-pawn-interact-pickaxe.png",
+"n": 6
+},
+{
+"src": "sprites/units-red-units-pawn-pawn-interact-hammer.png",
+"n": 3
 }
+]
 },
 "chateau-rouge": {
 "name": "Chateau rouge",
@@ -722,7 +842,13 @@
 "run": {
 "src": "sprites/units-purple-units-warrior-warrior-run.png",
 "n": 6
+},
+"act": [
+{
+"src": "sprites/units-purple-units-warrior-warrior-attack1.png",
+"n": 4
 }
+]
 },
 "lancier-violet": {
 "name": "Lancier violet",
@@ -735,7 +861,13 @@
 "run": {
 "src": "sprites/units-purple-units-lancer-lancer-run.png",
 "n": 6
+},
+"act": [
+{
+"src": "sprites/units-purple-units-lancer-lancer-right-attack.png",
+"n": 3
 }
+]
 },
 "archer-violet": {
 "name": "Archer violet",
@@ -748,7 +880,13 @@
 "run": {
 "src": "sprites/units-purple-units-archer-archer-run.png",
 "n": 4
+},
+"act": [
+{
+"src": "sprites/units-purple-units-archer-archer-shoot.png",
+"n": 8
 }
+]
 },
 "moine-violet": {
 "name": "Moine violet",
@@ -761,7 +899,13 @@
 "run": {
 "src": "sprites/units-purple-units-monk-run.png",
 "n": 4
+},
+"act": [
+{
+"src": "sprites/units-purple-units-monk-heal.png",
+"n": 11
 }
+]
 },
 "villageois-violet": {
 "name": "Villageois violet",
@@ -774,7 +918,21 @@
 "run": {
 "src": "sprites/units-purple-units-pawn-pawn-run.png",
 "n": 6
+},
+"act": [
+{
+"src": "sprites/units-purple-units-pawn-pawn-interact-axe.png",
+"n": 6
+},
+{
+"src": "sprites/units-purple-units-pawn-pawn-interact-pickaxe.png",
+"n": 6
+},
+{
+"src": "sprites/units-purple-units-pawn-pawn-interact-hammer.png",
+"n": 3
 }
+]
 },
 "chateau-violet": {
 "name": "Chateau violet",
@@ -859,7 +1017,13 @@
 "run": {
 "src": "sprites/units-yellow-units-warrior-warrior-run.png",
 "n": 6
+},
+"act": [
+{
+"src": "sprites/units-yellow-units-warrior-warrior-attack1.png",
+"n": 4
 }
+]
 },
 "lancier-jaune": {
 "name": "Lancier jaune",
@@ -872,7 +1036,13 @@
 "run": {
 "src": "sprites/units-yellow-units-lancer-lancer-run.png",
 "n": 6
+},
+"act": [
+{
+"src": "sprites/units-yellow-units-lancer-lancer-right-attack.png",
+"n": 3
 }
+]
 },
 "archer-jaune": {
 "name": "Archer jaune",
@@ -885,7 +1055,13 @@
 "run": {
 "src": "sprites/units-yellow-units-archer-archer-run.png",
 "n": 4
+},
+"act": [
+{
+"src": "sprites/units-yellow-units-archer-archer-shoot.png",
+"n": 8
 }
+]
 },
 "moine-jaune": {
 "name": "Moine jaune",
@@ -898,7 +1074,13 @@
 "run": {
 "src": "sprites/units-yellow-units-monk-run.png",
 "n": 4
+},
+"act": [
+{
+"src": "sprites/units-yellow-units-monk-heal.png",
+"n": 11
 }
+]
 },
 "villageois-jaune": {
 "name": "Villageois jaune",
@@ -911,7 +1093,21 @@
 "run": {
 "src": "sprites/units-yellow-units-pawn-pawn-run.png",
 "n": 6
+},
+"act": [
+{
+"src": "sprites/units-yellow-units-pawn-pawn-interact-axe.png",
+"n": 6
+},
+{
+"src": "sprites/units-yellow-units-pawn-pawn-interact-pickaxe.png",
+"n": 6
+},
+{
+"src": "sprites/units-yellow-units-pawn-pawn-interact-hammer.png",
+"n": 3
 }
+]
 },
 "chateau-jaune": {
 "name": "Chateau jaune",

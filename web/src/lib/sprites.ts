@@ -11,6 +11,7 @@ export interface SpriteDef {
   fps: number;
   feet: number;
   run?: { src: string; n: number };
+  act?: { src: string; n: number }[]; // actions : attaque, tir, soin, hache, pioche…
 }
 
 export const SPRITES = SPRITES_JSON as unknown as Record<string, SpriteDef>;

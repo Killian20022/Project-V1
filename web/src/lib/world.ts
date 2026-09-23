@@ -96,6 +96,12 @@ type Ent = {
   face?: number;
   moving?: boolean;
   home?: { isl: number; lvl: number };
+  origin?: { x: number; y: number }; // point d'ancrage (décor) : ils restent autour
+  radius?: number; // rayon de promenade en cases
+  acting?: number; // index de l'action en cours (-1 = aucune)
+  actT0?: number;
+  actEnd?: number;
+  agent?: boolean; // personnage ou animal qui vit sa vie
 };
 
 export function createWorld(
@@ -121,7 +127,6 @@ export function createWorld(
   };
   const land = img('land.png');
   const foam = img('sprites/foam.png');
-  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
   let unlocked = opts.unlocked;
   let missionsDone = opts.missionsDone;
@@ -134,14 +139,32 @@ export function createWorld(
   let t = 0;
   let selected: string | null = null;
 
+  const walkableCell = (cx: number, cy: number) => islandAt(cx, cy) >= 0 && levelAt(cx, cy) > 0 && !blockedAt(cx, cy);
+
   // Décor fixe (généré depuis Tiled)
   const decor: Ent[] = [];
   const clouds: { key: string; def: SpriteDef; x: number; y: number; speed: number }[] = [];
   for (const [key, x, y, cloud] of WORLD.decor) {
     const def = SPRITES[key];
     if (!def) continue;
-    if (cloud) clouds.push({ key, def, x, y, speed: 6 + Math.random() * 6 });
-    else decor.push({ key, def, x, y: y - def.feet, ph: Math.random() * 10 });
+    if (cloud) clouds.push({ key, def, x, y, speed: 12 + Math.random() * 14 });
+    else {
+      const e: Ent = { key, def, x, y: y - def.feet, ph: Math.random() * 10 };
+      if (def.run || def.act) {
+        const cx = Math.floor(x / TS);
+        const cy = Math.floor((y - def.feet) / TS);
+        e.agent = true;
+        e.walks = !!def.run && walkableCell(cx, cy);
+        e.home = { isl: islandAt(cx, cy), lvl: levelAt(cx, cy) };
+        e.origin = { x: e.x, y: e.y };
+        e.radius = 2;
+        e.wait = Math.random() * 4;
+        e.acting = -1;
+        // l'armée noire (à l'est) regarde vers l'ouest, les autres au hasard
+        e.face = x > 44 * TS ? -1 : Math.random() < 0.5 ? -1 : 1;
+      }
+      decor.push(e);
+    }
   }
 
   // Objets achetés
@@ -165,11 +188,14 @@ export function createWorld(
           ph: Math.random() * 10,
           placed: { ...p },
           orig: { x: p.x, y: p.y },
-          walks,
+          walks: walks && !!def.run,
+          agent: !!(def.run || def.act),
+          acting: -1,
+          radius: 3.5,
           wait: Math.random() * 3,
           face: Math.random() < 0.5 ? -1 : 1,
           home: { isl: islandAt(cx, cy), lvl: levelAt(cx, cy) },
-        };
+        } as Ent;
       });
   }
   setPlaced(opts.placed);
@@ -190,52 +216,81 @@ export function createWorld(
     return islandAt(cx, cy) === home.isl && levelAt(cx, cy) === home.lvl && !blockedAt(cx, cy);
   }
   function pickTarget(e: Ent) {
-    const cx = Math.floor(e.x / TS);
-    const cy = Math.floor(e.y / TS);
+    const base = e.origin ?? { x: e.x, y: e.y };
+    const r = e.radius ?? 3;
     for (let i = 0; i < 12; i++) {
-      const nx = cx + Math.round((Math.random() - 0.5) * 7);
-      const ny = cy + Math.round((Math.random() - 0.5) * 5);
-      if (walkable(nx, ny, e.home!)) {
-        e.tx = nx * TS + TS / 2 + (Math.random() - 0.5) * 24;
-        e.ty = ny * TS + TS * 0.7;
+      const tx = base.x + (Math.random() - 0.5) * 2 * r * TS;
+      const ty = base.y + (Math.random() - 0.5) * 1.4 * r * TS;
+      if (walkable(Math.floor(tx / TS), Math.floor(ty / TS), e.home!)) {
+        e.tx = tx;
+        e.ty = ty;
         e.moving = true;
         return;
       }
     }
     e.wait = 1 + Math.random() * 2;
   }
-  function update(dt: number) {
-    for (const e of placed) {
-      if (!e.walks || e === drag?.ent || reduced) continue;
-      if (e.home!.isl < 0 || !unlocked.has(e.home!.isl)) continue;
-      if (e.moving) {
-        const dx = e.tx! - e.x;
-        const dy = e.ty! - e.y;
-        const d = Math.hypot(dx, dy);
-        const speed = e.key.startsWith('mouton') ? 22 : 38;
-        if (d < 2) {
-          e.moving = false;
-          e.wait = 1.5 + Math.random() * 4;
-          e.placed!.x = Math.round(e.x);
-          e.placed!.y = Math.round(e.y);
-        } else {
-          const step = Math.min(d, speed * dt);
-          const nx = e.x + (dx / d) * step;
-          const ny = e.y + (dy / d) * step;
-          if (!walkable(Math.floor(nx / TS), Math.floor(ny / TS), e.home!)) {
-            e.moving = false;
-            e.wait = 0.5;
-          } else {
-            e.x = nx;
-            e.y = ny;
-            if (Math.abs(dx) > 1) e.face = dx < 0 ? -1 : 1;
-          }
+  // Choisit la prochaine activité : se promener, travailler/combattre, ou rester là.
+  function nextActivity(e: Ent) {
+    const acts = e.def.act ?? [];
+    const r = Math.random();
+    if (acts.length && (r < 0.45 || !e.walks)) {
+      const i = Math.floor(Math.random() * acts.length);
+      const n = acts[i].n;
+      const loops = e.key.startsWith('mouton') ? 2 : 2 + Math.floor(Math.random() * 3);
+      e.acting = i;
+      e.actT0 = t;
+      e.actEnd = t + (loops * n) / 10;
+      return;
+    }
+    if (e.walks && r < 0.85) pickTarget(e);
+    else e.wait = 1.5 + Math.random() * 3;
+  }
+  function stepAgent(e: Ent, dt: number) {
+    if (e.acting! >= 0) {
+      if (t >= e.actEnd!) {
+        e.acting = -1;
+        e.wait = 1 + Math.random() * 3;
+      }
+      return;
+    }
+    if (e.moving) {
+      const dx = e.tx! - e.x;
+      const dy = e.ty! - e.y;
+      const d = Math.hypot(dx, dy);
+      const speed = e.key.startsWith('mouton') ? 24 : 40;
+      if (d < 2) {
+        e.moving = false;
+        e.wait = 1 + Math.random() * 3;
+        if (e.placed) {
+          e.placed.x = Math.round(e.x);
+          e.placed.y = Math.round(e.y);
         }
       } else {
-        e.wait! -= dt;
-        if (e.wait! <= 0) pickTarget(e);
+        const step = Math.min(d, speed * dt);
+        const nx = e.x + (dx / d) * step;
+        const ny = e.y + (dy / d) * step;
+        if (!walkable(Math.floor(nx / TS), Math.floor(ny / TS), e.home!)) {
+          e.moving = false;
+          e.wait = 0.5;
+        } else {
+          e.x = nx;
+          e.y = ny;
+          if (Math.abs(dx) > 1) e.face = dx < 0 ? -1 : 1;
+        }
       }
+      return;
     }
+    e.wait! -= dt;
+    if (e.wait! <= 0) nextActivity(e);
+  }
+  function update(dt: number) {
+    for (const e of placed) {
+      if (!e.agent || e === drag?.ent) continue;
+      if (e.home!.isl < 0 || !unlocked.has(e.home!.isl)) continue;
+      stepAgent(e, dt);
+    }
+    for (const e of decor) if (e.agent) stepAgent(e, dt);
     for (const c of clouds) {
       c.x += c.speed * dt;
       if (c.x - c.def.fw / 2 > WORLD_W) c.x = -c.def.fw / 2;
@@ -246,11 +301,12 @@ export function createWorld(
   function drawSprite(e: Ent, alpha = 1) {
     const def = e.def;
     const run = e.moving && def.run;
-    const sheet = run ? def.run! : { src: def.src, n: def.n };
+    const act = !run && e.acting !== undefined && e.acting >= 0 ? def.act?.[e.acting] : undefined;
+    const sheet = run ? def.run! : act ?? { src: def.src, n: def.n };
     const im = img(sheet.src);
     if (!im.complete || !im.naturalWidth) return;
-    const fps = run ? 12 : def.fps;
-    const f = sheet.n > 1 && fps && !reduced ? Math.floor(t * fps + e.ph) % sheet.n : 0;
+    const fps = run ? 12 : act ? 10 : def.fps || 8;
+    const f = sheet.n > 1 ? (act ? Math.floor((t - (e.actT0 ?? 0)) * fps) : Math.floor(t * fps + e.ph)) % sheet.n : 0;
     const bottom = e.y + def.feet;
     const dx = e.x - def.fw / 2;
     const dy = bottom - def.fh;
@@ -288,7 +344,7 @@ export function createWorld(
 
     // écume (sous la terre)
     if (foam.complete && foam.naturalWidth) {
-      const f = reduced ? 0 : Math.floor(t * 10) % 16;
+      const f = Math.floor(t * 10) % 16;
       for (const [cx, cy] of WORLD.foam) {
         const x = cx * TS - TS;
         const y = cy * TS - TS;
