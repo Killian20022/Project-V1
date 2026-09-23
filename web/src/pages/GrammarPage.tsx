@@ -1,23 +1,11 @@
 import { useMemo, useState } from 'react';
-import {
-  BookOpen, Search, ChevronLeft, ChevronRight, Clock, KeyRound, Shuffle, Boxes, Scale, Puzzle, Blocks, PenLine,
-} from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { GrammarEmblem } from '@/components/GrammarEmblem';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { LEVELS, LEVEL_INFO, GRAMMAR_CATEGORIES, grammarEntries, type GrammarEntry } from '@/lib/content';
+import { LEVELS, GRAMMAR_CATEGORIES, grammarEntries, type GrammarEntry } from '@/lib/content';
 import type { Level } from '../types';
 
-// Icône + dégradé par famille grammaticale (clé = GrammarCategory.key).
-const CAT_STYLE: Record<string, { icon: typeof Clock; gradient: string }> = {
-  tenses: { icon: Clock, gradient: 'from-sky-400 to-blue-600' },
-  modals: { icon: KeyRound, gradient: 'from-violet-400 to-purple-600' },
-  conditionals: { icon: Shuffle, gradient: 'from-amber-400 to-orange-600' },
-  nouns: { icon: Boxes, gradient: 'from-emerald-400 to-teal-600' },
-  adjectives: { icon: Scale, gradient: 'from-cyan-400 to-sky-600' },
-  prepositions: { icon: Puzzle, gradient: 'from-rose-400 to-pink-600' },
-  structure: { icon: Blocks, gradient: 'from-indigo-400 to-violet-600' },
-  style: { icon: PenLine, gradient: 'from-fuchsia-400 to-purple-600' },
-};
 
 function plain(text?: string): string {
   return (text ?? '').replace(/<[^>]+>/g, '').trim();
@@ -42,13 +30,13 @@ function FicheCard({
 }) {
   const cat = GRAMMAR_CATEGORIES.find((c) => c.key === entry.category);
   return (
+    <button type="button" className="w-full text-left" onClick={() => onOpen(entry)}>
     <Card
       className="group cursor-pointer transition hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-lg hover:shadow-primary/5"
-      onClick={() => onOpen(entry)}
     >
       <CardContent className="flex items-center gap-3 p-4">
         <div
-          className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br ${LEVEL_INFO[entry.level].gradient} text-xs font-black text-white`}
+          className="grammar-level-seal"
         >
           {entry.level}
         </div>
@@ -65,6 +53,7 @@ function FicheCard({
         <ChevronRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
       </CardContent>
     </Card>
+    </button>
   );
 }
 
@@ -94,14 +83,13 @@ export function GrammarPage({ onOpenGrammar }: { onOpenGrammar: (entry: GrammarE
   const catFiltered = level === 'all' ? catEntries : catEntries.filter((e) => e.level === level);
 
   return (
-    <div>
+    <div className="grammar-library">
       {/* En-tête */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-[#9b6fc2] to-[#5e3a86] text-white shadow-[0_0_14px_hsl(var(--brand-gold)/0.35)]">
-          <BookOpen />
-        </div>
+        <GrammarEmblem category="book" className="grammar-library-mark" />
         <div className="flex-1">
-          <h1 className="text-3xl text-[#ffe7a6]">Grammaire du royaume</h1>
+          <span className="eyebrow">LA BIBLIOTHÈQUE DU ROYAUME</span>
+          <h1 className="mt-1 text-3xl text-foreground">Grammaire du royaume</h1>
           <p className="text-muted-foreground">
             {all.length} fiches classées par famille — trouve un point précis et révise-le quand tu veux.
           </p>
@@ -112,6 +100,7 @@ export function GrammarPage({ onOpenGrammar }: { onOpenGrammar: (entry: GrammarE
       <div className="mt-6 flex items-center gap-2 rounded-xl border border-border/60 bg-background/60 px-3 py-2 focus-within:border-primary/60">
         <Search className="size-4 text-muted-foreground" />
         <input
+          aria-label="Rechercher une règle de grammaire"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Rechercher une règle (ex. present perfect, articles, modaux)…"
@@ -147,14 +136,7 @@ export function GrammarPage({ onOpenGrammar }: { onOpenGrammar: (entry: GrammarE
           </Button>
 
           <div className="mt-3 flex items-center gap-3">
-            <div
-              className={`grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br ${CAT_STYLE[activeCat.key]?.gradient} text-white`}
-            >
-              {(() => {
-                const Icon = CAT_STYLE[activeCat.key]?.icon ?? BookOpen;
-                return <Icon />;
-              })()}
-            </div>
+            <GrammarEmblem category={activeCat.key} />
             <div>
               <h2 className="text-2xl">{activeCat.label}</h2>
               <p className="text-sm text-muted-foreground">{activeCat.description}</p>
@@ -184,24 +166,18 @@ export function GrammarPage({ onOpenGrammar }: { onOpenGrammar: (entry: GrammarE
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {GRAMMAR_CATEGORIES.map((cat) => {
             const entries = byCategory[cat.key] ?? [];
-            const style = CAT_STYLE[cat.key];
-            const Icon = style?.icon ?? BookOpen;
             return (
-              <button key={cat.key} className="text-left" onClick={() => { setOpenCategory(cat.key); setLevel('all'); }}>
+              <button key={cat.key} className="grammar-family text-left" onClick={() => { setOpenCategory(cat.key); setLevel('all'); }}>
                 <Card className="group h-full cursor-pointer overflow-hidden transition hover:-translate-y-1 hover:border-primary/60 hover:shadow-xl hover:shadow-primary/10">
                   <CardContent className="flex h-full flex-col gap-3 p-5">
                     <div className="flex items-start justify-between">
-                      <div
-                        className={`grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br ${style?.gradient} text-white shadow-lg transition group-hover:scale-105`}
-                      >
-                        <Icon />
-                      </div>
+                      <GrammarEmblem category={cat.key} />
                       <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
                         {levelRange(entries)}
                       </span>
                     </div>
                     <div className="flex-1">
-                      <div className="font-display text-lg">{cat.label}</div>
+                      <div className="font-display text-2xl">{cat.label}</div>
                       <p className="mt-1 text-sm text-muted-foreground">{cat.description}</p>
                     </div>
                     <div className="flex items-center justify-between text-sm">

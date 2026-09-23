@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Moon, Sun, Flame, Volume2, Castle, Swords, BriefcaseBusiness, BookOpen, Map, ShoppingBag, Trophy, ScrollText, Menu, X, ChevronRight, Shield } from 'lucide-react';
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser } from '@clerk/clerk-react';
 import { Button } from '@/components/ui/button';
+import { WelcomeArrival } from '@/components/WelcomeArrival';
 import { VoiceSettings } from '@/components/VoiceSettings';
 import { uiUrl } from '@/lib/sprites';
 import type { GameState, Page } from '../types';
@@ -16,11 +17,13 @@ export function Layout({ page, onNavigate, state, children, onAddCoins, onToggle
 }) {
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
+  const [welcomeReplay, setWelcomeReplay] = useState(0);
   const isDev = user?.primaryEmailAddress?.emailAddress === 'killianlopez20@gmail.com';
   function go(next: Page) { onNavigate(next); setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'instant' }); }
   return (
     <div className={`quest-shell ${page === 'island' ? 'quest-shell-world' : ''}`}>
+      <WelcomeArrival replay={welcomeReplay} userId={user?.id} authReady={isLoaded} />
       <a href="#main-content" className="skip-link">Aller au contenu</a>
       <aside className="quest-sidebar">
         <button className="quest-brand" onClick={() => go('home')} aria-label="English Sword — accueil">
@@ -36,8 +39,9 @@ export function Layout({ page, onNavigate, state, children, onAddCoins, onToggle
               <Icon size={18} strokeWidth={1.5} /><span>{label}</span>{page === target && <ChevronRight size={14} />}
             </button>
           </div>)}
+          <button className="replay-arrival replay-arrival-mobile" onClick={() => { setMenuOpen(false); setWelcomeReplay(value => value + 1); }}><Castle size={14}/> Revoir l’entrée du royaume</button>
         </nav>
-        <div className="sidebar-bottom"><Shield size={25} strokeWidth={1.2} /><p>Chaque mot appris.<br /><strong>Un royaume qui grandit.</strong></p><span>DE L’ÉCUYER AU ROI · A1 → C2</span></div>
+        <div className="sidebar-bottom"><Shield size={25} strokeWidth={1.2} /><p>Chaque mot appris.<br /><strong>Un royaume qui grandit.</strong></p><span>DE L’ÉCUYER AU ROI · A1 → C2</span><button className="replay-arrival" onClick={() => setWelcomeReplay(value => value + 1)}><Castle size={14}/> Revoir l’entrée du royaume</button></div>
       </aside>
       <div className="quest-workspace">
         <header className="quest-topbar">
