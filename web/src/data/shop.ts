@@ -1,4 +1,4 @@
-// Marché « English Sword » — tout ce qu'on peut acheter puis poser sur la carte du royaume.
+// Marché d’« Albion » — tout ce qu'on peut acheter puis poser sur la carte du royaume.
 // Chaque article pointe vers un sprite Tiny Swords (voir src/data/sprites.json).
 
 export type ShopCategory = 'soldats' | 'batiments' | 'nature' | 'ressources' | 'animaux';

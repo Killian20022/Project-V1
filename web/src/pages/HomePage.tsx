@@ -74,7 +74,7 @@ export function HomePage({
           <div className="hero-footnote"><ShieldMark /> 95 quêtes · 6 niveaux · Un royaume à façonner</div>
         </div>
         <button className="hero-illustration" onClick={() => navigate('island')} aria-label="Explorer mon royaume">
-          <img src={import.meta.env.BASE_URL + 'ts/map-medium.jpg'} alt="Carte en pixel art des îles du royaume" /><span className="map-compass">N<span>✧</span>S</span><span className="map-caption"><MapIcon size={16}/><span>L’archipel d’English Sword<small>VOTRE MONDE À CONQUÉRIR</small></span><ArrowRight size={17}/></span>
+          <img src={import.meta.env.BASE_URL + 'ts/map-medium.jpg'} alt="Carte en pixel art des îles du royaume" /><span className="map-compass">N<span>✧</span>S</span><span className="map-caption"><MapIcon size={16}/><span>L’archipel d’Albion<small>VOTRE MONDE À CONQUÉRIR</small></span><ArrowRight size={17}/></span>
         </button>
       </section>
       <section className="journey-stats" aria-label="Votre progression">

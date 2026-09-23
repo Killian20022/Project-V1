@@ -26,9 +26,9 @@ export function Layout({ page, onNavigate, state, children, onAddCoins, onToggle
       <WelcomeArrival replay={welcomeReplay} userId={user?.id} authReady={isLoaded} />
       <a href="#main-content" className="skip-link">Aller au contenu</a>
       <aside className="quest-sidebar">
-        <button className="quest-brand" onClick={() => go('home')} aria-label="English Sword — accueil">
+        <button className="quest-brand" onClick={() => go('home')} aria-label="Albion — accueil">
           <span className="brand-emblem"><Swords size={24} strokeWidth={1.4} /></span>
-          <span>English Sword<small>L’ANGLAIS EST UNE AVENTURE</small></span>
+          <span>Albion<small>L’ANGLAIS EST UNE AVENTURE</small></span>
         </button>
         <button className="mobile-menu-toggle" aria-expanded={menuOpen} aria-controls="quest-navigation" aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X /> : <Menu />}</button>
         <nav id="quest-navigation" className={`quest-navigation ${menuOpen ? 'is-open' : ''}`} aria-label="Navigation principale" onKeyDown={e => { if (e.key === 'Escape') setMenuOpen(false); }}>
@@ -59,7 +59,7 @@ export function Layout({ page, onNavigate, state, children, onAddCoins, onToggle
         </header>
         <VoiceSettings open={voiceOpen} onClose={() => setVoiceOpen(false)} />
         <main id="main-content" tabIndex={-1} className={page === 'island' ? 'quest-world' : 'quest-content'}>{children}</main>
-        {page !== 'island' && <footer className="quest-footer"><span>ENGLISH SWORD</span><span>Un mot après l’autre, l’aventure continue.</span><Swords size={16} /></footer>}
+        {page !== 'island' && <footer className="quest-footer"><span>ALBION</span><span>Un mot après l’autre, l’aventure continue.</span><Swords size={16} /></footer>}
       </div>
     </div>
   );

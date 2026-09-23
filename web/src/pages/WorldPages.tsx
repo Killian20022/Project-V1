@@ -131,7 +131,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
       </div>
 
       <div className="pointer-events-none absolute left-3 top-3 hidden sm:block md:left-6 md:top-5">
-        <h1 className="ribbon text-xl md:text-2xl">L’archipel d’English Sword</h1>
+        <h1 className="ribbon text-xl md:text-2xl">L’archipel d’Albion</h1>
         <p className="mt-1 hidden max-w-sm rounded-md bg-[#2b1a0d]/75 px-3 py-1.5 text-xs text-[#ffeccc] md:block">
           Glisse pour explorer · molette pour zoomer · touche un personnage ou un bâtiment pour le déplacer ou le supprimer
         </p>

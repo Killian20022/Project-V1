@@ -14,7 +14,7 @@ export function lessonCount(level: Level): number {
 // Total de leçons tous niveaux confondus
 export const TOTAL_LESSONS = LEVELS.reduce((sum, lv) => sum + lessonCount(lv), 0);
 
-// Rangs « English Sword » : de l'écuyer au roi. Le code CEFR (A1…C2) reste affiché
+// Rangs d’« Albion » : de l'écuyer au roi. Le code CEFR (A1…C2) reste affiché
 // sur le blason — la pédagogie est inchangée. `avatar` = portrait Tiny Swords.
 export const LEVEL_INFO: Record<Level, { name: string; description: string; gradient: string; avatar: string; island: string }> = {
   A1: { name: 'Écuyer', description: 'Premiers mots et phrases', gradient: 'from-[#5b8fb9] to-[#2f5f8a]', avatar: 'avatars_04.png', island: 'Royaume bleu' },

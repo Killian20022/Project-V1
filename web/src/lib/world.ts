@@ -1,4 +1,4 @@
-// Moteur de la carte du royaume « English Sword » (canvas 2D, pixel art Tiny Swords).
+// Moteur de la carte du royaume d’« Albion » (canvas 2D, pixel art Tiny Swords).
 // - carte générée depuis Tiled (src/data/world.json + public/ts/land-*.png, land.png = vue d’ensemble)
 // - écume, arbres, soldats, feux… animés image par image
 // - objets achetés au marché : déplaçables à la souris / au doigt, les personnages se promènent

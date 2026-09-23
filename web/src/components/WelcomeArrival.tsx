@@ -82,7 +82,7 @@ export function WelcomeArrival({ replay, userId, authReady }: { replay: number; 
     <div className="cinema-frame" aria-hidden="true"><span/><Swords size={21} strokeWidth={1.2}/><span/></div>
     <div className="cinema-copy">
       <p className="cinema-eyebrow">LES PORTES DU ROYAUME S’OUVRENT</p>
-      <h1 id="kingdom-title">English <em>Sword</em></h1>
+      <h1 id="kingdom-title"><em>Albion</em></h1>
       <p id="kingdom-description">Votre aventure commence de l’autre côté de la brume.</p>
       <div className="cinema-controls" hidden={stage === 'playing'}>
         <button className="cinema-enter" onClick={enter} autoFocus><Swords size={18} strokeWidth={1.4}/>Entrer dans le royaume<ArrowRight size={17}/></button>
