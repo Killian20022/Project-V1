@@ -374,7 +374,7 @@ html.dark { color-scheme:dark;
 
 /* Short castle arrival: native modal keeps keyboard focus off the page beneath. */
 .castle-arrival { position:fixed; inset:0; width:100%; max-width:none; height:100dvh; max-height:none; border:0; padding:20px; margin:0; overflow:hidden; background:radial-gradient(ellipse at 50% 38%,#f9f3df 0%,#eee9dc 60%,#e2ddcc 100%); color:#324a35; text-align:center; }
-.castle-arrival[open] { display:flex; flex-direction:column; align-items:center; justify-content:center; animation:arrival-reveal .35s ease-out,arrival-exit .42s 2.38s ease-in forwards; }
+.castle-arrival[open] { display:flex; flex-direction:column; align-items:center; justify-content:center; animation:arrival-reveal .35s ease-out,arrival-exit .42s 2.98s ease-in forwards; }
 .castle-arrival::backdrop { background:#142b20; }
 .dark .castle-arrival { background:radial-gradient(ellipse at 50% 38%,#284735 0%,#142a1e 55%,#0b1b14 100%); color:#f1e7cf; }
 .castle-arrival-scene { position:relative; width:min(440px,85vw); aspect-ratio:440/270; color:#a38248; margin:0 auto 28px; }
@@ -403,7 +403,7 @@ html.dark { color-scheme:dark;
 .arrival-skip:hover { background:#a38a5515; }
 .arrival-skip:focus-visible { outline:2px solid #b19a67; outline-offset:5px; }
 .arrival-timeline { width:105px; height:1px; margin-top:25px; overflow:hidden; background:#a38a5530; }
-.arrival-timeline span { display:block; width:100%; height:100%; background:#b89b60; transform-origin:left; animation:arrival-timer 2.8s linear; }
+.arrival-timeline span { display:block; width:100%; height:100%; background:#b89b60; transform-origin:left; animation:arrival-timer 3.4s linear; }
 @keyframes castle-etch { to { stroke-dashoffset:0; } }
 @keyframes arrival-reveal { from { opacity:0; } to { opacity:1; } }
 @keyframes arrival-exit { to { opacity:0; transform:scale(1.025); } }
@@ -423,4 +423,13 @@ html.dark { color-scheme:dark;
   .castle-arrival *, .castle-arrival *::before, .castle-arrival *::after { animation:none!important; }
   .castle-outline { stroke-dashoffset:0; }
   .arrival-spark { display:none; }
+}
+
+/* Keep the welcome visible with reduced motion: opacity only, no gate/camera movement. */
+@keyframes arrival-soft-in { from { opacity:.2; } to { opacity:1; } }
+@keyframes arrival-soft-out { from { opacity:1; } to { opacity:0; } }
+@media(prefers-reduced-motion:reduce) {
+  .castle-arrival[open] { animation:arrival-soft-out .4s 3s ease-in forwards!important; }
+  .castle-arrival .castle-arrival-scene { animation:arrival-soft-in .7s ease-out both!important; }
+  .castle-arrival .arrival-copy { animation:arrival-soft-in .7s .15s ease-out both!important; }
 }

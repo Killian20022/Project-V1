@@ -1,14 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowRight, Swords } from 'lucide-react';
 
-const VISIT_KEY = 'eq_castle_arrival_v1';
-const SIGN_IN_KEY = 'eq_castle_signin_v1';
-const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-function seen(key: string) { try { return sessionStorage.getItem(key) === 'seen'; } catch { return false; } }
-function remember(key: string) { try { sessionStorage.setItem(key, 'seen'); } catch { /* Storage may be unavailable. */ } }
-
 export function WelcomeArrival({ replay, userId, authReady }: { replay: number; userId?: string; authReady: boolean }) {
-  const [visible, setVisible] = useState(() => !seen(VISIT_KEY) && !reduceMotion());
+  // Every new document starts at the castle, including returning visitors.
+  // Reduced motion changes the presentation in CSS, never whether it is shown.
+  const [visible, setVisible] = useState(true);
   const dialog = useRef<HTMLDialogElement>(null);
   const previousUser = useRef<string | null | undefined>(undefined);
   const close = useCallback(() => setVisible(false), []);
@@ -18,23 +14,24 @@ export function WelcomeArrival({ replay, userId, authReady }: { replay: number; 
   // A real sign-in also gets a welcome; initial authentication hydration does not replay it.
   useEffect(() => {
     if (!authReady) return;
-    if (previousUser.current === null && userId && !seen(SIGN_IN_KEY)) {
-      remember(SIGN_IN_KEY);
-      if (!reduceMotion()) setVisible(true);
+    if (previousUser.current === null && userId) {
+      setVisible(true);
     }
     previousUser.current = userId ?? null;
   }, [userId, authReady]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!visible) return;
-    remember(VISIT_KEY);
     const node = dialog.current;
     node?.showModal();
-    const timer = window.setTimeout(close, 2800);
-    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onMotion = () => { if (motion.matches) close(); };
-    motion.addEventListener('change', onMotion);
-    return () => { window.clearTimeout(timer); motion.removeEventListener('change', onMotion); node?.close(); };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const timer = window.setTimeout(close, 3400);
+    return () => {
+      window.clearTimeout(timer);
+      node?.close();
+      document.body.style.overflow = previousOverflow;
+    };
   }, [visible, close]);
 
   if (!visible) return null;
