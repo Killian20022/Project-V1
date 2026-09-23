@@ -1,6 +1,7 @@
 import { Lock, Check, Play, ChevronLeft, GraduationCap, BookText, Brain, Swords } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useIsDev } from '@/lib/dev';
 import { LEVELS, LEVEL_INFO, lessonCount, lessonsFor } from '@/lib/content';
 import { countDue } from '@/lib/srs';
 import { Sprite } from '@/components/Sprite';
@@ -22,6 +23,7 @@ export function LearnPage({
   onReview: (level: Level) => void;
   onBoss: (level: Level) => void;
 }) {
+  const isDev = useIsDev();
   if (!selectedLevel) {
     return (
       <div>
@@ -99,7 +101,7 @@ export function LearnPage({
         {lessons.map((lesson, index) => {
           const isDone = index < done;
           const isCurrent = index === done;
-          const locked = index > done;
+          const locked = !isDev && index > done;
           return (
             <Card
               key={`${selectedLevel}-${index}`}

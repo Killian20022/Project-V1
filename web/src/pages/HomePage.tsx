@@ -7,6 +7,7 @@ import { LEVELS, LEVEL_INFO, lessonCount, lessonsFor, TOTAL_LESSONS } from '@/li
 import { countDue } from '@/lib/srs';
 import { uiUrl } from '@/lib/sprites';
 import type { GameState, Lesson, Level, Page } from '../types';
+import { useIsDev } from '@/lib/dev';
 
 // Titres de noblesse calculés à partir de l'XP total.
 export const RANKS: { name: string; min: number; avatar: string }[] = [
@@ -33,6 +34,7 @@ export function HomePage({
   onResume: (level: Level, index: number, lesson: Lesson) => void;
   onStartBoss: (level: Level) => void;
 }) {
+  const isDev = useIsDev();
   const lessonsDone = LEVELS.reduce((sum, lv) => sum + Math.min(state.lessons[lv] ?? 0, lessonCount(lv)), 0);
   const dailyGoal = 50;
   const dailyToday = state.dailyDate === new Date().toDateString() ? state.dailyXP : 0;
@@ -97,7 +99,7 @@ export function HomePage({
         </section>
       </div>
       <section className="campaign-section"><div className="section-heading"><div><span className="eyebrow">VOTRE CAMPAGNE</span><h2>De l’écuyer au roi.</h2></div><button className="text-link" onClick={() => navigate('learn')}>Toutes les quêtes <ArrowRight size={15}/></button></div>
-        <div className="rank-grid">{LEVELS.map((lv, i) => { const done = Math.min(state.lessons[lv] ?? 0, lessonCount(lv)); const locked = i > 0 && (state.lessons[LEVELS[i-1]] ?? 0) === 0; return <button key={lv} disabled={locked} onClick={() => openLevel(lv)} className={'rank-card ' + (locked ? 'rank-locked' : 'rank-open')} title={locked ? 'Avancez dans le rang précédent pour débloquer' : 'Ouvrir les quêtes'}><span className="rank-level">{lv}{locked ? <Lock size={12}/> : done >= lessonCount(lv) ? <Check size={13}/> : <Flag size={13}/>}</span><img src={uiUrl(LEVEL_INFO[lv].avatar)} alt="" className="pixel"/><strong>{LEVEL_INFO[lv].name}</strong><small>{done} / {lessonCount(lv)} quêtes</small><span className="fine-progress"><i style={{width: done / lessonCount(lv) * 100 + '%'}}/></span></button>;})}</div>
+        <div className="rank-grid">{LEVELS.map((lv, i) => { const done = Math.min(state.lessons[lv] ?? 0, lessonCount(lv)); const locked = !isDev && i > 0 && (state.lessons[LEVELS[i-1]] ?? 0) === 0; return <button key={lv} disabled={locked} onClick={() => openLevel(lv)} className={'rank-card ' + (locked ? 'rank-locked' : 'rank-open')} title={locked ? 'Avancez dans le rang précédent pour débloquer' : 'Ouvrir les quêtes'}><span className="rank-level">{lv}{locked ? <Lock size={12}/> : done >= lessonCount(lv) ? <Check size={13}/> : <Flag size={13}/>}</span><img src={uiUrl(LEVEL_INFO[lv].avatar)} alt="" className="pixel"/><strong>{LEVEL_INFO[lv].name}</strong><small>{done} / {lessonCount(lv)} quêtes</small><span className="fine-progress"><i style={{width: done / lessonCount(lv) * 100 + '%'}}/></span></button>;})}</div>
       </section>
       <button className="grimoire-strip" onClick={() => navigate('dictionary')}><BookOpen size={24} strokeWidth={1.4}/><span><strong>Les mots sont vos meilleures armes.</strong><small>Un mot à découvrir ? Ouvrez votre grimoire.</small></span><ArrowRight size={20}/></button>
     </div>

@@ -9,6 +9,8 @@ import { createWorld, findSpot, nextUnlock, unlockedIslands, WORLD } from '@/lib
 import { LEVELS, lessonCount } from '@/lib/content';
 import { SPRITES, uiUrl } from '@/lib/sprites';
 import type { GameState, Page } from '../types';
+import { useIsDev } from '@/lib/dev';
+import { TOTAL_LESSONS } from '@/lib/content';
 
 type SetState = React.Dispatch<React.SetStateAction<GameState>>;
 
@@ -32,7 +34,8 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
   const [moving, setMoving] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
 
-  const done = questsDone(state);
+  const isDev = useIsDev();
+  const done = isDev ? TOTAL_LESSONS : questsDone(state);
   const unlocked = useMemo(() => unlockedIslands(done), [done]);
   const openBig = WORLD.islands.filter((isl, i) => isl.size > 12 && unlocked.has(i)).length;
   const next = nextUnlock(done);
@@ -220,7 +223,8 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
   const [cat, setCat] = useState<ShopCategory>('soldats');
   const [faction, setFaction] = useState<Faction | 'all'>('bleu');
   const [bought, setBought] = useState<string | null>(null);
-  const unlocked = useMemo(() => unlockedIslands(questsDone(state)), [state]);
+  const isDev = useIsDev();
+  const unlocked = useMemo(() => unlockedIslands(isDev ? TOTAL_LESSONS : questsDone(state)), [state, isDev]);
 
   function buy(id: string) {
     const item = SHOP_MAP[id];
