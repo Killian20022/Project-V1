@@ -2,7 +2,8 @@
 // - carte générée depuis Tiled (src/data/world.json + public/ts/land.png)
 // - écume, arbres, soldats, feux… animés image par image
 // - objets achetés au marché : déplaçables à la souris / au doigt, les personnages se promènent
-// - îles verrouillées recouvertes de brume tant que les quêtes ne sont pas faites
+// - îles verrouillées recouvertes de brouillard tant que les quêtes ne sont pas faites
+// - tous les personnages (achetés ou du décor) se prennent et se déplacent, jamais dans l'eau
 import WORLD_JSON from '../data/world.json';
 import { SPRITES, spriteUrl, type SpriteDef } from './sprites';
 import { SHOP_MAP } from '../data/shop';
@@ -102,6 +103,7 @@ type Ent = {
   actT0?: number;
   actEnd?: number;
   agent?: boolean; // personnage ou animal qui vit sa vie
+  id?: string; // index du personnage dans le décor (pour mémoriser son déplacement)
 };
 
 export function createWorld(
@@ -112,6 +114,8 @@ export function createWorld(
     missionsDone: number;
     onMove?: (k: string, x: number, y: number) => void;
     onSelect?: (k: string | null) => void;
+    decorPos?: Record<string, [number, number]>; // personnages du décor déplacés par le joueur
+    onDecorMove?: (id: string, x: number, y: number) => void;
   },
 ) {
   const ctx = canvas.getContext('2d')!;
@@ -144,9 +148,12 @@ export function createWorld(
   // Décor fixe (généré depuis Tiled)
   const decor: Ent[] = [];
   const clouds: { key: string; def: SpriteDef; x: number; y: number; speed: number }[] = [];
-  for (const [key, x, y, cloud] of WORLD.decor) {
+  WORLD.decor.forEach(([key, x0, y0, cloud], index) => {
     const def = SPRITES[key];
-    if (!def) continue;
+    if (!def) return;
+    const saved = opts.decorPos?.[String(index)];
+    const x = saved && !cloud ? saved[0] : x0;
+    const y = saved && !cloud ? saved[1] + def.feet : y0;
     if (cloud) clouds.push({ key, def, x, y, speed: 12 + Math.random() * 14 });
     else {
       const e: Ent = { key, def, x, y: y - def.feet, ph: Math.random() * 10 };
@@ -162,10 +169,66 @@ export function createWorld(
         e.acting = -1;
         // l'armée noire (à l'est) regarde vers l'ouest, les autres au hasard
         e.face = x > 44 * TS ? -1 : Math.random() < 0.5 ? -1 : 1;
+        e.id = String(index);
       }
       decor.push(e);
     }
+  });
+
+  // ---------- Brouillard ----------
+  // Masque basse résolution (1/8) flouté puis agrandi : un brouillard doux qui déborde sur la mer.
+  const FOG_PAD = 2;
+  const FOG_SCALE = 8;
+  const fogCanvas = document.createElement('canvas');
+  fogCanvas.width = ((WORLD.w + 2 * FOG_PAD) * TS) / FOG_SCALE;
+  fogCanvas.height = ((WORLD.h + 2 * FOG_PAD) * TS) / FOG_SCALE;
+  let fogDirty = true;
+  function buildFog() {
+    fogDirty = false;
+    const g = fogCanvas.getContext('2d')!;
+    g.clearRect(0, 0, fogCanvas.width, fogCanvas.height);
+    const cell = TS / FOG_SCALE;
+    const shape = document.createElement('canvas');
+    shape.width = fogCanvas.width;
+    shape.height = fogCanvas.height;
+    const sg = shape.getContext('2d')!;
+    sg.fillStyle = '#e9eef2';
+    for (let cy = 0; cy < WORLD.h; cy++)
+      for (let cx = 0; cx < WORLD.w; cx++) {
+        const isl = islandAt(cx, cy);
+        if (isl >= 0 && !unlocked.has(isl)) {
+          // on déborde vers le haut pour cacher aussi les arbres et les tours
+          for (const oy of [0.5, -1.3]) {
+            sg.beginPath();
+            sg.arc((cx + FOG_PAD + 0.5) * cell, (cy + FOG_PAD + oy) * cell, cell * 1.5, 0, Math.PI * 2);
+            sg.fill();
+          }
+        }
+      }
+    g.filter = `blur(${cell * 0.9}px)`;
+    g.drawImage(shape, 0, 0);
+    g.drawImage(shape, 0, 0); // deux passes : brouillard bien opaque au centre
+    g.filter = 'none';
   }
+  // Gros nuages posés sur chaque île verrouillée (ils ondulent doucement)
+  const fogClouds: { isl: number; def: SpriteDef; x: number; y: number; ph: number; sp: number }[] = [];
+  WORLD.islands.forEach((isl, i) => {
+    if (isl.unlock === 0) return;
+    const n = isl.size > 150 ? 4 : isl.size > 60 ? 3 : isl.size > 12 ? 2 : 1;
+    for (let k = 0; k < n; k++) {
+      const def = SPRITES[`nuage-${1 + ((i * 3 + k) % 8)}`];
+      if (!def) continue;
+      const spread = Math.sqrt(isl.size) * TS * 0.35;
+      fogClouds.push({
+        isl: i,
+        def,
+        x: isl.cx + (k - (n - 1) / 2) * spread * 0.9,
+        y: isl.cy + ((k % 2) - 0.5) * spread * 0.6,
+        ph: Math.random() * 6,
+        sp: 0.25 + Math.random() * 0.2,
+      });
+    }
+  });
 
   // Objets achetés
   let placed: Ent[] = [];
@@ -384,21 +447,21 @@ export function createWorld(
       ctx.strokeRect(Math.floor(drag.ent.x / TS) * TS, Math.floor(drag.ent.y / TS) * TS, TS, TS);
     }
 
-    // brume sur les îles verrouillées (un seul chemin => pas de lignes de recouvrement)
-    const fog = new Path2D();
-    let anyFog = false;
-    for (let cy = Math.max(0, Math.floor(vy0 / TS) - 1); cy <= Math.min(WORLD.h - 1, vy1 / TS + 1); cy++) {
-      for (let cx = Math.max(0, Math.floor(vx0 / TS) - 1); cx <= Math.min(WORLD.w - 1, vx1 / TS + 1); cx++) {
-        const isl = islandAt(cx, cy);
-        if (isl >= 0 && !unlocked.has(isl)) {
-          fog.rect(cx * TS, cy * TS, TS, TS);
-          anyFog = true;
-        }
-      }
-    }
-    if (anyFog) {
-      ctx.fillStyle = 'rgba(18, 30, 40, 0.58)';
-      ctx.fill(fog, 'nonzero');
+    // brouillard sur les îles verrouillées
+    if (fogDirty) buildFog();
+    ctx.imageSmoothingEnabled = true;
+    ctx.globalAlpha = 0.97;
+    ctx.drawImage(fogCanvas, 0, 0, fogCanvas.width, fogCanvas.height, -FOG_PAD * TS, -FOG_PAD * TS, WORLD_W + 2 * FOG_PAD * TS, WORLD_H + 2 * FOG_PAD * TS);
+    ctx.globalAlpha = 1;
+    ctx.imageSmoothingEnabled = false;
+    for (const c of fogClouds) {
+      if (unlocked.has(c.isl)) continue;
+      const im = img(c.def.src);
+      if (!im.complete || !im.naturalWidth) continue;
+      const x = c.x + Math.sin(t * c.sp + c.ph) * 40;
+      ctx.globalAlpha = 0.95;
+      ctx.drawImage(im, x - c.def.fw * 0.75, c.y - c.def.fh * 0.75, c.def.fw * 1.5, c.def.fh * 1.5);
+      ctx.globalAlpha = 1;
     }
     // nuages
     for (const c of clouds) {
@@ -457,7 +520,8 @@ export function createWorld(
   }
   function pick(sx: number, sy: number): Ent | undefined {
     const p = s2w(sx, sy);
-    const sorted = [...placed].sort((a, b) => b.y - a.y);
+    const people = decor.filter((e) => e.agent && unlocked.has(islandAt(Math.floor(e.x / TS), Math.floor(e.y / TS))));
+    const sorted = [...placed, ...people].sort((a, b) => b.y - a.y);
     return sorted.find((e) => {
       const b = hitBox(e);
       return p.x >= b.x0 && p.x <= b.x1 && p.y >= b.y0 && p.y <= b.y1;
@@ -478,7 +542,8 @@ export function createWorld(
     drag = { ent, ox: cam.x, oy: cam.y, sx: p.x, sy: p.y, moved: false, start: ent ? { x: ent.x, y: ent.y } : { x: 0, y: 0 } };
     if (ent) {
       ent.moving = false;
-      selected = ent.placed!.k;
+      ent.acting = -1;
+      selected = ent.placed ? ent.placed.k : null;
       opts.onSelect?.(selected);
     }
   }
@@ -530,11 +595,20 @@ export function createWorld(
           const cx = Math.floor(x / TS);
           const cy = Math.floor(y / TS);
           d.ent.home = { isl: islandAt(cx, cy), lvl: levelAt(cx, cy) };
-          d.ent.placed!.x = x;
-          d.ent.placed!.y = y;
-          d.ent.orig = { x, y };
           d.ent.wait = 2;
-          opts.onMove?.(d.ent.placed!.k, x, y);
+          if (d.ent.placed) {
+            d.ent.placed.x = x;
+            d.ent.placed.y = y;
+            d.ent.orig = { x, y };
+            opts.onMove?.(d.ent.placed.k, x, y);
+          } else {
+            // personnage du décor : il vit désormais autour de son nouvel emplacement
+            d.ent.x = x;
+            d.ent.y = y;
+            d.ent.origin = { x, y };
+            d.ent.walks = !!d.ent.def.run;
+            if (d.ent.id) opts.onDecorMove?.(d.ent.id, x, y);
+          }
         } else {
           d.ent.x = d.start.x;
           d.ent.y = d.start.y;
@@ -621,6 +695,7 @@ export function createWorld(
     },
     setPlaced,
     setUnlocked(set: Set<number>, done: number) {
+      if (set.size !== unlocked.size) fogDirty = true;
       unlocked = set;
       missionsDone = done;
     },

@@ -98,6 +98,7 @@ export interface GameState {
   coins: number;
   island: string[];
   placed: PlacedItem[];
+  decorPos?: Record<string, [number, number]>; // personnages de la carte déplacés par le joueur
   trophies: string[];
   stats: Record<string, number>;
   dailyXP: number;

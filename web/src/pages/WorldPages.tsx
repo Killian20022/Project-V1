@@ -48,6 +48,9 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
           placed: (current.placed ?? []).map((p) => (p.k === k ? { ...p, x, y } : p)),
         })),
       onSelect: setSelected,
+      decorPos: state.decorPos ?? {},
+      onDecorMove: (id, x, y) =>
+        setState((current) => ({ ...current, decorPos: { ...(current.decorPos ?? {}), [id]: [x, y] } })),
     });
     engineRef.current = eng;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -98,7 +101,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
       <div className="pointer-events-none absolute left-3 top-3 hidden sm:block md:left-6 md:top-5">
         <h1 className="ribbon text-xl md:text-2xl">L’archipel d’English Sword</h1>
         <p className="mt-1 hidden max-w-sm rounded-md bg-[#2b1a0d]/75 px-3 py-1.5 text-xs text-[#ffeccc] md:block">
-          Glisse pour explorer · molette pour zoomer · attrape tes soldats et bâtiments pour les déplacer
+          Glisse pour explorer · molette pour zoomer · attrape n’importe quel personnage pour le déplacer (jamais dans l’eau)
         </p>
       </div>
 
