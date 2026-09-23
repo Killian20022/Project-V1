@@ -130,7 +130,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
       <div className="pointer-events-none absolute left-3 top-3 hidden sm:block md:left-6 md:top-5">
         <h1 className="ribbon text-xl md:text-2xl">L’archipel d’English Sword</h1>
         <p className="mt-1 hidden max-w-sm rounded-md bg-[#2b1a0d]/75 px-3 py-1.5 text-xs text-[#ffeccc] md:block">
-          Glisse pour explorer · molette pour zoomer · touche un personnage pour le déplacer ou le supprimer
+          Glisse pour explorer · molette pour zoomer · touche un personnage ou un bâtiment pour le déplacer ou le supprimer
         </p>
       </div>
 
@@ -166,7 +166,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
               <div className="min-w-0 flex-1">
                 <div className="font-display truncate text-[#ffe7a6]">{selName}</div>
                 <div className="text-[11px] text-[#e8dcc2]/80">
-                  {sel ? 'Acheté au marché' : 'Habitant de l’archipel'} · glisse-le ou utilise « Déplacer »
+                  {sel ? 'Acheté au marché' : isUnit ? 'Habitant de l’archipel' : 'Élément de l’archipel'} · glisse-le ou utilise « Déplacer »
                 </div>
               </div>
               <button className="grid h-8 w-8 shrink-0 place-items-center text-[#ffeccc]" onClick={closePanel} aria-label="Fermer">
@@ -176,7 +176,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
             {confirmDel ? (
               <div className="mt-2 flex items-center gap-2 rounded-md bg-[#2b1a0d]/60 p-2">
                 <span className="flex-1 text-xs text-[#ffeccc]">
-                  {sel ? `Vendre pour ${refund} or ?` : 'Renvoyer ce personnage pour de bon ?'}
+                  {sel ? `Vendre pour ${refund} or ?` : isUnit ? 'Renvoyer ce personnage pour de bon ?' : 'Retirer cet élément pour de bon ?'}
                 </span>
                 <Button size="sm" variant="destructive" onClick={remove}>
                   <Trash2 /> Oui
@@ -229,7 +229,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
       const count = (current.placed ?? []).filter((p) => p.id === id).length;
       if (count >= item.max || current.coins < item.price) return current;
       const k = `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-      const { x, y } = findSpot(unlocked, current.placed ?? []);
+      const { x, y } = findSpot(unlocked, current.placed ?? [], id, current.decorPos ?? {}, current.decorRemoved ?? []);
       return {
         ...current,
         coins: current.coins - item.price,

@@ -55,30 +55,115 @@ export function nextUnlock(missionsDone: number): { name: string; remaining: num
 }
 
 export function canPlaceAt(x: number, y: number, unlocked: Set<number>): boolean {
-  const cx = Math.floor(x / TS);
-  const cy = Math.floor(y / TS);
+  return cellOk(Math.floor(x / TS), Math.floor(y / TS), unlocked);
+}
+function cellOk(cx: number, cy: number, unlocked: Set<number>) {
   const isl = islandAt(cx, cy);
   return isl >= 0 && unlocked.has(isl) && levelAt(cx, cy) > 0 && !blockedAt(cx, cy);
 }
 
-/** Trouve un emplacement libre (pieds au centre d'une case) sur une île débloquée. */
-export function findSpot(unlocked: Set<number>, taken: Placed[] = []): { x: number; y: number } {
-  const cells: [number, number][] = [];
+// ---------- Emprise au sol (en cases) ----------
+// Chaque bâtiment / arbre / rocher occupe des cases : rien d'autre ne peut s'y poser.
+// Les personnages et animaux occupent une case mais ne bloquent pas (ils se croisent).
+const NO_FOOTPRINT = /^(feu|explosion|ecume|canard|rocher-eau|nuage)/;
+export interface Footprint {
+  w: number;
+  h: number;
+  blocks: boolean; // empêche les autres objets de se poser dessus
+  unit: boolean; // personnage / animal
+}
+export function footprint(key: string): Footprint | null {
+  const def = SPRITES[key];
+  if (!def || NO_FOOTPRINT.test(key)) return null;
+  if (def.run || def.act || /units|sheep/.test(def.src)) return { w: 1, h: 1, blocks: false, unit: true };
+  if (def.src.includes('buildings')) {
+    const w = Math.max(2, Math.ceil(def.fw / TS));
+    return { w, h: w >= 5 ? 3 : 2, blocks: true, unit: false };
+  }
+  return { w: 1, h: 1, blocks: true, unit: false };
+}
+/** Case en bas à gauche de l'emprise d'un objet dont les pieds sont en (x, y). */
+function anchorOf(fp: Footprint, x: number, y: number) {
+  return { c0: Math.round(x / TS - fp.w / 2), cy: Math.floor((y - 8) / TS) };
+}
+export function cellsOf(key: string, x: number, y: number): [number, number][] {
+  const fp = footprint(key);
+  if (!fp) return [];
+  const { c0, cy } = anchorOf(fp, x, y);
+  const out: [number, number][] = [];
+  for (let dy = 0; dy < fp.h; dy++) for (let dx = 0; dx < fp.w; dx++) out.push([c0 + dx, cy - dy]);
+  return out;
+}
+/** Aimante un objet sur la grille : renvoie la position des pieds parfaitement calée. */
+export function snapTo(key: string, wx: number, wy: number) {
+  const fp = footprint(key) ?? { w: 1, h: 1, blocks: false, unit: true };
+  const { c0, cy } = anchorOf(fp, wx, wy);
+  return {
+    x: (c0 + fp.w / 2) * TS,
+    y: fp.w >= 2 ? (cy + 1) * TS + 4 : cy * TS + TS * 0.75,
+  };
+}
+export type Occupancy = Map<string, string>; // "cx,cy" -> identifiant de l'objet
+export function buildOcc(items: { id: string; key: string; x: number; y: number }[]): Occupancy {
+  const occ: Occupancy = new Map();
+  for (const it of items) {
+    const fp = footprint(it.key);
+    if (!fp?.blocks) continue;
+    for (const [cx, cy] of cellsOf(it.key, it.x, it.y)) occ.set(`${cx},${cy}`, it.id);
+  }
+  return occ;
+}
+/** Occupation de tout l'archipel à partir de la sauvegarde (utilisable hors canvas, ex. marché). */
+export function worldOccupancy(placed: Placed[], decorPos: Record<string, [number, number]> = {}, decorRemoved: string[] = []) {
+  const items: { id: string; key: string; x: number; y: number }[] = [];
+  WORLD.decor.forEach(([key, x, y, cloud], i) => {
+    const def = SPRITES[key];
+    if (!def || cloud || decorRemoved.includes(String(i))) return;
+    const saved = decorPos[String(i)];
+    items.push({ id: `decor:${i}`, key, x: saved ? saved[0] : x, y: saved ? saved[1] : y - def.feet });
+  });
+  for (const p of placed) items.push({ id: p.k, key: p.id, x: p.x, y: p.y });
+  return buildOcc(items);
+}
+/** Détail case par case : peut-on poser `key` ici ? (terrain plat, île libérée, cases libres) */
+export function checkFit(key: string, x: number, y: number, unlocked: Set<number>, occ: Occupancy, self?: string) {
+  const cells = cellsOf(key, x, y);
+  const list = cells.length ? cells : [[Math.floor(x / TS), Math.floor(y / TS)] as [number, number]];
+  const lvl = levelAt(list[0][0], list[0][1]);
+  const isl = islandAt(list[0][0], list[0][1]);
+  const res = list.map(([cx, cy]) => {
+    const o = occ.get(`${cx},${cy}`);
+    const ok = cellOk(cx, cy, unlocked) && levelAt(cx, cy) === lvl && islandAt(cx, cy) === isl && (!o || o === self);
+    return { cx, cy, ok };
+  });
+  return { ok: res.every((r) => r.ok), cells: res };
+}
+
+/** Trouve un emplacement libre pour `key` sur une île débloquée (île du château en priorité). */
+export function findSpot(
+  unlocked: Set<number>,
+  taken: Placed[] = [],
+  key = '',
+  decorPos: Record<string, [number, number]> = {},
+  decorRemoved: string[] = [],
+): { x: number; y: number } {
+  const occ = worldOccupancy(taken, decorPos, decorRemoved);
+  // les personnages évitent aussi de s'empiler entre eux
+  const units = new Set(taken.map((p) => `${Math.floor(p.x / TS)},${Math.floor((p.y - 8) / TS)}`));
+  const home = WORLD.islands.findIndex((i) => i.unlock === 0);
+  const spots: { x: number; y: number; home: boolean }[] = [];
   for (let cy = 0; cy < WORLD.h; cy++)
     for (let cx = 0; cx < WORLD.w; cx++) {
-      const isl = islandAt(cx, cy);
-      if (isl >= 0 && unlocked.has(isl) && levelAt(cx, cy) > 0 && !blockedAt(cx, cy)) cells.push([cx, cy]);
+      if (!cellOk(cx, cy, unlocked)) continue;
+      const pos = snapTo(key, cx * TS + TS / 2, cy * TS + TS * 0.75);
+      if (!checkFit(key, pos.x, pos.y, unlocked, occ).ok) continue;
+      if (units.has(`${cx},${cy}`)) continue;
+      spots.push({ ...pos, home: islandAt(cx, cy) === home });
     }
-  if (!cells.length) return { x: WORLD_W / 2, y: WORLD_H / 2 };
-  const occupied = new Set(taken.map((p) => `${Math.floor(p.x / TS)},${Math.floor(p.y / TS)}`));
-  const decorCells = new Set(WORLD.decor.map(([, x, y]) => `${Math.floor(x / TS)},${Math.floor((y - 8) / TS)}`));
-  const free = cells.filter(([cx, cy]) => !occupied.has(`${cx},${cy}`) && !decorCells.has(`${cx},${cy}`));
-  // On remplit d'abord l'île du château (île de départ), puis les autres îles libérées.
-  const home = WORLD.islands.findIndex((i) => i.unlock === 0);
-  const freeHome = free.filter(([cx, cy]) => islandAt(cx, cy) === home);
-  const pool = freeHome.length ? freeHome : free.length ? free : cells;
-  const [cx, cy] = pool[Math.floor(Math.random() * pool.length)];
-  return { x: cx * TS + TS / 2 + (Math.random() - 0.5) * 20, y: cy * TS + TS * 0.75 };
+  const pool = spots.some((s) => s.home) ? spots.filter((s) => s.home) : spots;
+  if (!pool.length) return { x: WORLD_W / 2, y: WORLD_H / 2 };
+  const s = pool[Math.floor(Math.random() * pool.length)];
+  return { x: s.x, y: s.y };
 }
 
 // ---------- Moteur ----------
@@ -149,10 +234,19 @@ export function createWorld(
   let moveEnt: Ent | null = null; // mode « Déplacer » (bouton) : on touche une case pour poser
   let ghost: { x: number; y: number } | null = null;
   let flashBad = 0; // instant du dernier refus (case rouge qui tremble)
-  const effects: { x: number; y: number; t0: number; kind: 'dust' | 'ring' }[] = [];
+  const effects: { x: number; y: number; t0: number; kind: 'dust' | 'ring'; s?: number }[] = [];
   const dust = img('sprites/dust.png');
   const keyOf = (e: Ent) => (e.placed ? e.placed.k : `decor:${e.id}`);
-  const findByKey = (k: string) => [...placed, ...decor].find((e) => (e.placed || e.agent) && keyOf(e) === k);
+  let occCache: Occupancy | null = null;
+  const getOcc = () =>
+    (occCache ??= buildOcc(
+      [...placed, ...decor].map((e) => ({ id: keyOf(e), key: e.key, x: e.x, y: e.y })),
+    ));
+  const occDirty = () => {
+    occCache = null;
+  };
+  const movable = (e: Ent) => !!footprint(e.key);
+  const findByKey = (k: string) => [...placed, ...decor].find((e) => (e.placed || e.id) && keyOf(e) === k);
 
   const walkableCell = (cx: number, cy: number) => islandAt(cx, cy) >= 0 && levelAt(cx, cy) > 0 && !blockedAt(cx, cy);
 
@@ -181,8 +275,8 @@ export function createWorld(
         e.acting = -1;
         // l'armée noire (à l'est) regarde vers l'ouest, les autres au hasard
         e.face = x > 44 * TS ? -1 : Math.random() < 0.5 ? -1 : 1;
-        e.id = String(index);
       }
+      e.id = String(index);
       decor.push(e);
     }
   });
@@ -245,6 +339,7 @@ export function createWorld(
   // Objets achetés
   let placed: Ent[] = [];
   function setPlaced(list: Placed[]) {
+    occCache = null;
     const prev = new Map(placed.map((e) => [e.placed!.k, e]));
     placed = list
       .filter((p) => SPRITES[p.id])
@@ -296,7 +391,9 @@ export function createWorld(
     for (let i = 0; i < 12; i++) {
       const tx = base.x + (Math.random() - 0.5) * 2 * r * TS;
       const ty = base.y + (Math.random() - 0.5) * 1.4 * r * TS;
-      if (walkable(Math.floor(tx / TS), Math.floor(ty / TS), e.home!)) {
+      const tcx = Math.floor(tx / TS);
+      const tcy = Math.floor(ty / TS);
+      if (walkable(tcx, tcy, e.home!) && !getOcc().has(`${tcx},${tcy}`)) {
         e.tx = tx;
         e.ty = ty;
         e.moving = true;
@@ -345,7 +442,11 @@ export function createWorld(
         const step = Math.min(d, speed * dt);
         const nx = e.x + (dx / d) * step;
         const ny = e.y + (dy / d) * step;
-        if (!walkable(Math.floor(nx / TS), Math.floor(ny / TS), e.home!)) {
+        const ncx = Math.floor(nx / TS);
+        const ncy = Math.floor(ny / TS);
+        const occ = getOcc();
+        const inside = occ.has(`${Math.floor(e.x / TS)},${Math.floor(e.y / TS)}`);
+        if (!walkable(ncx, ncy, e.home!) || (!inside && occ.has(`${ncx},${ncy}`))) {
           e.moving = false;
           e.wait = 0.5;
         } else {
@@ -377,56 +478,85 @@ export function createWorld(
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, r);
   }
-  function drawPlacement(px: number, py: number) {
-    const cx = Math.floor(px / TS);
-    const cy = Math.floor(py / TS);
-    const ok = canPlaceAt(px, py, unlocked);
+  function drawPlacement(ent: Ent, px: number, py: number) {
+    const occ = getOcc();
+    const self = keyOf(ent);
+    const fit = checkFit(ent.key, px, py, unlocked, occ, self);
+    const ok = fit.ok;
+    const xs = fit.cells.map((c) => c.cx);
+    const ys = fit.cells.map((c) => c.cy);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const inFp = (x: number, y: number) => x >= minX && x <= maxX && y >= minY && y <= maxY;
+    const mx = (minX + maxX) / 2;
+    const my = (minY + maxY) / 2;
     const pulse = (Math.sin(t * 7) + 1) / 2;
-    // grille des cases voisines disponibles (s'estompe avec la distance)
-    for (let dy = -3; dy <= 3; dy++)
-      for (let dx = -4; dx <= 4; dx++) {
-        const nx = cx + dx;
-        const ny = cy + dy;
-        const d = Math.hypot(dx, dy * 1.2);
-        if (d > 4.2 || (dx === 0 && dy === 0)) continue;
+    // grille autour : cases libres en blanc, cases déjà prises en rouge pâle
+    const R = 4 + (maxX - minX) / 2;
+    for (let ny = Math.floor(my - R); ny <= Math.ceil(my + R); ny++)
+      for (let nx = Math.floor(mx - R - 1); nx <= Math.ceil(mx + R + 1); nx++) {
+        if (inFp(nx, ny)) continue;
+        const d = Math.hypot(nx - mx, (ny - my) * 1.2);
+        if (d > R + 0.3) continue;
         if (!canPlaceAt(nx * TS + TS / 2, ny * TS + TS / 2, unlocked)) continue;
-        const a = 0.28 * (1 - d / 4.6);
-        ctx.fillStyle = `rgba(255, 255, 255, ${a * 0.45})`;
-        ctx.strokeStyle = `rgba(255, 255, 255, ${a})`;
+        const o = occ.get(`${nx},${ny}`);
+        const taken = !!o && o !== self;
+        const a = 0.3 * (1 - d / (R + 0.6));
+        ctx.fillStyle = taken ? `rgba(255, 80, 70, ${a * 0.7})` : `rgba(255, 255, 255, ${a * 0.45})`;
+        ctx.strokeStyle = taken ? `rgba(255, 110, 100, ${a * 1.2})` : `rgba(255, 255, 255, ${a})`;
         ctx.lineWidth = 2;
         roundRect(nx * TS + 4, ny * TS + 4, TS - 8, TS - 8, 10);
         ctx.fill();
         ctx.stroke();
       }
-    // case visée : elle s'illumine et respire (rouge qui tremble si c'est interdit)
+    // emprise visée : elle s'illumine et respire (rouge qui tremble si c'est interdit)
     const shake = !ok && t - flashBad < 0.35 ? Math.sin((t - flashBad) * 60) * 5 : 0;
     const grow = 3 * pulse;
-    const x0 = cx * TS + 2 - grow + shake;
-    const y0 = cy * TS + 2 - grow;
-    const size = TS - 4 + grow * 2;
+    const x0 = minX * TS + 2 - grow + shake;
+    const y0 = minY * TS + 2 - grow;
+    const size = (maxX - minX + 1) * TS - 4 + grow * 2;
+    const sizeH = (maxY - minY + 1) * TS - 4 + grow * 2;
     ctx.save();
     ctx.shadowColor = ok ? 'rgba(90, 255, 130, 1)' : 'rgba(255, 70, 60, 1)';
     ctx.shadowBlur = 18 + 16 * pulse;
     ctx.fillStyle = ok ? `rgba(90, 255, 130, ${0.28 + 0.22 * pulse})` : `rgba(255, 70, 60, ${0.3 + 0.2 * pulse})`;
-    roundRect(x0, y0, size, size, 12);
+    roundRect(x0, y0, size, sizeH, 12);
     ctx.fill();
     ctx.lineWidth = 4;
     ctx.strokeStyle = ok ? `rgba(200, 255, 210, ${0.8 + 0.2 * pulse})` : `rgba(255, 190, 180, ${0.8 + 0.2 * pulse})`;
     ctx.stroke();
     ctx.restore();
+    // cases en conflit : croix rouges
+    if (!ok) {
+      ctx.strokeStyle = 'rgba(160, 20, 20, 0.85)';
+      ctx.lineWidth = 5;
+      for (const c of fit.cells) {
+        if (c.ok) continue;
+        const cx0 = c.cx * TS + shake;
+        const cy0 = c.cy * TS;
+        ctx.beginPath();
+        ctx.moveTo(cx0 + 18, cy0 + 18);
+        ctx.lineTo(cx0 + TS - 18, cy0 + TS - 18);
+        ctx.moveTo(cx0 + TS - 18, cy0 + 18);
+        ctx.lineTo(cx0 + 18, cy0 + TS - 18);
+        ctx.stroke();
+      }
+    }
     // reflet qui balaie la case
     if (ok) {
       const sweep = (t * 1.6) % 1;
       ctx.save();
-      roundRect(x0, y0, size, size, 12);
+      roundRect(x0, y0, size, sizeH, 12);
       ctx.clip();
       const gx = x0 + sweep * size * 2 - size * 0.5;
-      const grad = ctx.createLinearGradient(gx - 20, y0, gx + 20, y0 + size);
+      const grad = ctx.createLinearGradient(gx - 20, y0, gx + 20, y0 + sizeH);
       grad.addColorStop(0, 'rgba(255,255,255,0)');
       grad.addColorStop(0.5, 'rgba(255,255,255,0.55)');
       grad.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = grad;
-      ctx.fillRect(x0, y0, size, size);
+      ctx.fillRect(x0, y0, size, sizeH);
       ctx.restore();
     }
     // flèches aux quatre coins
@@ -435,8 +565,8 @@ export function createWorld(
     const c = [
       [x0 - m, y0 - m, 1, 1],
       [x0 + size + m, y0 - m, -1, 1],
-      [x0 - m, y0 + size + m, 1, -1],
-      [x0 + size + m, y0 + size + m, -1, -1],
+      [x0 - m, y0 + sizeH + m, 1, -1],
+      [x0 + size + m, y0 + sizeH + m, -1, -1],
     ];
     for (const [ax, ay, sx, sy] of c) {
       ctx.beginPath();
@@ -460,7 +590,8 @@ export function createWorld(
     if (lift) {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
       ctx.beginPath();
-      ctx.ellipse(e.x, e.y + 2, 22, 8, 0, 0, Math.PI * 2);
+      const fw = footprint(e.key)?.w ?? 1;
+      ctx.ellipse(e.x, e.y + 2 - (fw > 1 ? 16 : 0), 22 * fw, 8 * Math.max(1, fw * 0.6), 0, 0, Math.PI * 2);
       ctx.fill();
     }
     const bob = lift ? Math.sin(t * 8) * 3 : 0;
@@ -545,7 +676,8 @@ export function createWorld(
       ctx.strokeStyle = `rgba(255, 226, 120, ${0.65 + 0.35 * pulse})`;
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.ellipse(sel.x, sel.y, 30 + 3 * pulse, 11 + pulse, 0, 0, Math.PI * 2);
+      const fw = footprint(sel.key)?.w ?? 1;
+      ctx.ellipse(sel.x, sel.y - (fw > 1 ? 16 : 0), 30 * fw + 3 * pulse, 11 * Math.max(1, fw * 0.7) + pulse, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -554,7 +686,7 @@ export function createWorld(
     if (placing) {
       const px = placing === moveEnt ? ghost!.x : placing.x;
       const py = placing === moveEnt ? ghost!.y : placing.y;
-      drawPlacement(px, py);
+      drawPlacement(placing, px, py);
     }
     // sprites triés par profondeur
     const all = [...decor, ...placed].filter((e) => {
@@ -562,11 +694,13 @@ export function createWorld(
       return e.x + e.def.fw / 2 > vx0 && e.x - e.def.fw / 2 < vx1 && b > vy0 && b - e.def.fh < vy1;
     });
     all.sort((a, b) => a.y - b.y);
+    const lifted = drag?.ent && drag.moved ? drag.ent : null;
     for (const e of all) {
       if (e === moveEnt) drawSprite(e, 0.35);
-      else if (drag?.ent === e && drag.moved) drawSprite(e, 0.9, -14);
-      else drawSprite(e);
+      else if (e !== lifted) drawSprite(e);
     }
+    // l'objet soulevé passe au-dessus de tout le reste
+    if (lifted) drawSprite(lifted, 0.9, -14);
     if (moveEnt && ghost) {
       const saved = { x: moveEnt.x, y: moveEnt.y };
       moveEnt.x = ghost.x;
@@ -585,7 +719,8 @@ export function createWorld(
           effects.splice(i, 1);
           continue;
         }
-        if (dust.complete && dust.naturalWidth) ctx.drawImage(dust, f * 64, 0, 64, 64, fx.x - 64, fx.y - 96, 128, 128);
+        const ds = 128 * Math.max(1, (fx.s ?? 1) * 0.8);
+        if (dust.complete && dust.naturalWidth) ctx.drawImage(dust, f * 64, 0, 64, 64, fx.x - ds / 2, fx.y - ds * 0.75, ds, ds);
       } else {
         if (age > 0.6) {
           effects.splice(i, 1);
@@ -598,7 +733,8 @@ export function createWorld(
         ctx.shadowBlur = 16;
         ctx.lineWidth = 4 * (1 - k) + 1;
         ctx.beginPath();
-        ctx.ellipse(fx.x, fx.y, 20 + 50 * k, 8 + 18 * k, 0, 0, Math.PI * 2);
+        const rs = fx.s ?? 1;
+        ctx.ellipse(fx.x, fx.y, (20 + 50 * k) * rs, (8 + 18 * k) * Math.max(1, rs * 0.7), 0, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       }
@@ -677,7 +813,7 @@ export function createWorld(
   }
   function pick(sx: number, sy: number): Ent | undefined {
     const p = s2w(sx, sy);
-    const people = decor.filter((e) => e.agent && unlocked.has(islandAt(Math.floor(e.x / TS), Math.floor(e.y / TS))));
+    const people = decor.filter((e) => movable(e) && unlocked.has(islandAt(Math.floor(e.x / TS), Math.floor((e.y - 8) / TS))));
     const sorted = [...placed, ...people].sort((a, b) => b.y - a.y);
     return sorted.find((e) => {
       const b = hitBox(e);
@@ -697,7 +833,7 @@ export function createWorld(
     }
     // mode « Déplacer » : le glisser déplace la carte, un simple toucher pose le personnage
     const ent = moveEnt ? undefined : pick(p.x, p.y);
-    if (moveEnt) ghost = s2w(p.x, p.y);
+    if (moveEnt) ghost = snapGhost(p.x, p.y);
     drag = { ent, ox: cam.x, oy: cam.y, sx: p.x, sy: p.y, moved: false, start: ent ? { x: ent.x, y: ent.y } : { x: 0, y: 0 } };
     if (ent) {
       ent.moving = false;
@@ -711,21 +847,24 @@ export function createWorld(
   }
   // pose un personnage (ou bâtiment) sur une case ; renvoie false si c'est interdit
   function dropAt(ent: Ent, wx: number, wy: number) {
-    if (!canPlaceAt(wx, wy, unlocked)) {
+    if (!checkFit(ent.key, wx, wy, unlocked, getOcc(), keyOf(ent)).ok) {
       flashBad = t;
       return false;
     }
     const x = Math.round(wx);
     const y = Math.round(wy);
     const cx = Math.floor(x / TS);
-    const cy = Math.floor(y / TS);
+    const cy = Math.floor((y - 8) / TS);
     ent.x = x;
     ent.y = y;
+    occDirty();
     ent.home = { isl: islandAt(cx, cy), lvl: levelAt(cx, cy) };
     ent.wait = 2;
     ent.moving = false;
     ent.bounceT0 = t;
-    effects.push({ x, y, t0: t, kind: 'ring' }, { x, y, t0: t, kind: 'dust' });
+    const fs = footprint(ent.key)?.w ?? 1;
+    const ey = y - (fs > 1 ? 16 : 0);
+    effects.push({ x, y: ey, t0: t, kind: 'ring', s: fs }, { x, y: ey, t0: t, kind: 'dust', s: fs });
     if (ent.placed) {
       ent.placed.x = x;
       ent.placed.y = y;
@@ -739,6 +878,11 @@ export function createWorld(
     }
     return true;
   }
+  function snapGhost(sx: number, sy: number) {
+    if (!moveEnt) return null;
+    const w = s2w(sx, sy);
+    return snapTo(moveEnt.key, w.x, w.y + 10);
+  }
   function endMove() {
     moveEnt = null;
     ghost = null;
@@ -748,7 +892,7 @@ export function createWorld(
     const p = localXY(ev);
     if (!pointers.has(ev.pointerId)) {
       if (moveEnt) {
-        ghost = s2w(p.x, p.y);
+        ghost = snapGhost(p.x, p.y);
         canvas.style.cursor = 'crosshair';
       } else canvas.style.cursor = pick(p.x, p.y) ? 'grab' : 'default';
       return;
@@ -764,11 +908,12 @@ export function createWorld(
     const dx = p.x - drag.sx;
     const dy = p.y - drag.sy;
     if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
-    if (moveEnt && !drag.moved) ghost = s2w(p.x, p.y);
+    if (moveEnt && !drag.moved) ghost = snapGhost(p.x, p.y);
     if (drag.ent) {
       const w = s2w(p.x, p.y);
-      drag.ent.x = w.x;
-      drag.ent.y = w.y + 10;
+      const sn = snapTo(drag.ent.key, w.x, w.y + 10);
+      drag.ent.x = sn.x;
+      drag.ent.y = sn.y;
       canvas.style.cursor = 'grabbing';
     } else {
       cam.x = drag.ox - dx / cam.z;
@@ -789,7 +934,7 @@ export function createWorld(
     const d = drag;
     drag = null;
     if (moveEnt && !d.moved) {
-      const w = s2w(d.sx, d.sy);
+      const w = snapGhost(d.sx, d.sy)!;
       ghost = w;
       if (dropAt(moveEnt, w.x, w.y)) endMove();
     } else if (d.ent) {
@@ -897,6 +1042,7 @@ export function createWorld(
       const e = decor[i];
       effects.push({ x: e.x, y: e.y, t0: t, kind: 'dust' });
       decor.splice(i, 1);
+      occDirty();
       if (moveEnt === e) endMove();
       select(null);
     },
