@@ -6,7 +6,7 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
     <div
       ref={ref}
       className={cn(
-        // Parchemin Tiny Swords (bordure en image 9-slice, voir .paper dans index.css)
+        // Surface ivoire partagée par les pages de l’application.
         'paper relative text-card-foreground',
         className,
       )}

@@ -4,18 +4,18 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-bold leading-none transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 disabled:grayscale-[0.4] [&_svg]:size-4 [&_svg]:shrink-0',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium leading-none transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 disabled:grayscale-[0.4] [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
         // Bouton pixel bleu Tiny Swords (image 9-slice)
-        default: 'btn-pixel rounded-none hover:brightness-110',
-        destructive: 'btn-pixel btn-pixel-red rounded-none hover:brightness-110',
+        default: 'btn-pixel',
+        destructive: 'btn-pixel btn-pixel-red',
         // Bois sombre
         secondary:
-          'border-2 border-[#2b1a0d] bg-[#5c3a1f] text-[#ffe9b8] shadow-[0_3px_0_#2b1a0d] hover:bg-[#6d4526] active:translate-y-[2px] active:shadow-[0_1px_0_#2b1a0d]',
+          'border border-border bg-secondary text-secondary-foreground hover:brightness-95',
         outline:
-          'border-2 border-[hsl(var(--foreground)/0.35)] bg-transparent text-[hsl(var(--foreground))] hover:bg-[hsl(var(--foreground)/0.08)]',
+          'border border-[hsl(var(--foreground)/0.25)] bg-transparent text-[hsl(var(--foreground))] hover:bg-[hsl(var(--foreground)/0.08)]',
         ghost: 'text-[hsl(var(--foreground))] hover:bg-[hsl(var(--foreground)/0.1)]',
       },
       size: {

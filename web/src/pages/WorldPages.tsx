@@ -270,7 +270,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
             key={c.id}
             onClick={() => setCat(c.id)}
             className={`font-display rounded-md border-2 px-3 py-1.5 text-[15px] transition ${
-              cat === c.id ? 'border-[#f7c948] bg-[#5c3a1f] text-[#ffe7a6]' : 'border-[#5c3a1f] bg-[#2b1a0d]/60 text-[#ffeccc] hover:bg-[#3a2412]'
+              cat === c.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-card-foreground hover:bg-secondary'
             }`}
           >
             {c.label}
@@ -286,7 +286,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
               key={f.id}
               onClick={() => setFaction(f.id)}
               className={`flex items-center gap-1.5 rounded-full border-2 px-3 py-1 text-sm font-semibold transition ${
-                faction === f.id ? 'border-[#f7c948] bg-[#2b1a0d] text-[#ffe7a6]' : 'border-transparent bg-[#2b1a0d]/50 text-[#ffeccc]'
+                faction === f.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-card-foreground'
               }`}
             >
               <span className="h-3 w-3 rounded-full border border-black/40" style={{ background: f.color }} /> {f.label}
@@ -363,7 +363,7 @@ export function TrophiesPage({ state }: { state: GameState }) {
 
       {categories.map((category) => (
         <div key={category}>
-          <h2 className="mb-3 text-2xl text-[#ffe7a6]">{category}</h2>
+          <h2 className="mb-3 text-2xl text-foreground">{category}</h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {TROPHIES.filter((t) => t.category === category).map((trophy) => {
               const progress = trophy.progress(state);

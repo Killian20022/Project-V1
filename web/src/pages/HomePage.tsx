@@ -1,4 +1,4 @@
-import { Swords, BookOpen, Brain, Play, ScrollText, Target, Map as MapIcon } from 'lucide-react';
+import { Swords, BookOpen, Brain, Play, ScrollText, Target, Map as MapIcon, ArrowRight, Compass, Lock, Check, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sprite } from '@/components/Sprite';
@@ -59,195 +59,48 @@ export function HomePage({
     ? Math.min(100, Math.round(((state.points - rank.min) / (nextRank.min - rank.min)) * 100))
     : 100;
 
+
   return (
-    <div className="space-y-8">
-      {/* Bannière d'accueil */}
-      <Card className="overflow-hidden">
-        <CardContent className="relative p-6 md:p-10">
-          <div className="inline-flex items-center gap-2 rounded-full bg-[hsl(var(--foreground)/0.08)] px-3 py-1 text-xs font-bold tracking-wide">
-            <Swords className="size-3.5" /> APPRENDS · COMBATS · RÈGNE
-          </div>
-          <h1 className="mt-4 max-w-2xl text-4xl leading-tight md:text-5xl">
-            Forge ton anglais, <span className="text-[hsl(var(--accent))]">conquiers le royaume</span>
-          </h1>
-          <p className="mt-3 max-w-xl text-[hsl(var(--muted-foreground))]">
-            Des quêtes courtes, des duels contre les chevaliers noirs et un archipel qui s’agrandit à chaque victoire.
-            Gagne de l’or, recrute ton armée, bâtis ton village.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button
-              size="lg"
-              onClick={() => (nextQuest ? onResume(nextQuest.level, nextQuest.index, nextQuest.lesson) : navigate('learn'))}
-            >
-              <Play /> Reprendre la quête
-            </Button>
-            <Button size="lg" variant={due > 0 ? 'secondary' : 'outline'} disabled={due === 0} onClick={onReview}>
-              <Brain /> {due > 0 ? `Entraînement (${due})` : 'Rien à réviser'}
-            </Button>
-            <Button size="lg" variant="destructive" onClick={() => onStartBoss(bossLevel)}>
-              <Swords /> Duel contre le boss
-            </Button>
-            <Button size="lg" variant="outline" onClick={() => navigate('island')}>
-              <MapIcon /> Mon royaume
-            </Button>
-          </div>
-
-          <div className="mt-7 flex flex-wrap gap-8">
-            <Stat value={state.points} label="XP gagnés" />
-            <Stat value={`${lessonsDone}/${TOTAL_LESSONS}`} label="Quêtes accomplies" />
-            <Stat value={state.coins} label="Pièces d’or" />
-          </div>
-
-          {/* Titre de noblesse */}
-          <div className="mt-7 flex max-w-md items-center gap-3">
-            <img src={uiUrl(rank.avatar)} alt="" className="pixel h-14 w-14 shrink-0" />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 text-sm">
-                <span className="font-display text-lg text-[hsl(var(--primary))]">{rank.name}</span>
-                <span className="ml-auto text-xs text-[hsl(var(--muted-foreground))]">
-                  {nextRank ? `${state.points} / ${nextRank.min} XP` : 'Titre suprême 👑'}
-                </span>
-              </div>
-              <div className="mt-1.5 h-3 w-full overflow-hidden rounded-full border-2 border-[#3a2412] bg-[#3a2412]/25">
-                <div className="h-full bg-gradient-to-r from-[#f7c948] to-[#e08a2e] transition-all" style={{ width: `${rankPct}%` }} />
-              </div>
-              {nextRank && (
-                <div className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
-                  Encore {nextRank.min - state.points} XP avant le titre de {nextRank.name}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Duel : chevalier bleu face au chevalier noir */}
-          <div className="pointer-events-none absolute bottom-2 right-2 hidden items-end lg:flex">
-            <Sprite k="guerrier" height={150} crop={0.18} />
-            <Sprite k="lancier" height={150} crop={0.2} style={{ marginLeft: -40 }} />
-            <Sprite k="guerrier-noir" height={150} crop={0.18} flip style={{ marginLeft: -10 }} />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Reprendre là où tu t'es arrêté */}
-      {nextQuest ? (
-        <Card
-          className="cursor-pointer transition hover:-translate-y-0.5"
-          onClick={() => onResume(nextQuest.level, nextQuest.index, nextQuest.lesson)}
-        >
-          <CardContent className="flex items-center gap-4 p-4">
-            <img src={uiUrl(LEVEL_INFO[nextQuest.level].avatar)} alt="" className="pixel h-16 w-16 shrink-0" />
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-                Reprendre · {LEVEL_INFO[nextQuest.level].name} · Quête {nextQuest.index + 1}
-              </div>
-              <div className="font-display truncate text-xl">{nextQuest.lesson.title}</div>
-              <div className="text-sm text-[hsl(var(--muted-foreground))]">
-                {nextQuest.lesson.t === 'V' ? 'Vocabulaire' : 'Grammaire'}
-              </div>
-            </div>
-            <Button className="ml-auto hidden shrink-0 sm:inline-flex">
-              <Play /> Continuer
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <img src={uiUrl('avatars_16.png')} alt="" className="pixel h-16 w-16 shrink-0" />
-            <div className="min-w-0 flex-1">
-              <div className="font-display text-xl">Toutes les quêtes sont accomplies 👑</div>
-              <div className="text-sm text-[hsl(var(--muted-foreground))]">
-                Continue à t’entraîner pour garder ton anglais bien affûté, Majesté.
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="relative grid h-16 w-16 shrink-0 place-items-center">
-              <svg className="h-16 w-16 -rotate-90" viewBox="0 0 36 36">
-                <circle cx="18" cy="18" r="16" fill="none" stroke="hsl(var(--secondary))" strokeWidth="3" />
-                <circle
-                  cx="18"
-                  cy="18"
-                  r="16"
-                  fill="none"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth="3"
-                  strokeDasharray={`${(dailyPct / 100) * 100.5} 100.5`}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <Target className="absolute text-[hsl(var(--primary))]" />
-            </div>
-            <div>
-              <div className="font-display text-lg">Objectif du jour</div>
-              <div className="text-sm text-[hsl(var(--muted-foreground))]">
-                {dailyToday} / {dailyGoal} XP {dailyPct >= 100 ? '· atteint 🎉' : `· encore ${dailyGoal - dailyToday} XP`}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className={due > 0 ? 'cursor-pointer transition hover:-translate-y-0.5' : ''} onClick={due > 0 ? onReview : undefined}>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-[hsl(var(--primary)/0.15)]">
-              <Brain className="text-[hsl(var(--primary))]" />
-            </div>
-            <div>
-              <div className="font-display text-lg">Entraînement</div>
-              <div className="text-sm text-[hsl(var(--muted-foreground))]">
-                {due > 0
-                  ? `${due} carte${due > 1 ? 's' : ''} à revoir aujourd’hui.`
-                  : 'Termine des quêtes pour remplir ta pile de révision.'}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer transition hover:-translate-y-0.5" onClick={() => navigate('dictionary')}>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-[hsl(var(--primary)/0.15)]">
-              <BookOpen className="text-[hsl(var(--primary))]" />
-            </div>
-            <div>
-              <div className="font-display text-lg">Grimoire</div>
-              <div className="text-sm text-[hsl(var(--muted-foreground))]">Cherche un mot, écoute-le, garde-le.</div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div>
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <h2 className="ribbon ribbon-red text-xl">
-            <ScrollText className="mr-2 size-5" /> Choisis ton rang
-          </h2>
-          <span className="text-sm text-[hsl(var(--muted-foreground))]">De l’écuyer au roi (A1 → C2)</span>
+    <div className="home-dashboard">
+      <div className="page-intro"><div><span className="eyebrow">LE CHÂTEAU · VOTRE QUARTIER GÉNÉRAL</span><h1>Une nouvelle page de votre aventure.</h1></div><span className="chapter-tag"><Compass size={15} /> A1 → C2</span></div>
+      <section className="adventure-hero" aria-labelledby="adventure-title">
+        <div className="hero-copy">
+          <div className="eyebrow hero-eyebrow"><span /> APPRENDRE. EXPLORER. CONQUÉRIR.</div>
+          <h2 id="adventure-title">Forgez votre anglais.<br /><em>Bâtissez votre royaume.</em></h2>
+          <p>Une quête à la fois, gagnez en confiance et donnez vie à votre royaume. Votre prochaine aventure commence par quelques mots.</p>
+          <div className="hero-actions"><Button size="lg" onClick={() => nextQuest ? onResume(nextQuest.level, nextQuest.index, nextQuest.lesson) : navigate('learn')}><Play size={15} /> {lessonsDone ? 'Reprendre ma quête' : 'Commencer l’aventure'}<ArrowRight size={16} /></Button><button className="hero-link" onClick={() => navigate('island')}>Explorer le royaume <ArrowRight size={15} /></button></div>
+          <div className="hero-footnote"><ShieldMark /> 95 quêtes · 6 niveaux · Un royaume à façonner</div>
         </div>
-        <RankMap state={state} onSelect={openLevel} />
+        <button className="hero-illustration" onClick={() => navigate('island')} aria-label="Explorer mon royaume">
+          <img src={import.meta.env.BASE_URL + 'ts/map-medium.jpg'} alt="Carte en pixel art des îles du royaume" /><span className="map-compass">N<span>✧</span>S</span><span className="map-caption"><MapIcon size={16}/><span>L’archipel d’English Sword<small>VOTRE MONDE À CONQUÉRIR</small></span><ArrowRight size={17}/></span>
+        </button>
+      </section>
+      <section className="journey-stats" aria-label="Votre progression">
+        <div className="journey-stat"><span className="stat-icon"><Swords size={19} /></span><div><strong>{state.points.toLocaleString('fr-FR')}</strong><span>Points d’expérience</span></div></div>
+        <div className="journey-stat"><span className="stat-icon"><ScrollText size={19} /></span><div><strong>{lessonsDone}<small> / {TOTAL_LESSONS}</small></strong><span>Quêtes accomplies</span></div></div>
+        <div className="journey-stat"><span className="stat-icon"><img src={uiUrl('icon_03.png')} alt="" /></span><div><strong>{state.coins.toLocaleString('fr-FR')}</strong><span>Pièces d’or</span></div></div>
+        <div className="journey-rank"><img src={uiUrl(rank.avatar)} alt="" className="pixel" /><div><span>VOTRE TITRE</span><strong>{rank.name}</strong><div className="fine-progress" role="progressbar" aria-label="Progression vers le prochain titre" aria-valuenow={rankPct} aria-valuemin={0} aria-valuemax={100}><i style={{width: rankPct + '%'}} /></div><small>{nextRank ? (nextRank.min - state.points) + ' XP avant ' + nextRank.name : 'Titre suprême'}</small></div></div>
+      </section>
+      <div className="dashboard-columns">
+        <section><div className="section-heading"><h2>Votre prochaine quête</h2><span>LE VOYAGE CONTINUE</span></div>
+          <Card className="next-quest"><CardContent className="quest-card-content">
+            <div className="quest-card-top"><span className="quest-seal"><ScrollText size={25} strokeWidth={1.3} /></span><span className="subtle-badge">{nextQuest ? LEVEL_INFO[nextQuest.level].name + ' · ' + nextQuest.level : 'Campagne terminée'}</span></div>
+            <div className="eyebrow">{nextQuest ? 'QUÊTE ' + String(nextQuest.index + 1).padStart(2,'0') + ' · ' + (nextQuest.lesson.t === 'V' ? 'VOCABULAIRE' : 'GRAMMAIRE') : 'TOUTES NOS FÉLICITATIONS'}</div>
+            <h3>{nextQuest?.lesson.title ?? 'Le royaume vous appartient.'}</h3>
+            <p>{nextQuest ? 'Un nouveau savoir à maîtriser, une nouvelle étape à franchir.' : 'Poursuivez votre entraînement pour garder votre anglais bien affûté.'}</p>
+            <Button onClick={() => nextQuest ? onResume(nextQuest.level, nextQuest.index, nextQuest.lesson) : navigate('learn')}>{nextQuest ? 'Ouvrir la quête' : 'Revoir mes quêtes'}<ArrowRight /></Button>
+          </CardContent></Card>
+        </section>
+        <section><div className="section-heading"><h2>Un peu, chaque jour.</h2><Target size={18} /></div>
+          <Card className="daily-card"><CardContent className="daily-content"><div><span className="eyebrow">OBJECTIF DU JOUR</span><h3>{dailyPct >= 100 ? 'Objectif accompli !' : 'Gardez votre élan.'}</h3><p>{dailyToday} / {dailyGoal} XP aujourd’hui</p></div><div className="daily-ring" style={{'--daily-progress': dailyPct + '%', background: 'conic-gradient(#a8874f ' + dailyPct + '%, #e8e3d8 0)'} as React.CSSProperties}><span>{dailyPct}<small>%</small></span></div></CardContent></Card>
+          <div className="practice-links"><button disabled={due === 0} onClick={onReview}><Brain size={19}/><span><strong>Entraînement</strong><small>{due > 0 ? due + ' cartes à réviser' : 'Vos révisions après la première quête'}</small></span><ArrowRight size={16}/></button><button onClick={() => onStartBoss(bossLevel)}><Swords size={19}/><span><strong>Défier le chevalier noir</strong><small>Mettez votre anglais à l’épreuve</small></span><ArrowRight size={16}/></button></div>
+        </section>
       </div>
-
-      {/* L'armée bleue en parade */}
-      <div className="flex origin-bottom scale-[0.7] items-end justify-center gap-0 pt-2 sm:scale-100">
-        <Sprite k="archer" height={96} crop={0.2} />
-        <Sprite k="lancier" height={110} crop={0.2} />
-        <Sprite k="guerrier" height={104} crop={0.2} />
-        <Sprite k="moine" height={96} crop={0.2} />
-        <Sprite k="guerrier" height={104} crop={0.2} flip />
-        <Sprite k="lancier" height={110} crop={0.2} flip />
-        <Sprite k="archer" height={96} crop={0.2} flip />
-      </div>
+      <section className="campaign-section"><div className="section-heading"><div><span className="eyebrow">VOTRE CAMPAGNE</span><h2>De l’écuyer au roi.</h2></div><button className="text-link" onClick={() => navigate('learn')}>Toutes les quêtes <ArrowRight size={15}/></button></div>
+        <div className="rank-grid">{LEVELS.map((lv, i) => { const done = Math.min(state.lessons[lv] ?? 0, lessonCount(lv)); const locked = i > 0 && (state.lessons[LEVELS[i-1]] ?? 0) === 0; return <button key={lv} disabled={locked} onClick={() => openLevel(lv)} className={'rank-card ' + (locked ? 'rank-locked' : 'rank-open')} title={locked ? 'Avancez dans le rang précédent pour débloquer' : 'Ouvrir les quêtes'}><span className="rank-level">{lv}{locked ? <Lock size={12}/> : done >= lessonCount(lv) ? <Check size={13}/> : <Flag size={13}/>}</span><img src={uiUrl(LEVEL_INFO[lv].avatar)} alt="" className="pixel"/><strong>{LEVEL_INFO[lv].name}</strong><small>{done} / {lessonCount(lv)} quêtes</small><span className="fine-progress"><i style={{width: done / lessonCount(lv) * 100 + '%'}}/></span></button>;})}</div>
+      </section>
+      <button className="grimoire-strip" onClick={() => navigate('dictionary')}><BookOpen size={24} strokeWidth={1.4}/><span><strong>Les mots sont vos meilleures armes.</strong><small>Un mot à découvrir ? Ouvrez votre grimoire.</small></span><ArrowRight size={20}/></button>
     </div>
   );
 }
-
-function Stat({ value, label }: { value: string | number; label: string }) {
-  return (
-    <div>
-      <div className="font-display text-3xl">{value}</div>
-      <div className="text-xs font-bold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">{label}</div>
-    </div>
-  );
-}
+function ShieldMark() { return <Swords size={13} strokeWidth={1.5}/>; }

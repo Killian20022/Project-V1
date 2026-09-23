@@ -2,189 +2,161 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ============================================================
-   English Sword — thème médiéval (pixel art Tiny Swords)
-   Dehors : nuit sur la mer (texte clair). Dans les cartes : parchemin (texte brun).
-   ============================================================ */
 :root {
-  --background: 196 44% 8%;
-  --foreground: 42 55% 91%;
-  --card: 43 52% 82%;
-  --card-foreground: 28 45% 15%;
-  --primary: 43 88% 58%;            /* or */
-  --primary-foreground: 28 70% 10%;
-  --secondary: 196 32% 15%;
-  --secondary-foreground: 42 55% 91%;
-  --muted: 196 28% 13%;
-  --muted-foreground: 40 22% 72%;
-  --accent: 180 42% 47%;            /* mer Tiny Swords */
-  --accent-foreground: 190 60% 8%;
-  --border: 196 26% 24%;
-  --input: 196 26% 26%;
-  --ring: 43 88% 58%;
-  --radius: 0.6rem;
+ --background: 43 30% 95%; --foreground: 153 19% 19%; --card: 45 38% 98%; --card-foreground: 153 19% 19%;
+ --primary: 157 33% 24%; --primary-foreground: 45 38% 98%; --secondary: 42 24% 88%; --secondary-foreground: 153 19% 22%;
+ --muted: 42 24% 90%; --muted-foreground: 145 7% 42%; --accent: 37 38% 40%; --accent-foreground: 45 38% 98%;
+ --border: 40 21% 82%; --input: 40 21% 77%; --ring: 157 33% 30%; --radius: .6rem;
+ --brand-gold: 39 44% 51%; --brand-blue: 157 33% 28%; --brand-red: 5 41% 43%; --brand-wood: 25 24% 25%; --brand-sea: 172 25% 40%;
+}
+* { border-color: hsl(var(--border)); }
+html { scroll-behavior: smooth; }
+body { margin:0; min-width:320px; background:#f5f3ed; color:#293c32; font-family:'DM Sans',system-ui,sans-serif; font-size:14px; -webkit-font-smoothing:antialiased; }
+h1,h2,h3,.font-display { font-family:'Cormorant Garamond',Georgia,serif; font-weight:600; letter-spacing:-.025em; }
+button,a,input,select,textarea { -webkit-tap-highlight-color:transparent; }
+button:focus-visible,a:focus-visible { outline:2px solid #a58449; outline-offset:4px; }
+button { touch-action:manipulation; }
+.pixel { image-rendering:pixelated; }
+.paper,.paper-light { border:1px solid #dfdacd; border-radius:10px; background:#fffcf6; box-shadow:0 3px 10px #263b3010; color:#293c32; }
+.paper-dark { border:1px solid #657267; border-radius:10px; background:#243d33; color:#fbf6e9; padding:14px; }
+.wood-panel { border:1px solid #746246; border-radius:10px; background:#433d30; }
+.ribbon,.sword-plate { display:inline-flex; align-items:center; padding:0 0 10px; border:0; border-bottom:1px solid #b89a65; color:#293c32; font-family:'Cormorant Garamond',Georgia,serif; font-weight:600; font-size:32px; line-height:1.1; }
+[aria-label="Carte du royaume"] .ribbon { color:#fbf6e9; background:#183a30ed; padding:13px 20px; border:1px solid #b69b63; border-radius:6px; font-size:26px; }
+.glass { background:#ffffff78; border:1px solid #dfdacd; backdrop-filter:blur(8px); }
+.glow-primary { box-shadow:0 0 0 1px #a78b56,0 8px 24px #253e3012; }
+.text-glow { text-shadow:none; }
+.btn-pixel { border:1px solid #254d3e; background:#28503f; color:#fffaf0; box-shadow:inset 0 1px 0 #ffffff15,0 2px 4px #18352712; border-radius:6px; text-shadow:none; }
+.btn-pixel:hover { background:#1c3f30; }
+.btn-pixel:active:not(:disabled) { transform:translateY(1px); }
+.btn-pixel-red { background:#854e43; border-color:#854e43; }
+.btn-pixel-red:hover { background:#703f36; }
+.quest-shell { min-height:100dvh; }
+.quest-sidebar { position:fixed; inset:0 auto 0 0; z-index:30; width:230px; padding:35px 20px 25px; color:#c4cbbf; background:radial-gradient(ellipse at 0 100%,#2c4936,transparent 60%),#17352d; border-right:1px solid #bda57438; display:flex; flex-direction:column; }
+.quest-brand { display:flex; align-items:center; gap:10px; text-align:left; color:#f2ead9; margin:0 0 48px; }
+.quest-brand>span:last-child { font-family:'Cormorant Garamond',Georgia,serif; font-size:23px; font-weight:600; white-space:nowrap; }
+.quest-brand small { display:block; color:#a9b5a6; font:8px 'DM Sans',sans-serif; letter-spacing:1.1px; margin-top:5px; }
+.brand-emblem { width:35px; height:44px; display:grid; place-items:center; color:#c6aa73; border:1px solid #9e895651; border-radius:12px 12px 18px 18px; flex-shrink:0; }
+.nav-caption { font-size:9px; font-weight:600; letter-spacing:1.9px; color:#98ab9e; padding:0 14px; margin-bottom:13px; }
+.nav-divider { border-top:1px solid #b3bba51c; padding-top:28px; margin-top:24px; }
+.quest-nav-item { display:flex; align-items:center; width:100%; gap:13px; padding:12px 14px; border-radius:5px; margin:3px 0; font-size:13px; text-align:left; transition:background .2s; }
+.quest-nav-item>span { flex:1; }
+.quest-nav-item:hover { color:#fcf4e2; background:#ffffff09; }
+.quest-nav-item.is-active { background:#d5c18f16; color:#e4ce9b; box-shadow:inset 2px 0 #c2a362; }
+.sidebar-bottom { margin-top:auto; padding:35px 12px 0; color:#aa986f; }
+.sidebar-bottom p { font-family:'Cormorant Garamond',Georgia,serif; font-size:19px; line-height:1.4; margin:15px 0 22px; color:#c6cebd; }
+.sidebar-bottom strong { font-weight:500; }
+.sidebar-bottom>span { font-size:8px; letter-spacing:1.5px; color:#9aac9e; }
+.quest-workspace { margin-left:230px; min-width:0; }
+.quest-topbar { min-height:76px; padding:15px 38px; display:flex; align-items:center; justify-content:space-between; gap:16px; border-bottom:1px solid #e3dfd4; background:#faf8f2e8; }
+.quest-breadcrumb { display:flex; align-items:center; gap:11px; font-size:11px; color:#777e71; }
+.quest-breadcrumb strong { color:#364939; font-weight:500; }
+.quest-account { display:flex; align-items:center; gap:12px; }
+.resource { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:600; white-space:nowrap; }
+.resource svg { color:#72816d; }
+.resource-label { color:#777b6f; font-weight:400; font-size:10px; }
+.streak-resource svg { color:#a48245; }
+.gold-resource { border-right:1px solid #dcd7ca; padding-right:14px; }
+.resource img { width:21px; height:21px; image-rendering:pixelated; }
+.voice-toggle { padding:8px; color:#6f796c; border-radius:4px; }
+.voice-toggle:hover { background:#e8e4d9; }
+.quest-content { max-width:1400px; padding:37px 42px 35px; margin:auto; }
+.quest-footer { max-width:1316px; margin:0 42px; padding:25px 0; border-top:1px solid #ddd8ca; color:#7a7e6e; font-size:10px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
+.quest-footer>span:first-child { letter-spacing:2px; font-size:9px; font-weight:600; }
+.quest-shell-world .quest-workspace { height:100dvh; display:flex; flex-direction:column; }
+.quest-world { flex:1; min-height:0; }
+.quest-world>section { min-height:0; }
+.mobile-menu-toggle { display:none; }
+.skip-link { position:fixed; top:-100px; left:245px; z-index:100; background:#fff; padding:15px; }
+.skip-link:focus { top:10px; }
+.home-dashboard { display:flex; flex-direction:column; gap:28px; }
+.page-intro { display:flex; justify-content:space-between; align-items:center; gap:15px; }
+.eyebrow { font-size:9px; letter-spacing:1.7px; font-weight:600; color:#827454; }
+.page-intro h1 { font-size:30px; margin:7px 0 0; line-height:1.2; }
+.chapter-tag { display:flex; align-items:center; gap:7px; color:#6d7968; border:1px solid #dcd8c9; border-radius:100px; padding:7px 12px; font-size:10px; white-space:nowrap; }
+.adventure-hero { display:grid; grid-template-columns:1.15fr 1fr; min-height:354px; background:#193d31; color:#f9f3e5; overflow:hidden; border-radius:10px; border:1px solid #42604c; position:relative; box-shadow:0 8px 20px #283e3010; }
+.hero-copy { padding:39px 12px 32px 36px; position:relative; z-index:1; }
+.hero-eyebrow { color:#cbb787; display:flex; align-items:center; gap:8px; font-size:8px; letter-spacing:1.6px; }
+.hero-eyebrow>span { width:5px; height:5px; background:#cfb77c; transform:rotate(45deg); }
+.hero-copy h2 { font-size:clamp(34px,3.3vw,50px); line-height:1.03; margin:21px 0 17px; font-weight:500; letter-spacing:-1.3px; }
+.hero-copy h2 em { color:#ddc68f; font-weight:500; }
+.hero-copy p { font-size:12px; line-height:1.85; color:#c5d0bf; max-width:360px; }
+.hero-actions { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-top:22px; }
+.hero-actions .btn-pixel { background:#dfc58b; color:#243b2d; border-color:#dfc58b; font-size:11px; height:42px; padding:0 15px; }
+.hero-actions .btn-pixel:hover { background:#f1d9a4; }
+.hero-link { display:flex; align-items:center; gap:6px; font-size:10px; color:#e7e6d8; }
+.hero-footnote { display:flex; align-items:center; gap:8px; font-size:9px; color:#a9bcaa; margin-top:24px; }
+.hero-illustration { position:relative; overflow:hidden; min-height:100%; text-align:left; border:0; }
+.hero-illustration>img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:48% 35%; opacity:.82; filter:saturate(.72); }
+.hero-illustration:after { content:''; position:absolute; inset:0; background:linear-gradient(90deg,#193d31 0%,#193d3105 36%),linear-gradient(0deg,#193d31d9,transparent 40%); pointer-events:none; }
+.hero-illustration:hover>img { filter:saturate(1); }
+.map-compass { position:absolute; z-index:1; right:25px; top:24px; display:flex; flex-direction:column; align-items:center; color:#fff1bf; font:9px Georgia,serif; text-shadow:0 1px 5px #17352d; }
+.map-compass>span { font-size:44px; line-height:1.1; }
+.map-caption { position:absolute; z-index:1; bottom:25px; left:38px; right:22px; display:flex; align-items:center; gap:10px; font-family:'Cormorant Garamond',Georgia,serif; font-size:19px; color:#fff2d4; }
+.map-caption>span { flex:1; }
+.map-caption small { display:block; font:7px 'DM Sans',sans-serif; letter-spacing:1.6px; margin-top:6px; color:#cad6c2; }
+.journey-stats { display:grid; grid-template-columns:1fr 1fr 1fr 1.3fr; border:1px solid #ded9cc; border-radius:8px; background:#faf8f1; padding:23px 0; }
+.journey-stat { display:flex; align-items:center; gap:12px; border-right:1px solid #e2ddcf; padding:0 22px; }
+.stat-icon { display:grid; place-items:center; color:#9b814e; }
+.stat-icon img { width:25px; image-rendering:pixelated; }
+.journey-stat strong { display:block; font:600 27px 'Cormorant Garamond',Georgia,serif; }
+.journey-stat strong small { font-size:15px; font-weight:400; color:#7c8274; }
+.journey-stat div>span { display:block; font-size:11px; color:#686e5f; margin-top:3px; }
+.journey-rank { padding:0 20px; display:flex; align-items:center; gap:10px; }
+.journey-rank>img { height:48px; width:48px; }
+.journey-rank>div { flex:1; }
+.journey-rank span { font-size:7px; letter-spacing:1.3px; color:#7e755e; }
+.journey-rank strong { display:block; font:600 20px 'Cormorant Garamond',Georgia,serif; margin:2px 0 5px; }
+.journey-rank small { font-size:10px; color:#707966; }
+.fine-progress { display:block; height:3px; background:#e1ddcf; border-radius:4px; overflow:hidden; }
+.fine-progress i { display:block; background:#a68a51; height:100%; }
+.dashboard-columns { display:grid; grid-template-columns:1.16fr 1fr; gap:26px; }
+.section-heading { display:flex; align-items:center; justify-content:space-between; gap:15px; margin:1px 0 15px; }
+.section-heading h2 { font-size:27px; line-height:1.1; }
+.section-heading>span { font-size:8px; letter-spacing:1.1px; color:#8e8773; }
+.section-heading>svg { color:#a18e64; }
+.quest-card-content { padding:25px 28px; }
+.quest-card-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:22px; }
+.quest-seal { width:48px; height:48px; border:1px solid #ddd2b5; border-radius:50%; display:grid; place-items:center; background:#f3eddc; color:#a18449; }
+.subtle-badge { border:1px solid #d9dfcf; background:#edf1e6; border-radius:4px; padding:5px 9px; font-size:9px; color:#536b4e; }
+.next-quest h3 { font-size:31px; margin:5px 0 9px; }
+.next-quest p { font-size:12px; color:#798071; line-height:1.7; margin-bottom:23px; }
+.next-quest .btn-pixel { font-size:11px; }
+.daily-content { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:22px; }
+.daily-content h3 { font-size:24px; margin:4px 0; }
+.daily-content p { color:#6c7462; font-size:12px; }
+.daily-ring { width:70px; height:70px; border-radius:50%; padding:5px; flex-shrink:0; }
+.daily-ring>span { display:grid; place-content:center; grid-auto-flow:column; align-items:baseline; width:100%; height:100%; background:#fffcf6; border-radius:50%; font:600 25px 'Cormorant Garamond',Georgia,serif; }
+.daily-ring small { font:10px 'DM Sans',sans-serif; margin-left:2px; }
+.practice-links { margin-top:12px; }
+.practice-links button { width:100%; display:flex; align-items:center; gap:14px; padding:17px 5px; text-align:left; border-bottom:1px solid #e1ddcf; }
+.practice-links button>span { flex:1; }
+.practice-links strong { display:block; font-size:11px; font-weight:500; }
+.practice-links small { display:block; color:#818575; font-size:11px; margin-top:5px; }
+.practice-links svg { color:#8d805c; }
+.practice-links button:disabled { opacity:.65; cursor:default; }
+.practice-links button:not(:disabled):hover strong { color:#a5803d; }
+.campaign-section .section-heading h2 { margin-top:6px; font-size:30px; }
+.text-link { display:flex; align-items:center; gap:8px; font-size:10px; color:#66785e; }
+.rank-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; }
+.rank-card { padding:13px 12px 15px; border:1px solid #ddd8ca; border-radius:7px; background:#faf8f2; text-align:center; }
+.rank-level { display:flex; justify-content:space-between; font-size:10px; color:#8b856d; }
+.rank-card>img { width:60px; height:60px; margin:9px auto 7px; }
+.rank-card>strong { display:block; font:600 19px 'Cormorant Garamond',Georgia,serif; white-space:nowrap; }
+.rank-card>small { display:block; font-size:11px; color:#737867; margin:7px 0 14px; }
+.rank-open { border-color:#a5905a; background:#fffdf5; box-shadow:inset 0 2px #ac945e; }
+.rank-open:hover { background:#f1ecdf; }
+.rank-locked { background:#efeee7; color:#737b6b; }
+.rank-locked>img { filter:grayscale(.8); opacity:.65; }
+.grimoire-strip { display:flex; align-items:center; gap:18px; border:1px solid #dcd6c4; background:#ece9dc; border-radius:7px; padding:21px 26px; text-align:left; color:#786846; }
+.grimoire-strip>span { flex:1; }
+.grimoire-strip strong { display:block; font:600 22px 'Cormorant Garamond',Georgia,serif; color:#43513b; }
+.grimoire-strip small { display:block; font-size:10px; margin-top:4px; color:#7f826e; }
+@media(min-width:1600px) { .quest-content { padding-top:45px; } .adventure-hero { min-height:400px; } .hero-copy { padding:46px; } .hero-copy h2 { font-size:55px; } }
+@media(max-width:1200px) { .quest-sidebar { width:205px; padding-left:15px; padding-right:15px; } .quest-brand>span:last-child { font-size:21px; } .quest-brand small { font-size:7px; } .quest-workspace { margin-left:205px; } .quest-content { padding:28px; } .quest-topbar { padding:14px 28px; } .quest-breadcrumb { display:none; } .quest-account { margin-left:auto; } .journey-stat { padding:0 12px; gap:8px; } .journey-rank { padding:0 12px; } .hero-copy { padding:30px 5px 28px 28px; } .rank-grid { gap:8px; } .rank-card { padding:12px 8px; } .rank-card>strong { font-size:17px; } .hero-actions { gap:12px; } }
+@media(max-width:1000px) { .quest-sidebar { position:sticky; top:0; width:100%; height:auto; flex-direction:row; align-items:center; justify-content:space-between; padding:13px 24px; } .quest-brand { margin:0; } .quest-brand>span:last-child { font-size:23px; } .quest-brand small { font-size:7px; } .brand-emblem { height:36px; } .quest-workspace { margin-left:0; } .sidebar-bottom { display:none; } .mobile-menu-toggle { display:grid; place-items:center; width:42px; height:42px; border:1px solid #c5b5884d; border-radius:5px; color:#e1d5b8; } .quest-navigation { display:none; position:absolute; top:100%; left:0; right:0; padding:20px; background:#17352d; border-bottom:1px solid #b69b63; box-shadow:0 15px 20px #17352d33; max-height:calc(100dvh - 80px); overflow-y:auto; } .quest-navigation.is-open { display:grid; grid-template-columns:1fr 1fr; gap:3px 15px; } .nav-caption { display:none; } .quest-topbar { min-height:60px; padding:10px 26px; } .quest-breadcrumb { display:flex; } .quest-shell-world { height:100dvh; display:flex; flex-direction:column; } .quest-shell-world .quest-workspace { flex:1; height:auto; min-height:0; } .skip-link { left:15px; } }
+@media(max-width:680px) { .quest-content { padding:25px 18px; } .quest-topbar { padding:10px 15px; } .quest-account { gap:8px; width:100%; justify-content:flex-end; } .quest-breadcrumb { display:none; } .quest-account .streak-resource { margin-right:auto; } .resource-label { display:none; } .signup-button { display:none; } .quest-account button { font-size:11px; } .quest-sidebar { padding:11px 18px; } .quest-footer { margin:0 18px; } .quest-footer>span:nth-child(2) { font-size:8px; } .home-dashboard { gap:23px; } .page-intro h1 { font-size:27px; } .page-intro .eyebrow { font-size:8px; letter-spacing:1.1px; } .chapter-tag { display:none; } .adventure-hero { grid-template-columns:1fr; } .hero-copy { padding:28px 25px; } .hero-copy h2 { font-size:39px; } .hero-copy p { max-width:100%; } .hero-illustration { min-height:190px; } .hero-illustration:after { background:linear-gradient(180deg,#193d31,transparent 40%),linear-gradient(0deg,#193d31b0,transparent 55%); } .hero-illustration>img { object-position:50% 42%; } .map-caption { left:25px; bottom:18px; } .map-compass { top:10px; right:20px; } .journey-stats { grid-template-columns:1fr 1fr; padding:0; } .journey-stat { padding:20px; border-bottom:1px solid #e2ddcf; } .journey-stat:nth-child(2) { border-right:0; } .journey-stat:nth-child(3) { border-bottom:0; } .journey-rank { padding:14px 12px; } .journey-rank>img { width:40px; height:40px; } .dashboard-columns { grid-template-columns:1fr; gap:25px; } .section-heading h2 { font-size:27px; } .section-heading>span { font-size:7px; } .rank-grid { grid-template-columns:repeat(3,1fr); gap:10px; } .rank-card>strong { font-size:19px; } .rank-card>img { width:54px; height:54px; } .grimoire-strip { padding:20px; gap:12px; } .grimoire-strip strong { font-size:21px; } .grimoire-strip small { font-size:9px; } .text-link { font-size:9px; } .ribbon { font-size:29px; } }
+@media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } *,*::before,*::after { animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; } }
 
-  --brand-gold: 43 88% 58%;
-  --brand-blue: 207 55% 50%;
-  --brand-red: 3 62% 52%;
-  --brand-wood: 25 45% 24%;
-  --brand-sea: 178 42% 48%;
-}
-
-/* Variables « parchemin » : tout ce qui est dans une carte devient lisible sur fond clair */
-.paper,
-.paper-light {
-  --foreground: 28 48% 15%;
-  --card-foreground: 28 48% 15%;
-  --muted-foreground: 30 26% 34%;
-  --secondary: 40 42% 72%;
-  --secondary-foreground: 28 48% 15%;
-  --muted: 40 40% 76%;
-  --border: 32 32% 56%;
-  --input: 32 32% 56%;
-  --primary: 207 58% 36%;           /* bleu royal lisible sur parchemin */
-  --primary-foreground: 45 90% 96%;
-  --accent: 3 55% 42%;
-  --ring: 207 58% 36%;
-  color: hsl(var(--foreground));
-}
-
-* {
-  border-color: hsl(var(--border));
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  background:
-    linear-gradient(180deg, rgba(7, 22, 28, 0.84), rgba(6, 16, 22, 0.93)),
-    url('/ts/map-medium.jpg') center / cover fixed,
-    #0b1d22;
-  color: hsl(var(--foreground));
-  font-family: 'Nunito', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  font-weight: 500;
-  -webkit-font-smoothing: antialiased;
-}
-
-h1,
-h2,
-h3,
-.font-display {
-  font-family: 'MedievalSharp', 'Nunito', Georgia, serif;
-  letter-spacing: 0.01em;
-  font-weight: 400;
-}
-
-.pixel {
-  image-rendering: pixelated;
-}
-
-/* ---------- Parchemin (cartes) ---------- */
-.paper {
-  border-style: solid;
-  border-width: 18px 22px 20px 22px;
-  border-image: url('/ts/ui/paper.png') 44 52 45 52 / 18px 22px 20px 22px stretch;
-  background: #eee1c6 padding-box;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
-}
-.paper-dark {
-  border-style: solid;
-  border-width: 16px 18px;
-  border-image: url('/ts/ui/paper-dark.png') 44 55 43 55 / 16px 18px stretch;
-  background: #525b66 padding-box;
-  image-rendering: pixelated;
-  color: hsl(42 55% 91%);
-}
-.wood-panel {
-  border-style: solid;
-  border-width: 22px 22px 26px 22px;
-  border-image: url('/ts/ui/wood.png') 85 84 103 84 fill / 22px 22px 26px 22px round;
-  image-rendering: pixelated;
-}
-
-/* ---------- Rubans et plaques (titres) ---------- */
-.ribbon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  padding: 0 4px 6px;
-  border-style: solid;
-  border-width: 0 40px;
-  border-image: url('/ts/ui/ribbon-blue.png') 0 97 0 98 fill / 0 40px round;
-  image-rendering: pixelated;
-  color: #fff8e6;
-  font-family: 'MedievalSharp', Georgia, serif;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
-  white-space: nowrap;
-}
-.ribbon-red { border-image-source: url('/ts/ui/ribbon-red.png'); }
-.ribbon-yellow { border-image-source: url('/ts/ui/ribbon-yellow.png'); }
-.ribbon-purple { border-image-source: url('/ts/ui/ribbon-purple.png'); }
-.ribbon-slate { border-image-source: url('/ts/ui/ribbon-slate.png'); }
-
-.sword-plate {
-  display: inline-flex;
-  align-items: center;
-  min-height: 52px;
-  padding: 0 6px 2px;
-  border-style: solid;
-  border-width: 0 36px 0 42px;
-  border-image: url('/ts/ui/sword-blue.png') 0 92 0 105 fill / 0 36px 0 42px stretch;
-  image-rendering: pixelated;
-  color: #3a2614;
-  font-family: 'MedievalSharp', Georgia, serif;
-}
-
-/* ---------- Boutons pixel ---------- */
-.btn-pixel {
-  border-style: solid;
-  border-width: 9px 10px 11px 10px;
-  border-image: url('/ts/ui/btn-blue.png') 47 45 47 45 fill / 9px 10px 11px 10px stretch;
-  image-rendering: pixelated;
-  color: #fffbe9;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
-}
-.btn-pixel:active:not(:disabled) {
-  border-image-source: url('/ts/ui/btn-blue-pressed.png');
-  transform: translateY(2px);
-}
-.btn-pixel-red {
-  border-image-source: url('/ts/ui/btn-red.png');
-}
-.btn-pixel-red:active:not(:disabled) {
-  border-image-source: url('/ts/ui/btn-red.png');
-}
-
-/* ---------- Barre de navigation en bois ---------- */
-.wood-bar {
-  background:
-    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.06) 0 2px, transparent 2px 38px),
-    linear-gradient(180deg, #7a4e2b 0%, #5c3a1f 55%, #472c17 100%);
-  border-bottom: 4px solid #2b1a0d;
-  box-shadow: inset 0 2px 0 rgba(255, 220, 160, 0.25), 0 6px 18px rgba(0, 0, 0, 0.45);
-}
-
-.glass {
-  background: hsl(var(--foreground) / 0.06);
-  border: 1px solid hsl(var(--border));
-  backdrop-filter: blur(6px);
-}
-
-.glow-primary {
-  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.3), 0 8px 26px -12px hsl(var(--primary) / 0.5);
-}
-
-.text-glow {
-  text-shadow: 0 0 18px hsl(var(--brand-gold) / 0.45), 0 2px 0 rgba(0, 0, 0, 0.5);
-}
-
-/* ---------- Sprites animés (feuilles Tiny Swords) ---------- */
 @keyframes ts-sprite {
   from { background-position-x: 0; }
   to { background-position-x: var(--sheet-w); }
@@ -312,3 +284,70 @@ h3,
   background-position: left center;
   animation: eq-sweep linear forwards;
 }
+
+::-webkit-scrollbar-thumb{background:#a9ad9d}
+/* Two appearances, one visual identity. Theme follows the saved game preference. */
+html { color-scheme:light; }
+html.dark { color-scheme:dark;
+ --background:155 19% 10%; --foreground:43 29% 85%; --card:155 17% 14%; --card-foreground:43 29% 85%;
+ --primary:42 43% 65%; --primary-foreground:156 28% 14%; --secondary:155 14% 21%; --secondary-foreground:42 25% 83%;
+ --muted:155 13% 18%; --muted-foreground:110 9% 64%; --accent:40 37% 64%; --accent-foreground:155 24% 12%;
+ --border:145 11% 27%; --input:145 12% 34%; --ring:42 43% 65%;
+}
+.theme-toggle { display:grid; place-items:center; width:34px; height:34px; border:1px solid #dcd6c5; border-radius:50%; color:#8c774b; flex-shrink:0; }
+.theme-toggle:hover { background:#e9e5d9; }
+.dark body { background:#151f1a; color:#e8e2d3; }
+.dark .quest-sidebar { background:radial-gradient(ellipse at 0 100%,#243b2c,transparent 65%),#10291f; border-color:#3e4835; }
+.dark .quest-topbar { background:#18271eea; border-color:#354034; }
+.dark .quest-breadcrumb { color:#a2b29e; }
+.dark .quest-breadcrumb strong { color:#e0deca; }
+.dark .resource-label,.dark .voice-toggle { color:#adb8a3; }
+.dark .resource svg { color:#c1b98d; }
+.dark .gold-resource { border-color:#424a3a; }
+.dark .theme-toggle { border-color:#786b47; color:#dcc38b; }
+.dark .theme-toggle:hover,.dark .voice-toggle:hover { background:#354332; }
+.dark .paper,.dark .paper-light { background:#202d24; color:#e8e2d3; border-color:#414b3b; box-shadow:0 4px 18px #00000012; }
+.dark .ribbon,.dark .sword-plate { color:#e9e0c9; border-color:#89794e; }
+.dark .glass { background:#213127b0; border-color:#45503e; }
+.dark .chapter-tag { color:#afba9f; border-color:#48503c; }
+.dark .eyebrow { color:#bca777; }
+.dark .adventure-hero { background:#173d2e; border-color:#4b5d3c; }
+.dark .hero-copy { background:#173d2e; }
+.dark .hero-illustration:after { background:linear-gradient(90deg,#173d2e,transparent 36%),linear-gradient(0deg,#173d2ed9,transparent 40%); }
+.dark .btn-pixel { background:#cdb27a; color:#1b3021; border-color:#cdb27a; }
+.dark .btn-pixel:hover { background:#dfc58d; }
+.dark .btn-pixel-red { background:#8e5548; border-color:#b57362; color:#fff1e5; }
+.dark .btn-pixel-red:hover { background:#a46150; }
+.dark .journey-stats { background:#1c2a21; border-color:#414a38; }
+.dark .journey-stat { border-color:#414a38; }
+.dark .journey-stat div>span,.dark .journey-stat strong small { color:#a9b19a; }
+.dark .stat-icon { color:#c5af77; }
+.dark .journey-rank span { color:#bda777; }
+.dark .journey-rank small { color:#aeb69e; }
+.dark .fine-progress { background:#3b4534; }
+.dark .fine-progress i { background:#c8ad70; }
+.dark .section-heading>span,.dark .section-heading>svg { color:#b1a47e; }
+.dark .quest-seal { background:#36412c; border-color:#615b3d; color:#d8bf80; }
+.dark .subtle-badge { background:#314a34; border-color:#50613f; color:#d0d9b7; }
+.dark .next-quest p,.dark .daily-content p { color:#b2b9a4; }
+.dark .daily-ring>span { background:#202d24; }
+.dark .daily-ring { background:conic-gradient(#cdb27a var(--daily-progress),#3d4936 0)!important; }
+.dark .practice-links button { border-color:#3b4734; }
+.dark .practice-links small { color:#a4b096; }
+.dark .practice-links svg { color:#bba879; }
+.dark .practice-links button:not(:disabled):hover strong { color:#dfc68b; }
+.dark .text-link { color:#c8bc94; }
+.dark .rank-card { background:#222f24; border-color:#424d36; }
+.dark .rank-level,.dark .rank-card>small { color:#aab497; }
+.dark .rank-open { background:#2b3928; border-color:#aa925c; }
+.dark .rank-open:hover { background:#35452d; }
+.dark .rank-locked { background:#1c291f; color:#a1ac93; }
+.dark .rank-locked>img { opacity:.7; }
+.dark .grimoire-strip { background:#2c3425; color:#c7b47f; border-color:#55573a; }
+.dark .grimoire-strip strong { color:#e1dec6; }
+.dark .grimoire-strip small { color:#b2b99c; }
+.dark .quest-footer { border-color:#3a4432; color:#a5ac92; }
+.dark ::-webkit-scrollbar-thumb { background:#4d5b43; }
+.dark ::-webkit-scrollbar-track { background:#17241c; }
+@media(max-width:1000px) { .dark .quest-navigation { background:#10291f; } }
+@media(max-width:680px) { .dark .hero-illustration:after { background:linear-gradient(180deg,#173d2e,transparent 40%),linear-gradient(0deg,#173d2eb0,transparent 55%); } .theme-toggle { width:30px; height:30px; } .quest-account { gap:6px; } }

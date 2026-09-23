@@ -43,6 +43,11 @@ export default function App() {
     saveGameState(state);
   }, [state]);
 
+  // Chaque nouvel écran commence en haut, même après une action en bas de page.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [page, lesson, exercising, result, reviewResult, selectedLevel, boss, reviewSession]);
+
   // À la connexion : charger la progression du compte (source de vérité entre appareils)
   useEffect(() => {
     if (!isLoaded) return;
@@ -330,6 +335,7 @@ export default function App() {
         page={page}
         onNavigate={navigate}
         state={state}
+        onToggleDark={() => setState((current) => ({ ...current, dark: !current.dark }))}
         onAddCoins={() => setState((current) => ({ ...current, coins: current.coins + 1000 }))}
       >
         {content}
