@@ -1,5 +1,5 @@
 // Moteur de la carte du royaume « English Sword » (canvas 2D, pixel art Tiny Swords).
-// - carte générée depuis Tiled (src/data/world.json + public/ts/land.png)
+// - carte générée depuis Tiled (src/data/world.json + public/ts/land-*.png, land.png = vue d’ensemble)
 // - écume, arbres, soldats, feux… animés image par image
 // - objets achetés au marché : déplaçables à la souris / au doigt, les personnages se promènent
 // - îles verrouillées recouvertes de brouillard tant que les quêtes ne sont pas faites
@@ -218,7 +218,11 @@ export function createWorld(
     }
     return im;
   };
-  const land = img('land.png');
+  // terre découpée en morceaux de 2048 px (chargés seulement quand on les voit)
+  // + une version demi-résolution pour la vue d'ensemble
+  const CHUNK = 2048;
+  const landLow = img('land.png');
+  const landChunk = (i: number, j: number) => img(`land-${i}-${j}.png`);
   const foam = img('sprites/foam.png');
 
   let unlocked = opts.unlocked;
@@ -637,6 +641,20 @@ export function createWorld(
     return { x0: e.x - w / 2, x1: e.x + w / 2, y0: e.y - h, y1: e.y + 8 };
   }
 
+  function forChunks(x0: number, y0: number, x1: number, y1: number, fn: (im: HTMLImageElement, ox: number, oy: number) => void) {
+    const i0 = Math.max(0, Math.floor(x0 / CHUNK));
+    const j0 = Math.max(0, Math.floor(y0 / CHUNK));
+    const i1 = Math.min(Math.ceil(WORLD_W / CHUNK) - 1, Math.floor(x1 / CHUNK));
+    const j1 = Math.min(Math.ceil(WORLD_H / CHUNK) - 1, Math.floor(y1 / CHUNK));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) fn(landChunk(i, j), i * CHUNK, j * CHUNK);
+  }
+  function chunkReady(x0: number, y0: number, x1: number, y1: number) {
+    let ok = true;
+    forChunks(x0, y0, x1, y1, (im) => {
+      if (!im.complete || !im.naturalWidth) ok = false;
+    });
+    return ok;
+  }
   function draw() {
     const vx0 = cam.x - W / 2 / cam.z;
     const vy0 = cam.y - H / 2 / cam.z;
@@ -659,12 +677,24 @@ export function createWorld(
       }
     }
     // terre, falaises, plateaux
-    if (land.complete && land.naturalWidth) {
-      const sx = Math.max(0, Math.floor(vx0));
-      const sy = Math.max(0, Math.floor(vy0));
-      const sw = Math.min(WORLD_W, Math.ceil(vx1)) - sx;
-      const sh = Math.min(WORLD_H, Math.ceil(vy1)) - sy;
-      if (sw > 0 && sh > 0) ctx.drawImage(land, sx, sy, sw, sh, sx, sy, sw, sh);
+    if (cam.z < 0.5 || !chunkReady(vx0, vy0, vx1, vy1)) {
+      if (landLow.complete && landLow.naturalWidth) {
+        const sx = Math.max(0, Math.floor(vx0));
+        const sy = Math.max(0, Math.floor(vy0));
+        const sw = Math.min(WORLD_W, Math.ceil(vx1)) - sx;
+        const sh = Math.min(WORLD_H, Math.ceil(vy1)) - sy;
+        if (sw > 0 && sh > 0) ctx.drawImage(landLow, sx / 2, sy / 2, sw / 2, sh / 2, sx, sy, sw, sh);
+      }
+    }
+    if (cam.z >= 0.5) {
+      forChunks(vx0, vy0, vx1, vy1, (im, ox, oy) => {
+        if (!im.complete || !im.naturalWidth) return;
+        const sx = Math.max(ox, Math.floor(vx0));
+        const sy = Math.max(oy, Math.floor(vy0));
+        const ex = Math.min(ox + im.naturalWidth, Math.ceil(vx1));
+        const ey = Math.min(oy + im.naturalHeight, Math.ceil(vy1));
+        if (ex > sx && ey > sy) ctx.drawImage(im, sx - ox, sy - oy, ex - sx, ey - sy, sx, sy, ex - sx, ey - sy);
+      });
     }
     // sélection
     const sel = selected ? findByKey(selected) : null;
