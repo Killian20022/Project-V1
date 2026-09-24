@@ -53,6 +53,11 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
           ...current,
           placed: (current.placed ?? []).map((p) => (p.k === k ? { ...p, x, y } : p)),
         })),
+      onVariant: (k, id) =>
+        setState((current) => ({
+          ...current,
+          placed: (current.placed ?? []).map((p) => (p.k === k ? { ...p, id } : p)),
+        })),
       onSelect: (k, info) => {
         setSelected(k);
         setSelInfo(info ?? null);
@@ -131,7 +136,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
       </div>
 
       <div className="pointer-events-none absolute left-3 top-3 hidden sm:block md:left-6 md:top-5">
-        <h1 className="ribbon text-xl md:text-2xl">L’archipel d’Albion</h1>
+        <h1 className="ribbon text-xl md:text-2xl">L’archipel de Scriptoria</h1>
         <p className="mt-1 hidden max-w-sm rounded-md bg-[#2b1a0d]/75 px-3 py-1.5 text-xs text-[#ffeccc] md:block">
           Glisse pour explorer · molette pour zoomer · touche un personnage ou un bâtiment pour le déplacer ou le supprimer
         </p>
@@ -230,7 +235,8 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
     const item = SHOP_MAP[id];
     if (!item) return;
     setState((current) => {
-      const count = (current.placed ?? []).filter((p) => p.id === id).length;
+      const ids = item.variants ?? [id];
+      const count = (current.placed ?? []).filter((p) => ids.includes(p.id)).length;
       if (count >= item.max || current.coins < item.price) return current;
       const k = `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       const { x, y } = findSpot(unlocked, current.placed ?? [], id, current.decorPos ?? {}, current.decorRemoved ?? []);
@@ -246,7 +252,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
   }
 
   const hasFactions = cat === 'soldats' || cat === 'batiments';
-  const items = SHOP.filter((i) => i.category === cat && (!hasFactions || faction === 'all' || i.faction === faction));
+  const items = SHOP.filter((i) => i.category === cat && !i.hidden && (!hasFactions || faction === 'all' || i.faction === faction));
   const info = CATEGORIES.find((c) => c.id === cat)!;
 
   return (
@@ -303,7 +309,9 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((item) => {
-          const count = countOwned(state, item.id);
+          const count = item.variants
+            ? item.variants.reduce((sum, v) => sum + countOwned(state, v), 0)
+            : countOwned(state, item.id);
           const maxed = count >= item.max;
           const canBuy = !maxed && state.coins >= item.price;
           const person = item.category === 'soldats' || item.category === 'animaux';

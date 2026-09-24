@@ -74,7 +74,7 @@ export function HomePage({
           <div className="hero-footnote"><ShieldMark /> 95 quêtes · 6 niveaux · Un royaume à façonner</div>
         </div>
         <button className="hero-illustration" onClick={() => navigate('island')} aria-label="Explorer mon royaume">
-          <img src={import.meta.env.BASE_URL + 'ts/map-medium.jpg'} alt="Carte en pixel art des îles du royaume" /><span className="map-compass">N<span>✧</span>S</span><span className="map-caption"><MapIcon size={16}/><span>L’archipel d’Albion<small>VOTRE MONDE À CONQUÉRIR</small></span><ArrowRight size={17}/></span>
+          <img src={import.meta.env.BASE_URL + 'ts/map-medium.jpg'} alt="Carte en pixel art des îles du royaume" /><span className="map-compass">N<span>✧</span>S</span><span className="map-caption"><MapIcon size={16}/><span>L’archipel de Scriptoria<small>VOTRE MONDE À CONQUÉRIR</small></span><ArrowRight size={17}/></span>
         </button>
       </section>
       <section className="journey-stats" aria-label="Votre progression">
@@ -100,6 +100,15 @@ export function HomePage({
       </div>
       <section className="campaign-section"><div className="section-heading"><div><span className="eyebrow">VOTRE CAMPAGNE</span><h2>De l’écuyer au roi.</h2></div><button className="text-link" onClick={() => navigate('learn')}>Toutes les quêtes <ArrowRight size={15}/></button></div>
         <div className="rank-grid">{LEVELS.map((lv, i) => { const done = Math.min(state.lessons[lv] ?? 0, lessonCount(lv)); const locked = !isDev && i > 0 && (state.lessons[LEVELS[i-1]] ?? 0) === 0; return <button key={lv} disabled={locked} onClick={() => openLevel(lv)} className={'rank-card ' + (locked ? 'rank-locked' : 'rank-open')} title={locked ? 'Avancez dans le rang précédent pour débloquer' : 'Ouvrir les quêtes'}><span className="rank-level">{lv}{locked ? <Lock size={12}/> : done >= lessonCount(lv) ? <Check size={13}/> : <Flag size={13}/>}</span><img src={uiUrl(LEVEL_INFO[lv].avatar)} alt="" className="pixel"/><strong>{LEVEL_INFO[lv].name}</strong><small>{done} / {lessonCount(lv)} quêtes</small><span className="fine-progress"><i style={{width: done / lessonCount(lv) * 100 + '%'}}/></span></button>;})}</div>
+      </section>
+      <section className="lore-scroll" aria-labelledby="lore-title">
+        <span className="lore-seal"><ScrollText size={26} strokeWidth={1.3} /></span>
+        <div className="lore-body">
+          <span className="eyebrow">POURQUOI « SCRIPTORIA » ?</span>
+          <h2 id="lore-title">Le nom vient des <em>scriptoria</em> médiévaux.</h2>
+          <p>Au Moyen Âge, le <strong>scriptorium</strong> était la salle des monastères où les moines copistes recopiaient et enluminaient les manuscrits, à la main, mot après mot. C’était le cœur du savoir : on y préservait et transmettait les langues.</p>
+          <p>Ici, c’est votre scriptorium à vous. Chaque quête ajoute un mot, une tournure, une page à votre maîtrise de l’anglais — jusqu’à bâtir tout un royaume de savoir.</p>
+        </div>
       </section>
       <button className="grimoire-strip" onClick={() => navigate('dictionary')}><BookOpen size={24} strokeWidth={1.4}/><span><strong>Les mots sont vos meilleures armes.</strong><small>Un mot à découvrir ? Ouvrez votre grimoire.</small></span><ArrowRight size={20}/></button>
     </div>

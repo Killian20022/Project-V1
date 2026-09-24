@@ -12,7 +12,7 @@
 * { border-color: hsl(var(--border)); }
 html { scroll-behavior: smooth; }
 body { margin:0; min-width:320px; background:#f5f3ed; color:#293c32; font-family:'DM Sans',system-ui,sans-serif; font-size:14px; -webkit-font-smoothing:antialiased; }
-h1,h2,h3,.font-display { font-family:'Cormorant Garamond',Georgia,serif; font-weight:600; letter-spacing:-.025em; }
+h1,h2,h3,.font-display { font-family:'Cormorant Garamond',Georgia,serif; font-weight:600; letter-spacing:-.025em; font-variant-numeric:lining-nums; }
 button,a,input,select,textarea { -webkit-tap-highlight-color:transparent; }
 button:focus-visible,a:focus-visible { outline:2px solid #a58449; outline-offset:4px; }
 button { touch-action:manipulation; }
@@ -151,6 +151,21 @@ button { touch-action:manipulation; }
 .grimoire-strip>span { flex:1; }
 .grimoire-strip strong { display:block; font:600 22px 'Cormorant Garamond',Georgia,serif; color:#43513b; }
 .grimoire-strip small { display:block; font-size:10px; margin-top:4px; color:#7f826e; }
+.lore-scroll { display:flex; gap:22px; align-items:flex-start; border:1px solid #e0d6b8; background:linear-gradient(180deg,#f7f2e2,#efe7cf); border-radius:9px; padding:26px 30px; color:#6d5f3f; box-shadow:inset 0 0 0 1px #fffaf0; }
+.lore-scroll .lore-seal { flex:none; display:grid; place-items:center; width:52px; height:52px; border-radius:50%; background:#e7dcb8; border:1px solid #cdbd8c; color:#8a6d33; }
+.lore-scroll .lore-body { flex:1; }
+.lore-scroll .eyebrow { font-size:8px; letter-spacing:1.4px; color:#a3894e; }
+.lore-scroll h2 { font:600 27px 'Cormorant Garamond',Georgia,serif; color:#43513b; margin:5px 0 10px; line-height:1.15; }
+.lore-scroll h2 em { color:#8a6d33; font-style:italic; }
+.lore-scroll p { font-size:14px; line-height:1.65; margin:0 0 9px; max-width:70ch; }
+.lore-scroll p:last-child { margin-bottom:0; }
+.lore-scroll strong { color:#5a4a22; }
+.dark .lore-scroll { background:linear-gradient(180deg,#33301f,#2b2818); border-color:#5a5233; color:#cdbf95; box-shadow:none; }
+.dark .lore-scroll .lore-seal { background:#413b22; border-color:#6a5f38; color:#d8be7c; }
+.dark .lore-scroll .eyebrow { color:#c6ac6d; }
+.dark .lore-scroll h2 { color:#e1dec6; }
+.dark .lore-scroll h2 em,.dark .lore-scroll strong { color:#e2c987; }
+@media(max-width:680px) { .lore-scroll { padding:20px; gap:14px; } .lore-scroll h2 { font-size:23px; } .lore-scroll p { font-size:13px; } }
 @media(min-width:1600px) { .quest-content { padding-top:45px; } .adventure-hero { min-height:400px; } .hero-copy { padding:46px; } .hero-copy h2 { font-size:55px; } }
 @media(max-width:1200px) { .quest-sidebar { width:205px; padding-left:15px; padding-right:15px; } .quest-brand>span:last-child { font-size:21px; } .quest-brand small { font-size:7px; } .quest-workspace { margin-left:205px; } .quest-content { padding:28px; } .quest-topbar { padding:14px 28px; } .quest-breadcrumb { display:none; } .quest-account { margin-left:auto; } .journey-stat { padding:0 12px; gap:8px; } .journey-rank { padding:0 12px; } .hero-copy { padding:30px 5px 28px 28px; } .rank-grid { gap:8px; } .rank-card { padding:12px 8px; } .rank-card>strong { font-size:17px; } .hero-actions { gap:12px; } }
 @media(max-width:1000px) { .quest-sidebar { position:sticky; top:0; width:100%; height:auto; flex-direction:row; align-items:center; justify-content:space-between; padding:13px 24px; } .quest-brand { margin:0; } .quest-brand>span:last-child { font-size:23px; } .quest-brand small { font-size:7px; } .brand-emblem { height:36px; } .quest-workspace { margin-left:0; } .sidebar-bottom { display:none; } .mobile-menu-toggle { display:grid; place-items:center; width:42px; height:42px; border:1px solid #c5b5884d; border-radius:5px; color:#e1d5b8; } .quest-navigation { display:none; position:absolute; top:100%; left:0; right:0; padding:20px; background:#17352d; border-bottom:1px solid #b69b63; box-shadow:0 15px 20px #17352d33; max-height:calc(100dvh - 80px); overflow-y:auto; } .quest-navigation.is-open { display:grid; grid-template-columns:1fr 1fr; gap:3px 15px; } .nav-caption { display:none; } .quest-topbar { min-height:60px; padding:10px 26px; } .quest-breadcrumb { display:flex; } .quest-shell-world { height:100dvh; display:flex; flex-direction:column; } .quest-shell-world .quest-workspace { flex:1; height:auto; min-height:0; } .skip-link { left:15px; } }
@@ -445,3 +460,16 @@ html.dark { color-scheme:dark;
 @media(max-height:620px) { .cinema-copy { margin-bottom:55px; } .cinema-copy h1 { font-size:55px; margin-bottom:10px; } .cinema-controls { margin-top:16px; } .cinema-options { margin-top:8px; } .cinema-footer { bottom:13px; } .cinema-eyebrow { margin-bottom:10px; } }
 /* Preserve title placement when the entry controls leave the scene. */
 .cinema-controls[hidden] { display:block; visibility:hidden; }
+
+/* Chiffres (XP, pièces, quêtes, %, rangs…) : hauteur égale (lining) et largeur
+   fixe (tabular) → nombres réguliers et alignés en colonnes. Placé en fin de
+   fichier car les stats utilisent la notation courte `font:` qui réinitialise
+   font-variant-numeric ; cette règle doit donc gagner. */
+.journey-stat strong, .journey-stat strong small,
+.daily-ring > span, .daily-ring small,
+.journey-rank strong, .journey-rank small,
+.rank-card small, .hero-footnote, .subtle-badge, .eyebrow,
+.next-quest h3, .map-caption {
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: "lnum" 1, "tnum" 1;
+}

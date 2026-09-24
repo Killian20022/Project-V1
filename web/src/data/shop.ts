@@ -1,4 +1,4 @@
-// Marché d’« Albion » — tout ce qu'on peut acheter puis poser sur la carte du royaume.
+// Marché de « Scriptoria » — tout ce qu'on peut acheter puis poser sur la carte du royaume.
 // Chaque article pointe vers un sprite Tiny Swords (voir src/data/sprites.json).
 
 export type ShopCategory = 'soldats' | 'batiments' | 'nature' | 'ressources' | 'animaux';
@@ -13,6 +13,8 @@ export interface ShopItem {
   max: number; // exemplaires maximum
   walks?: boolean; // se promène tout seul sur l'île
   blurb?: string;
+  hidden?: boolean; // variante non affichée dans la grille du marché (ex. styles de maison)
+  variants?: string[]; // clés cyclables à la molette pendant la pose (styles de maison)
 }
 
 export const CATEGORIES: { id: ShopCategory; label: string; hint: string }[] = [
@@ -55,16 +57,26 @@ const UNITS = [
   { key: 'lancier', name: 'Lancier', price: 220, blurb: 'Garde d’élite' },
 ];
 
-const BUILDINGS: { key: string; fem: boolean; name: string; price: number; max: number }[] = [
-  { key: 'maison-1', fem: true, name: 'Maison', price: 150, max: 10 },
-  { key: 'maison-2', fem: true, name: 'Maison à étage', price: 180, max: 10 },
-  { key: 'maison-3', fem: true, name: 'Chaumière', price: 140, max: 10 },
+// Les 3 styles de maison : une seule carte dans le marché, on change de style à la molette.
+const HOUSE_STYLES = [
+  { key: 'maison-1', name: 'Maison' },
+  { key: 'maison-2', name: 'Maison à étage' },
+  { key: 'maison-3', name: 'Chaumière' },
+];
+const OTHER_BUILDINGS: { key: string; fem: boolean; name: string; price: number; max: number }[] = [
   { key: 'tour', fem: true, name: 'Tour de guet', price: 320, max: 6 },
   { key: 'caserne', fem: true, name: 'Caserne', price: 420, max: 4 },
   { key: 'archerie', fem: true, name: 'Archerie', price: 420, max: 4 },
   { key: 'monastere', fem: false, name: 'Monastère', price: 520, max: 3 },
   { key: 'chateau', fem: false, name: 'Château', price: 1000, max: 2 },
 ];
+
+/** Renvoie les 3 clés de style d'une maison (même faction), ou null si ce n'est pas une maison. */
+export function houseVariants(id: string): string[] | null {
+  const m = /^maison-(bleue|rouge|jaune|violette|noire)-[123]$/.exec(id);
+  if (!m) return null;
+  return [1, 2, 3].map((n) => `maison-${m[1]}-${n}`);
+}
 
 function buildingKey(b: string, f: Faction): string {
   const s = SUFFIX[f];
@@ -91,16 +103,30 @@ const soldiers: ShopItem[] = FACTIONS.flatMap(({ id: f }) =>
   })),
 );
 
-const buildings: ShopItem[] = FACTIONS.flatMap(({ id: f }) =>
-  BUILDINGS.map((b) => ({
+const buildings: ShopItem[] = FACTIONS.flatMap(({ id: f }) => {
+  const variantIds = HOUSE_STYLES.map((h) => buildingKey(h.key, f));
+  // 3 styles de maison : seul le 1er s'affiche (carte « Maison »), les autres sont cyclables à la molette.
+  const houses: ShopItem[] = HOUSE_STYLES.map((h, i) => ({
+    id: variantIds[i],
+    name: `${i === 0 ? 'Maison' : h.name} ${LABEL[f].f}`,
+    price: 150,
+    category: 'batiments' as const,
+    faction: f,
+    max: 12,
+    hidden: i > 0,
+    variants: i === 0 ? variantIds : undefined,
+    blurb: i === 0 ? 'Molette pendant la pose : change le style' : undefined,
+  }));
+  const others: ShopItem[] = OTHER_BUILDINGS.map((b) => ({
     id: buildingKey(b.key, f),
     name: `${b.name} ${b.fem ? LABEL[f].f : LABEL[f].m}`,
     price: b.price,
     category: 'batiments' as const,
     faction: f,
     max: b.max,
-  })),
-);
+  }));
+  return [...houses, ...others];
+});
 
 const nature: ShopItem[] = [
   { id: 'sapin-1', name: 'Sapin', price: 40, category: 'nature', max: 30 },

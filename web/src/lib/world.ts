@@ -1,4 +1,4 @@
-// Moteur de la carte du royaume d’« Albion » (canvas 2D, pixel art Tiny Swords).
+// Moteur de la carte du royaume de « Scriptoria » (canvas 2D, pixel art Tiny Swords).
 // - carte générée depuis Tiled (src/data/world.json + public/ts/land-*.png, land.png = vue d’ensemble)
 // - écume, arbres, soldats, feux… animés image par image
 // - objets achetés au marché : déplaçables à la souris / au doigt, les personnages se promènent
@@ -6,7 +6,7 @@
 // - tous les personnages (achetés ou du décor) se prennent et se déplacent, jamais dans l'eau
 import WORLD_JSON from '../data/world.json';
 import { SPRITES, spriteUrl, type SpriteDef } from './sprites';
-import { SHOP_MAP } from '../data/shop';
+import { SHOP_MAP, houseVariants } from '../data/shop';
 
 export interface WorldData {
   w: number;
@@ -82,14 +82,26 @@ export function footprint(key: string): Footprint | null {
   }
   return { w: 1, h: 1, blocks: true, unit: false };
 }
+/**
+ * Décalage de centrage pour les sprites décoratifs 1×1 plus hauts qu'une case
+ * (buissons, minerais : PNG 128px = 2 cases). Ancrés « par les pieds » (bas du PNG),
+ * leur corps flotterait ~1 case au-dessus de leur case logique. On les recale pour que
+ * leur centre visuel tombe pile sur la case visée. Unités et bâtiments : inchangés (0).
+ */
+function decorLift(key: string): number {
+  const def = SPRITES[key];
+  const fp = footprint(key);
+  if (!def || !fp || fp.unit || fp.w >= 2 || def.fh <= TS) return 0;
+  return def.fh / 2 - TS * 0.25;
+}
 /** Case en bas à gauche de l'emprise d'un objet dont les pieds sont en (x, y). */
-function anchorOf(fp: Footprint, x: number, y: number) {
-  return { c0: Math.round(x / TS - fp.w / 2), cy: Math.floor((y - 8) / TS) };
+function anchorOf(fp: Footprint, x: number, y: number, lift = 0) {
+  return { c0: Math.round(x / TS - fp.w / 2), cy: Math.floor((y - lift - 8) / TS) };
 }
 export function cellsOf(key: string, x: number, y: number): [number, number][] {
   const fp = footprint(key);
   if (!fp) return [];
-  const { c0, cy } = anchorOf(fp, x, y);
+  const { c0, cy } = anchorOf(fp, x, y, decorLift(key));
   const out: [number, number][] = [];
   for (let dy = 0; dy < fp.h; dy++) for (let dx = 0; dx < fp.w; dx++) out.push([c0 + dx, cy - dy]);
   return out;
@@ -97,10 +109,10 @@ export function cellsOf(key: string, x: number, y: number): [number, number][] {
 /** Aimante un objet sur la grille : renvoie la position des pieds parfaitement calée. */
 export function snapTo(key: string, wx: number, wy: number) {
   const fp = footprint(key) ?? { w: 1, h: 1, blocks: false, unit: true };
-  const { c0, cy } = anchorOf(fp, wx, wy);
+  const { c0, cy } = anchorOf(fp, wx, wy); // cy = case sous le curseur (sans lift)
   return {
     x: (c0 + fp.w / 2) * TS,
-    y: fp.w >= 2 ? (cy + 1) * TS + 4 : cy * TS + TS * 0.75,
+    y: fp.w >= 2 ? (cy + 1) * TS + 4 : cy * TS + TS * 0.75 + decorLift(key),
   };
 }
 export type Occupancy = Map<string, string>; // "cx,cy" -> identifiant de l'objet
@@ -199,6 +211,7 @@ export function createWorld(
     unlocked: Set<number>;
     missionsDone: number;
     onMove?: (k: string, x: number, y: number) => void;
+    onVariant?: (k: string, id: string) => void; // style de maison changé à la molette
     onSelect?: (k: string | null, info?: { id: string; bought: boolean }) => void;
     onMoveMode?: (active: boolean) => void;
     decorRemoved?: string[]; // personnages du décor supprimés par le joueur
@@ -595,7 +608,7 @@ export function createWorld(
       ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
       ctx.beginPath();
       const fw = footprint(e.key)?.w ?? 1;
-      ctx.ellipse(e.x, e.y + 2 - (fw > 1 ? 16 : 0), 22 * fw, 8 * Math.max(1, fw * 0.6), 0, 0, Math.PI * 2);
+      ctx.ellipse(e.x, e.y - decorLift(e.key) + 2 - (fw > 1 ? 16 : 0), 22 * fw, 8 * Math.max(1, fw * 0.6), 0, 0, Math.PI * 2);
       ctx.fill();
     }
     const bob = lift ? Math.sin(t * 8) * 3 : 0;
@@ -707,7 +720,8 @@ export function createWorld(
       ctx.lineWidth = 3;
       ctx.beginPath();
       const fw = footprint(sel.key)?.w ?? 1;
-      ctx.ellipse(sel.x, sel.y - (fw > 1 ? 16 : 0), 30 * fw + 3 * pulse, 11 * Math.max(1, fw * 0.7) + pulse, 0, 0, Math.PI * 2);
+      const ringY = sel.y - decorLift(sel.key) - (fw > 1 ? 16 : 0); // recale le rond sous l'objet centré
+      ctx.ellipse(sel.x, ringY, 30 * fw + 3 * pulse, 11 * Math.max(1, fw * 0.7) + pulse, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -884,7 +898,7 @@ export function createWorld(
     const x = Math.round(wx);
     const y = Math.round(wy);
     const cx = Math.floor(x / TS);
-    const cy = Math.floor((y - 8) / TS);
+    const cy = Math.floor((y - decorLift(ent.key) - 8) / TS);
     ent.x = x;
     ent.y = y;
     occDirty();
@@ -893,13 +907,15 @@ export function createWorld(
     ent.moving = false;
     ent.bounceT0 = t;
     const fs = footprint(ent.key)?.w ?? 1;
-    const ey = y - (fs > 1 ? 16 : 0);
+    const ey = y - decorLift(ent.key) - (fs > 1 ? 16 : 0);
     effects.push({ x, y: ey, t0: t, kind: 'ring', s: fs }, { x, y: ey, t0: t, kind: 'dust', s: fs });
     if (ent.placed) {
       ent.placed.x = x;
       ent.placed.y = y;
+      ent.placed.id = ent.key; // conserve le style de maison éventuellement choisi à la molette
       ent.orig = { x, y };
       opts.onMove?.(ent.placed.k, x, y);
+      opts.onVariant?.(ent.placed.k, ent.key);
     } else {
       // personnage du décor : il vit désormais autour de son nouvel emplacement
       ent.origin = { x, y };
@@ -979,6 +995,19 @@ export function createWorld(
   }
   function onWheel(ev: WheelEvent) {
     ev.preventDefault();
+    // En cours de pose d'une maison : la molette fait défiler les styles au lieu de zoomer.
+    const placing = moveEnt ?? drag?.ent ?? null;
+    if (placing) {
+      const vars = houseVariants(placing.key);
+      if (vars) {
+        const dir = ev.deltaY > 0 ? 1 : -1;
+        const nk = vars[(vars.indexOf(placing.key) + dir + vars.length) % vars.length];
+        placing.key = nk;
+        placing.def = SPRITES[nk];
+        if (placing.placed) placing.placed.id = nk;
+        return;
+      }
+    }
     const p = localXY(ev);
     const before = s2w(p.x, p.y);
     cam.z *= Math.exp(-ev.deltaY * 0.0015);
