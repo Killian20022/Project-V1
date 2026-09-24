@@ -461,6 +461,92 @@ html.dark { color-scheme:dark;
 /* Preserve title placement when the entry controls leave the scene. */
 .cinema-controls[hidden] { display:block; visibility:hidden; }
 
+/* ============================================================
+   Dynamisme & or plus riche (médiéval / pro).
+   Tout le mouvement respecte prefers-reduced-motion.
+   ============================================================ */
+
+/* — Or : CTA principaux (dégradé laiton→or + reflet qui balaie) — */
+.hero-actions .btn-pixel, .next-quest .btn-pixel {
+  position:relative; overflow:hidden;
+  background:linear-gradient(135deg,#f3dda3,#ddbd77 55%,#c9a45c);
+  border-color:#e6ca8d; color:#243b2d;
+  box-shadow:0 4px 16px hsl(37 45% 22% / .3), inset 0 1px 0 #fff3d6;
+}
+.hero-actions .btn-pixel:hover, .next-quest .btn-pixel:hover { background:linear-gradient(135deg,#ffe9bb,#e7c988 55%,#d3ae63); }
+.hero-actions .btn-pixel::after, .next-quest .btn-pixel::after, .cinema-enter::after {
+  content:''; position:absolute; top:0; left:-70%; width:45%; height:100%;
+  background:linear-gradient(100deg,transparent,#fff7e0cc,transparent);
+  transform:skewX(-18deg); opacity:0; pointer-events:none;
+}
+.cinema-enter { position:relative; overflow:hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  .hero-actions .btn-pixel:hover::after, .next-quest .btn-pixel:hover::after, .cinema-enter:hover::after {
+    opacity:1; animation:sc-sheen .9s ease;
+  }
+}
+@keyframes sc-sheen { from { left:-70%; } to { left:130%; } }
+
+/* — Liseré doré discret sur le panneau héros — */
+.adventure-hero { position:relative; overflow:hidden; outline:1px solid hsl(var(--brand-gold) / .22); outline-offset:-1px; }
+.hero-copy, .hero-illustration { position:relative; z-index:1; }
+
+/* — Effet d'ambiance : braises dorées qui flottent sur le héros — */
+.hero-embers {
+  position:absolute; inset:0; z-index:0; pointer-events:none; opacity:.7;
+  background:
+    radial-gradient(2px 2px at 16% 82%, hsl(var(--brand-gold) / .55), transparent 60%),
+    radial-gradient(1.5px 1.5px at 34% 90%, hsl(var(--brand-gold) / .45), transparent 60%),
+    radial-gradient(2px 2px at 58% 86%, hsl(var(--brand-gold) / .5), transparent 60%),
+    radial-gradient(1.5px 1.5px at 78% 92%, hsl(var(--brand-gold) / .4), transparent 60%),
+    radial-gradient(2px 2px at 91% 78%, hsl(var(--brand-gold) / .5), transparent 60%);
+  background-repeat:no-repeat;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-embers { animation:sc-embers 7s ease-in-out infinite; }
+}
+@keyframes sc-embers {
+  0% { transform:translateY(0); opacity:.4; }
+  50% { transform:translateY(-10px); opacity:.8; }
+  100% { transform:translateY(0); opacity:.4; }
+}
+
+/* — Révélations à l'arrivée (en cascade, par page) — */
+@keyframes sc-rise { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:none; } }
+@keyframes sc-grow { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+@keyframes sc-pop { from { opacity:0; transform:scale(.85); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .home-dashboard > *, .space-y-6 > * { animation:sc-rise .55s cubic-bezier(.2,.7,.2,1) backwards; }
+  .home-dashboard > *:nth-child(1), .space-y-6 > *:nth-child(1) { animation-delay:.03s; }
+  .home-dashboard > *:nth-child(2), .space-y-6 > *:nth-child(2) { animation-delay:.10s; }
+  .home-dashboard > *:nth-child(3), .space-y-6 > *:nth-child(3) { animation-delay:.17s; }
+  .home-dashboard > *:nth-child(4), .space-y-6 > *:nth-child(4) { animation-delay:.24s; }
+  .home-dashboard > *:nth-child(5), .space-y-6 > *:nth-child(5) { animation-delay:.31s; }
+  .home-dashboard > *:nth-child(n+6), .space-y-6 > *:nth-child(n+6) { animation-delay:.38s; }
+
+  .rank-grid > *, .grid > * { animation:sc-rise .5s cubic-bezier(.2,.7,.2,1) backwards; }
+  .rank-grid > *:nth-child(2), .grid > *:nth-child(2) { animation-delay:.04s; }
+  .rank-grid > *:nth-child(3), .grid > *:nth-child(3) { animation-delay:.08s; }
+  .rank-grid > *:nth-child(4), .grid > *:nth-child(4) { animation-delay:.12s; }
+  .rank-grid > *:nth-child(5), .grid > *:nth-child(5) { animation-delay:.16s; }
+  .rank-grid > *:nth-child(6), .grid > *:nth-child(6) { animation-delay:.20s; }
+  .rank-grid > *:nth-child(n+7), .grid > *:nth-child(n+7) { animation-delay:.24s; }
+
+  /* barres de progression qui se remplissent, anneau du jour qui apparaît */
+  .fine-progress > i { transform-origin:left center; animation:sc-grow 1s cubic-bezier(.2,.7,.2,1) .25s backwards; }
+  .daily-ring { animation:sc-pop .6s cubic-bezier(.2,.8,.2,1) backwards; }
+}
+
+/* — Survol interactif : cartes qui se soulèvent + halo doré — */
+.next-quest, .daily-card, .lore-scroll, .grimoire-strip, .rank-grid > *, .grid > * {
+  transition:transform .18s ease, box-shadow .22s ease, border-color .22s ease;
+}
+.next-quest:hover, .daily-card:hover, .lore-scroll:hover, .grimoire-strip:hover,
+.rank-grid > *:not(:disabled):hover, .grid > *:hover {
+  transform:translateY(-3px);
+  box-shadow:0 14px 30px hsl(155 40% 6% / .22), 0 0 0 1px hsl(var(--brand-gold) / .55);
+}
+
 /* Chiffres (XP, pièces, quêtes, %, rangs…) : hauteur égale (lining) et largeur
    fixe (tabular) → nombres réguliers et alignés en colonnes. Placé en fin de
    fichier car les stats utilisent la notation courte `font:` qui réinitialise

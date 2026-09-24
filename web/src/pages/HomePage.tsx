@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { Swords, BookOpen, Brain, Play, ScrollText, Target, Map as MapIcon, ArrowRight, Compass, Lock, Check, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,6 +9,27 @@ import { countDue } from '@/lib/srs';
 import { uiUrl } from '@/lib/sprites';
 import type { GameState, Lesson, Level, Page } from '../types';
 import { useIsDev } from '@/lib/dev';
+
+// Compteur animé : monte en douceur de la valeur précédente vers la cible (easeOutCubic).
+function useCountUp(target: number, ms = 900): number {
+  const [value, setValue] = useState(0);
+  const from = useRef(0);
+  useEffect(() => {
+    const start = from.current;
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - t0) / ms);
+      const e = 1 - Math.pow(1 - p, 3);
+      setValue(Math.round(start + (target - start) * e));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else from.current = target;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, ms]);
+  return value;
+}
 
 // Titres de noblesse calculés à partir de l'XP total.
 export const RANKS: { name: string; min: number; avatar: string }[] = [
@@ -40,6 +62,9 @@ export function HomePage({
   const dailyToday = state.dailyDate === new Date().toDateString() ? state.dailyXP : 0;
   const dailyPct = Math.min(100, Math.round((dailyToday / dailyGoal) * 100));
   const due = countDue(state.srs);
+  const pointsAnim = useCountUp(state.points);
+  const coinsAnim = useCountUp(state.coins);
+  const lessonsAnim = useCountUp(lessonsDone);
 
   // Boss à affronter : le rang le plus avancé déjà entamé (sinon le premier).
   const bossLevel: Level = [...LEVELS].reverse().find((lv) => (state.lessons[lv] ?? 0) > 0) ?? 'A1';
@@ -66,6 +91,7 @@ export function HomePage({
     <div className="home-dashboard">
       <div className="page-intro"><div><span className="eyebrow">LE CHÂTEAU · VOTRE QUARTIER GÉNÉRAL</span><h1>Une nouvelle page de votre aventure.</h1></div><span className="chapter-tag"><Compass size={15} /> A1 → C2</span></div>
       <section className="adventure-hero" aria-labelledby="adventure-title">
+        <span className="hero-embers" aria-hidden="true" />
         <div className="hero-copy">
           <div className="eyebrow hero-eyebrow"><span /> APPRENDRE. EXPLORER. CONQUÉRIR.</div>
           <h2 id="adventure-title">Forgez votre anglais.<br /><em>Bâtissez votre royaume.</em></h2>
@@ -78,9 +104,9 @@ export function HomePage({
         </button>
       </section>
       <section className="journey-stats" aria-label="Votre progression">
-        <div className="journey-stat"><span className="stat-icon"><Swords size={19} /></span><div><strong>{state.points.toLocaleString('fr-FR')}</strong><span>Points d’expérience</span></div></div>
-        <div className="journey-stat"><span className="stat-icon"><ScrollText size={19} /></span><div><strong>{lessonsDone}<small> / {TOTAL_LESSONS}</small></strong><span>Quêtes accomplies</span></div></div>
-        <div className="journey-stat"><span className="stat-icon"><img src={uiUrl('icon_03.png')} alt="" /></span><div><strong>{state.coins.toLocaleString('fr-FR')}</strong><span>Pièces d’or</span></div></div>
+        <div className="journey-stat"><span className="stat-icon"><Swords size={19} /></span><div><strong>{pointsAnim.toLocaleString('fr-FR')}</strong><span>Points d’expérience</span></div></div>
+        <div className="journey-stat"><span className="stat-icon"><ScrollText size={19} /></span><div><strong>{lessonsAnim}<small> / {TOTAL_LESSONS}</small></strong><span>Quêtes accomplies</span></div></div>
+        <div className="journey-stat"><span className="stat-icon"><img src={uiUrl('icon_03.png')} alt="" /></span><div><strong>{coinsAnim.toLocaleString('fr-FR')}</strong><span>Pièces d’or</span></div></div>
         <div className="journey-rank"><img src={uiUrl(rank.avatar)} alt="" className="pixel" /><div><span>VOTRE TITRE</span><strong>{rank.name}</strong><div className="fine-progress" role="progressbar" aria-label="Progression vers le prochain titre" aria-valuenow={rankPct} aria-valuemin={0} aria-valuemax={100}><i style={{width: rankPct + '%'}} /></div><small>{nextRank ? (nextRank.min - state.points) + ' XP avant ' + nextRank.name : 'Titre suprême'}</small></div></div>
       </section>
       <div className="dashboard-columns">
