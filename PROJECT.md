@@ -1,10 +1,10 @@
-# EnglishQuest — Référence du projet
+# Scriptoria — Référence du projet
 
 > Document vivant : contexte complet du site, à relire au début de chaque conversation
 > et à mettre à jour à **chaque** modification (voir le Journal en bas).
 
 ## 1. Le projet en une phrase
-EnglishQuest est une application web d'apprentissage de l'anglais (A1 → C2), façon
+Scriptoria est une application web d'apprentissage de l'anglais (A1 → C2), façon
 Duolingo : leçons de grammaire et de vocabulaire, exercices variés, système de
 progression, île à décorer avec des récompenses, trophées.
 

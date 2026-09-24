@@ -1,4 +1,4 @@
-# CLAUDE.md — English Wars (ex-EnglishQuest)
+# CLAUDE.md — Scriptoria (ex-EnglishQuest / English Wars)
 
 ## ⚠️ L'APPLICATION ACTIVE EST LE DOSSIER `web/`
 

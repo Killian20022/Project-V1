@@ -1,6 +1,6 @@
-# EnglishQuest
+# Scriptoria
 
-EnglishQuest est une application d'apprentissage de l'anglais du niveau A1 au niveau C2. La version 2 sépare l'interface React, l'API NestJS et les données PostgreSQL.
+Scriptoria est une application d'apprentissage de l'anglais du niveau A1 au niveau C2. La version 2 sépare l'interface React, l'API NestJS et les données PostgreSQL.
 
 ## Architecture
 
