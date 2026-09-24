@@ -7,7 +7,12 @@ export type Faction = 'bleu' | 'rouge' | 'jaune' | 'violet' | 'noir';
 export interface ShopItem {
   id: string; // = clé du sprite
   name: string;
-  price: number;
+  price: number; // coût en or
+  wood?: number; // coût en bois
+  food?: number; // coût en nourriture
+  pop?: number; // population consommée (unités = 1)
+  popCap?: number; // population fournie (maisons, château)
+  needs?: string; // bâtiment requis pour recruter (base : 'caserne', 'archerie', 'monastere')
   category: ShopCategory;
   faction?: Faction;
   max: number; // exemplaires maximum
@@ -49,12 +54,13 @@ const LABEL: Record<Faction, { m: string; f: string }> = {
   noir: { m: 'noir', f: 'noire' },
 };
 
-const UNITS = [
-  { key: 'villageois', name: 'Villageois', price: 60, blurb: 'Travailleur infatigable' },
-  { key: 'moine', name: 'Moine', price: 120, blurb: 'Soigne les blessés' },
-  { key: 'archer', name: 'Archer', price: 150, blurb: 'Vise juste de loin' },
-  { key: 'guerrier', name: 'Guerrier', price: 180, blurb: 'Épée et bouclier' },
-  { key: 'lancier', name: 'Lancier', price: 220, blurb: 'Garde d’élite' },
+// Recruter coûte de l'or + des ressources récoltées ; les soldats exigent le bâtiment adéquat.
+const UNITS: { key: string; name: string; price: number; wood?: number; food?: number; needs?: string; blurb: string }[] = [
+  { key: 'villageois', name: 'Villageois', price: 50, blurb: 'Récolte le bois, l’or et la nourriture' },
+  { key: 'moine', name: 'Moine', price: 120, food: 20, needs: 'monastere', blurb: 'Soigne les blessés' },
+  { key: 'archer', name: 'Archer', price: 90, wood: 40, food: 20, needs: 'archerie', blurb: 'Vise juste de loin' },
+  { key: 'guerrier', name: 'Guerrier', price: 80, wood: 20, food: 30, needs: 'caserne', blurb: 'Épée et bouclier' },
+  { key: 'lancier', name: 'Lancier', price: 110, wood: 30, food: 30, needs: 'caserne', blurb: 'Garde d’élite' },
 ];
 
 // Les 3 styles de maison : une seule carte dans le marché, on change de style à la molette.
@@ -63,12 +69,12 @@ const HOUSE_STYLES = [
   { key: 'maison-2', name: 'Maison à étage' },
   { key: 'maison-3', name: 'Chaumière' },
 ];
-const OTHER_BUILDINGS: { key: string; fem: boolean; name: string; price: number; max: number }[] = [
-  { key: 'tour', fem: true, name: 'Tour de guet', price: 320, max: 6 },
-  { key: 'caserne', fem: true, name: 'Caserne', price: 420, max: 4 },
-  { key: 'archerie', fem: true, name: 'Archerie', price: 420, max: 4 },
-  { key: 'monastere', fem: false, name: 'Monastère', price: 520, max: 3 },
-  { key: 'chateau', fem: false, name: 'Château', price: 1000, max: 2 },
+const OTHER_BUILDINGS: { key: string; fem: boolean; name: string; price: number; wood: number; max: number; popCap?: number; blurb?: string }[] = [
+  { key: 'tour', fem: true, name: 'Tour de guet', price: 320, wood: 120, max: 6, blurb: 'Défend l’île (bientôt)' },
+  { key: 'caserne', fem: true, name: 'Caserne', price: 420, wood: 180, max: 4, blurb: 'Permet de recruter guerriers & lanciers' },
+  { key: 'archerie', fem: true, name: 'Archerie', price: 420, wood: 180, max: 4, blurb: 'Permet de recruter des archers' },
+  { key: 'monastere', fem: false, name: 'Monastère', price: 520, wood: 150, max: 3, blurb: 'Permet de recruter des moines' },
+  { key: 'chateau', fem: false, name: 'Château', price: 1000, wood: 400, max: 2, popCap: 8, blurb: '+8 population' },
 ];
 
 /** Renvoie les 3 clés de style d'une maison (même faction), ou null si ce n'est pas une maison. */
@@ -95,6 +101,10 @@ const soldiers: ShopItem[] = FACTIONS.flatMap(({ id: f }) =>
     id: u.key + SUFFIX[f].m,
     name: `${u.name} ${LABEL[f].m}`,
     price: u.price + (f === 'noir' ? 30 : 0),
+    wood: u.wood,
+    food: u.food,
+    pop: 1,
+    needs: u.needs,
     category: 'soldats' as const,
     faction: f,
     max: 25,
@@ -110,20 +120,25 @@ const buildings: ShopItem[] = FACTIONS.flatMap(({ id: f }) => {
     id: variantIds[i],
     name: `${i === 0 ? 'Maison' : h.name} ${LABEL[f].f}`,
     price: 150,
+    wood: 60,
+    popCap: 4,
     category: 'batiments' as const,
     faction: f,
     max: 12,
     hidden: i > 0,
     variants: i === 0 ? variantIds : undefined,
-    blurb: i === 0 ? 'Molette pendant la pose : change le style' : undefined,
+    blurb: i === 0 ? '+4 population · molette : change le style' : undefined,
   }));
   const others: ShopItem[] = OTHER_BUILDINGS.map((b) => ({
     id: buildingKey(b.key, f),
     name: `${b.name} ${b.fem ? LABEL[f].f : LABEL[f].m}`,
     price: b.price,
+    wood: b.wood,
+    popCap: b.popCap,
     category: 'batiments' as const,
     faction: f,
     max: b.max,
+    blurb: b.blurb,
   }));
   return [...houses, ...others];
 });
@@ -159,3 +174,53 @@ const animals: ShopItem[] = [
 
 export const SHOP: ShopItem[] = [...soldiers, ...buildings, ...nature, ...resources, ...animals];
 export const SHOP_MAP: Record<string, ShopItem> = Object.fromEntries(SHOP.map((item) => [item.id, item]));
+
+// ---------- Population & bâtiments (phase 2) ----------
+export const POP_BASE = 6; // population de départ, sans aucun bâtiment
+
+/** Type de bâtiment (sans faction) à partir d'une clé de sprite, ou null. */
+export function buildingBase(id: string): string | null {
+  if (/chateau/.test(id)) return 'chateau';
+  if (/caserne/.test(id)) return 'caserne';
+  if (/archerie/.test(id)) return 'archerie';
+  if (/monastere/.test(id)) return 'monastere';
+  if (/tour/.test(id)) return 'tour';
+  if (/maison/.test(id)) return 'maison';
+  return null;
+}
+
+/** Population maximale = base + capacité fournie par les bâtiments possédés. */
+export function popMaxOf(placed: { id: string }[]): number {
+  return placed.reduce((cap, p) => cap + (SHOP_MAP[p.id]?.popCap ?? 0), POP_BASE);
+}
+
+/** Population utilisée = nombre d'unités possédées (villageois + soldats). */
+export function popUsedOf(placed: { id: string }[]): number {
+  return placed.filter((p) => SHOP_MAP[p.id]?.category === 'soldats').length;
+}
+
+/** Le joueur possède-t-il au moins un bâtiment du type demandé (toute faction) ? */
+export function ownsBuilding(placed: { id: string }[], base: string): boolean {
+  return placed.some((p) => buildingBase(p.id) === base);
+}
+
+/** Reconvertit une clé d'unité/bâtiment vers une faction donnée (garde la position/le type). */
+export function applyFaction(id: string, fac: Faction): string {
+  const fem = { bleu: 'bleue', rouge: 'rouge', jaune: 'jaune', violet: 'violette', noir: 'noire' }[fac];
+  let m: RegExpExecArray | null;
+  if ((m = /^(villageois|guerrier|lancier|archer|moine)(?:-(?:rouge|jaune|violet|noir))?$/.exec(id)))
+    return m[1] + (fac === 'bleu' ? '' : `-${fac}`);
+  if ((m = /^maison-(?:bleue|rouge|jaune|violette|noire)-(\d)$/.exec(id))) return `maison-${fem}-${m[1]}`;
+  if ((m = /^(tour|caserne|archerie)(?:-(?:rouge|jaune|violette|noire))?$/.exec(id)))
+    return m[1] + (fac === 'bleu' ? '' : `-${fem}`);
+  if ((m = /^(chateau|monastere)(?:-(?:rouge|jaune|violet|noir))?$/.exec(id))) return m[1] + (fac === 'bleu' ? '' : `-${fac}`);
+  return id; // neutre (arbres, or, moutons, rochers…)
+}
+
+const BASE_LABEL: Record<string, string> = {
+  caserne: 'une Caserne',
+  archerie: 'une Archerie',
+  monastere: 'un Monastère',
+  chateau: 'un Château',
+};
+export const needsLabel = (base: string) => BASE_LABEL[base] ?? 'un bâtiment spécial';

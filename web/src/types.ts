@@ -96,6 +96,9 @@ export interface GameState {
   maxLevelIdx: number;
   lessons: Partial<Record<Level, number>>;
   coins: number;
+  resources?: { wood: number; food: number }; // réserves récoltées sur la carte (l'or reste `coins`)
+  faction?: 'bleu' | 'rouge' | 'jaune' | 'violet' | 'noir'; // couleur du royaume du joueur
+  starters?: boolean; // ressources de départ (filons d'or) déjà déposées une fois
   island: string[];
   placed: PlacedItem[];
   decorPos?: Record<string, [number, number]>;

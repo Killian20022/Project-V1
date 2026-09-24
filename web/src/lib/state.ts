@@ -11,13 +11,15 @@ const OLD_PRICES: Record<string, number> = {
 
 /** Retire les objets qui n'existent plus au marché et rembourse leur prix. */
 export function migrateState(state: GameState): GameState {
-  const placed = state.placed ?? [];
+  // Garantit un objet `resources` complet (répare aussi le spread superficiel de l'hydratation distante).
+  const base = { ...state, resources: { wood: 0, food: 0, ...(state.resources ?? {}) } };
+  const placed = base.placed ?? [];
   const keep = placed.filter((p) => SHOP_MAP[p.id]);
-  if (keep.length === placed.length && !(state.island ?? []).length) return state;
+  if (keep.length === placed.length && !(base.island ?? []).length) return base;
   const refund = placed
     .filter((p) => !SHOP_MAP[p.id])
     .reduce((sum, p) => sum + (OLD_PRICES[p.id] ?? 100), 0);
-  return { ...state, placed: keep, island: [], coins: state.coins + refund };
+  return { ...base, placed: keep, island: [], coins: base.coins + refund };
 }
 
 
@@ -30,6 +32,9 @@ export const DEFAULT_STATE: GameState = {
   maxLevelIdx: 0,
   lessons: {},
   coins: 0,
+  resources: { wood: 0, food: 0 },
+  faction: 'bleu',
+  starters: false,
   island: [],
   placed: [],
   trophies: [],
@@ -53,6 +58,7 @@ export function loadGameState(): GameState {
       ...parsed,
       lessons: { ...DEFAULT_STATE.lessons, ...(parsed.lessons ?? {}) },
       stats: { ...DEFAULT_STATE.stats, ...(parsed.stats ?? {}) },
+      resources: { wood: parsed.resources?.wood ?? 0, food: parsed.resources?.food ?? 0 },
       srs: { ...(parsed.srs ?? {}) },
       island: parsed.island ?? [],
       placed: parsed.placed ?? [],
