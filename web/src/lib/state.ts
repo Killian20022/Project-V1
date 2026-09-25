@@ -72,7 +72,8 @@ export function loadGameState(): GameState {
 }
 
 export function saveGameState(state: GameState) {
-  localStorage.setItem('eq_v4', JSON.stringify(state));
+  // On horodate chaque sauvegarde : au chargement, on garde la version la plus récente (local vs serveur).
+  localStorage.setItem('eq_v4', JSON.stringify({ ...state, savedAt: Date.now() }));
 }
 
 export function completeLesson(

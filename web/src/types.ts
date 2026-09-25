@@ -113,6 +113,7 @@ export interface GameState {
   badges: string[];
   completed: string[];
   srs: Record<string, SrsCard>;
+  savedAt?: number; // horodatage de la dernière sauvegarde (pour ne jamais écraser une version plus récente)
 }
 
 export interface PlacedItem {

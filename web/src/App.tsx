@@ -37,11 +37,30 @@ export default function App() {
   const [boss, setBoss] = useState<Level | null>(null);
   const { user, isLoaded } = useUser();
   const hydrated = useRef(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', state.dark);
     saveGameState(state);
   }, [state]);
+
+  // Sauvegarde forcée à la fermeture / mise en arrière-plan : rien n'est perdu en quittant le site.
+  useEffect(() => {
+    const flush = () => {
+      saveGameState(stateRef.current);
+      if (user && hydrated.current) saveRemoteProgress(user.id, stateRef.current);
+    };
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onHidden);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onHidden);
+    };
+  }, [user]);
 
   // Chaque nouvel écran commence en haut, même après une action en bas de page.
   useEffect(() => {
@@ -60,7 +79,16 @@ export default function App() {
       .then((remote) => {
         if (cancelled) return;
         if (remote) {
-          setState((current) => migrateState({ ...current, ...remote }));
+          setState((current) => {
+            // On ne remplace le local par le serveur QUE si le serveur est plus récent.
+            // Sinon (local plus récent ou égal), on garde le local et on le renvoie au serveur :
+            // fini le « tout reset » quand la sauvegarde distante était périmée.
+            const localAt = current.savedAt ?? 0;
+            const remoteAt = (remote as { savedAt?: number }).savedAt ?? 0;
+            if (remoteAt > localAt) return migrateState({ ...current, ...remote });
+            saveRemoteProgress(user.id, current);
+            return current;
+          });
         } else {
           // Aucune sauvegarde en ligne : on envoie la progression locale actuelle
           setState((current) => {

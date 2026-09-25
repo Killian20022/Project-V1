@@ -32,9 +32,11 @@ export async function loadRemoteProgress(userId: string): Promise<GameState | nu
 
 export async function saveRemoteProgress(userId: string, state: GameState) {
   try {
+    // Même horodatage que la sauvegarde locale : permet de comparer les deux au chargement.
+    const stamped = { ...state, savedAt: Date.now() };
     await supabase
       .from('progress')
-      .upsert({ user_id: userId, state, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+      .upsert({ user_id: userId, state: stamped, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
   } catch {
     /* silencieux : la sauvegarde locale reste le filet de sécurité */
   }
