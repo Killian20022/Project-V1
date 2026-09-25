@@ -46,6 +46,9 @@ const COMBAT: Record<string, CombatDef> = {
   tour: { hp: 500, dmg: 13, range: 5.5, atk: 0.9, ranged: true },
 };
 const AGGRO_TILES = 7; // distance à laquelle une unité repère un ennemi
+// Fraction de l'animation d'attaque (à 10 img/s) au bout de laquelle l'arme « touche » :
+// c'est à cet instant précis que les dégâts s'appliquent / que la flèche part.
+const IMPACT_FRAC = 0.45;
 const combatBase = (key: string): string | null => /^(guerrier|lancier|archer|moine|villageois|tour)/.exec(key)?.[1] ?? null;
 
 // ---------- Récolte (Phase 1) ----------
@@ -133,11 +136,11 @@ export function footprint(key: string): Footprint | null {
  * Leur visuel est recentré sur la case occupée. IMPORTANT : `snapTo` DOIT recalculer la case avec
  * ce même décalage (voir plus bas), sinon un déplacement fait dériver l'objet d'une case.
  */
-function decorLift(key: string): number {
-  const def = SPRITES[key];
-  const fp = footprint(key);
-  if (!def || !fp || fp.unit || fp.w >= 2 || def.fh <= TS) return 0;
-  return def.fh / 2 - TS * 0.25;
+// (Historique : on décalait autrefois les décors hauts vers le haut pour « recentrer » leur visuel,
+//  mais ça plaçait la case d'occupation/sélection au-dessus de l'arbre. On ancre désormais tout objet
+//  sur la case de sa base — la case de sélection est bien SOUS l'arbre, comme attendu.)
+function decorLift(_key: string): number {
+  return 0;
 }
 // Recolore une clé BLEUE (sans suffixe) vers la couleur du royaume du joueur. Les clés neutres
 // (arbres, or, buissons, moutons) et déjà colorées sont renvoyées telles quelles.
@@ -281,6 +284,12 @@ type Ent = {
   recoilT?: number; // instant du dernier recul (knockback visuel)
   recoilX?: number; // direction du recul
   recoilY?: number;
+  // Coup programmé : les dégâts (ou la flèche) ne partent qu'au moment où l'arme touche (frame d'impact),
+  // pas au début de l'animation d'attaque.
+  strike?: { at: number; foe: Ent; dmg: number; ranged: boolean; heal?: boolean; oy: number };
+  // Pose depuis l'inventaire : objet fantôme pas encore ajouté à la carte (ni placed ni decor).
+  fresh?: boolean;
+  freshKey?: string; // clé d'inventaire de l'objet en cours de pose
 };
 
 export function createWorld(
@@ -294,6 +303,7 @@ export function createWorld(
     onSelect?: (k: string | null, info?: { id: string; bought: boolean }) => void;
     onMoveMode?: (active: boolean) => void;
     onOrderMode?: (active: boolean) => void; // mode « envoyer les troupes » actif ?
+    onPlaceNew?: (k: string, id: string, x: number, y: number) => void; // objet de l'inventaire posé sur la carte
     decorRemoved?: string[]; // personnages du décor supprimés par le joueur
     onDecorRemove?: (id: string) => void;
     decorPos?: Record<string, [number, number]>; // personnages du décor déplacés par le joueur
@@ -358,6 +368,7 @@ export function createWorld(
   const projectiles: { x: number; y: number; target: Ent; dmg: number; from: 'player' | 'enemy' }[] = [];
   let raidAt = 999; // instant du prochain raid (fixé au démarrage)
   let produceAt = 10; // instant de la prochaine production des royaumes rivaux
+  let dispatchAt = 20; // instant du prochain envoi d'escadrons IA (anti-surpopulation)
   const dust = img('sprites/dust.png');
   const keyOf = (e: Ent) => (e.placed ? e.placed.k : `decor:${e.id}`);
   let occCache: Occupancy | null = null;
@@ -815,16 +826,16 @@ export function createWorld(
   function swing(e: Ent, foe: Ent, st: CombatDef) {
     e.moving = false;
     e.face = foe.x < e.x ? -1 : 1;
+    const n = e.def.act?.[0]?.n ?? 6;
     if (e.acting! < 0) {
-      const n = e.def.act?.[0]?.n ?? 6;
       e.acting = 0;
       e.actT0 = t;
       e.actEnd = t + (2 * n) / 10;
     }
     if (!e.atkCd || t >= e.atkCd) {
       e.atkCd = t + st.atk;
-      if (st.ranged) projectiles.push({ x: e.x, y: e.y - 30, target: foe, dmg: st.dmg, from: isFriendly(e) ? 'player' : 'enemy' });
-      else hurt(foe, st.dmg, { x: e.x, y: e.y }, true);
+      // On programme l'impact au moment où l'arme frappe (≈ mi-animation), pas au début du geste.
+      e.strike = { at: t + (IMPACT_FRAC * n) / 10, foe, dmg: st.dmg, ranged: !!st.ranged, oy: 30 };
     }
   }
   // Un combattant engage l'ennemi le plus proche ; renvoie true s'il est en plein combat.
@@ -843,15 +854,16 @@ export function createWorld(
       if (d <= st.range * TS) {
         e.moving = false;
         e.face = ally.x < e.x ? -1 : 1;
+        const n = e.def.act?.[0]?.n ?? 6;
         if (e.acting! < 0) {
-          const n = e.def.act?.[0]?.n ?? 6;
           e.acting = 0;
           e.actT0 = t;
           e.actEnd = t + (2 * n) / 10;
         }
         if (!e.atkCd || t >= e.atkCd) {
           e.atkCd = t + st.atk;
-          ally.hp = Math.min(ally.maxHp ?? 1, (ally.hp ?? 0) + st.dmg);
+          // Le soin s'applique au moment fort de l'animation, comme un coup.
+          e.strike = { at: t + (IMPACT_FRAC * n) / 10, foe: ally, dmg: st.dmg, ranged: false, heal: true, oy: 0 };
         }
       } else combatMove(e, ally.x, ally.y, dt);
       return true;
@@ -1020,7 +1032,26 @@ export function createWorld(
       const foe = nearestFoe(e, st.range, false);
       if (foe && (!e.atkCd || t >= e.atkCd)) {
         e.atkCd = t + st.atk;
-        projectiles.push({ x: e.x, y: e.y - e.def.fh * 0.5, target: foe, dmg: st.dmg, from: 'player' });
+        // Petit temps de décoche avant que la flèche parte du sommet de la tour.
+        e.strike = { at: t + 0.15, foe, dmg: st.dmg, ranged: true, oy: e.def.fh * 0.5 };
+      }
+    }
+    // Coups programmés : on applique les dégâts / on décoche la flèche pile à la frame d'impact.
+    for (const e of [...placed, ...decor]) {
+      const s = e.strike;
+      if (!s || t < s.at) continue;
+      e.strike = undefined;
+      if (!alive(e) || e === drag?.ent || e === moveEnt) continue;
+      if (!alive(s.foe) || s.foe.home?.isl !== e.home?.isl) continue; // la cible est morte ou a quitté l'île
+      if (s.heal) {
+        s.foe.hp = Math.min(s.foe.maxHp ?? 1, (s.foe.hp ?? 0) + s.dmg);
+      } else if (s.ranged) {
+        projectiles.push({ x: e.x, y: e.y - s.oy, target: s.foe, dmg: s.dmg, from: isFriendly(e) ? 'player' : 'enemy' });
+      } else {
+        // Mêlée : le coup ne porte que si l'ennemi est encore à portée (sinon il a esquivé pendant le geste).
+        const stx = statsFor(e);
+        const d = Math.hypot(s.foe.x - e.x, s.foe.y - e.y);
+        if (!stx || d <= (stx.range + 0.7) * TS) hurt(s.foe, s.dmg, { x: e.x, y: e.y }, true);
       }
     }
     // Projectiles (flèches) : foncent sur leur cible puis infligent les dégâts.
@@ -1053,6 +1084,11 @@ export function createWorld(
     if (t >= produceAt) {
       aiProduce();
       produceAt = t + 9;
+    }
+    // Anti-surpopulation : les îles IA trop peuplées envoient des escadrons à l'assaut (ou désengorgent).
+    if (t >= dispatchAt) {
+      aiDispatch();
+      dispatchAt = t + 12;
     }
     // Nettoyage des morts du décor (raiders et alliés tombés).
     for (let i = decor.length - 1; i >= 0; i--) if (decor[i].dead) decor.splice(i, 1);
@@ -1094,7 +1130,7 @@ export function createWorld(
           agent: true,
           walks: true,
           acting: -1,
-          radius: 3,
+          radius: 5,
           wait: Math.random(),
           face: 1,
           home: { isl, lvl: levelAt(cx, cy) },
@@ -1119,11 +1155,68 @@ export function createWorld(
       const cnt = [...decor, ...placed].filter(
         (e) => e.agent && alive(e) && e.maxHp !== undefined && factionOf(e.key) === fac && e.home?.isl === isl,
       ).length;
-      if (cnt >= 8) continue; // garnison pleine sur cette île
+      if (cnt >= 6) continue; // garnison pleine sur cette île (plafond réduit pour désencombrer la carte)
       if (Math.random() > 0.5) continue; // production lente
       const ut =
         base === 'caserne' ? (Math.random() < 0.5 ? 'guerrier' : 'lancier') : base === 'archerie' ? 'archer' : base === 'monastere' ? 'moine' : 'villageois';
       spawnUnitNear(unitKey(ut, fac), b, isl);
+    }
+  }
+
+  // Anti-surpopulation : quand une île IA accumule trop de troupes, elle envoie un escadron à l'assaut
+  // de l'ennemi le plus proche (ce qui déclenche le combat et désencombre) ; sans cible, on retire le surplus.
+  const SQUAD_THRESHOLD = 5;
+  const AI_HARD_CAP = 8;
+  function aiDispatch() {
+    const groups = new Map<string, Ent[]>();
+    for (const e of [...decor, ...placed]) {
+      if (!e.agent || !alive(e) || e.maxHp === undefined || !isFighter(e)) continue;
+      const fac = factionOf(e.key);
+      if (fac === playerFaction) continue; // on ne bouscule que les royaumes IA
+      const isl = e.home?.isl ?? -1;
+      if (isl < 0 || !unlocked.has(isl)) continue;
+      const k = `${fac}@${isl}`;
+      let arr = groups.get(k);
+      if (!arr) groups.set(k, (arr = []));
+      arr.push(e);
+    }
+    for (const [k, units] of groups) {
+      if (units.length < SQUAD_THRESHOLD) continue;
+      const isl = +k.split('@')[1];
+      const cx = units.reduce((s, u) => s + u.x, 0) / units.length;
+      const cy = units.reduce((s, u) => s + u.y, 0) / units.length;
+      // Ennemi (autre couleur) vivant le plus proche du centre du groupe, sur la même île.
+      let target: Ent | null = null;
+      let bd = Infinity;
+      for (const o of [...decor, ...placed]) {
+        if (!o.agent || !alive(o) || o.maxHp === undefined || o.home?.isl !== isl || !hostile(units[0], o)) continue;
+        const d = Math.hypot(o.x - cx, o.y - cy);
+        if (d < bd) {
+          bd = d;
+          target = o;
+        }
+      }
+      if (target) {
+        // Envoie la moitié la plus proche en escadron ; le reste tient la garnison.
+        const squad = [...units]
+          .sort((a, b) => Math.hypot(a.x - target!.x, a.y - target!.y) - Math.hypot(b.x - target!.x, b.y - target!.y))
+          .slice(0, Math.max(2, Math.ceil(units.length / 2)));
+        for (const u of squad) {
+          if (u === drag?.ent || u === moveEnt) continue;
+          u.order = { x: target.x, y: target.y };
+          u.orderTarget = isFighter(target) ? target : undefined;
+          u.task = undefined;
+          u.moving = false;
+          u.acting = -1;
+          u.wait = 0;
+        }
+      } else if (units.length > AI_HARD_CAP) {
+        // Aucun ennemi sur l'île : le surplus « embarque » (retiré) pour ne pas saturer la carte.
+        for (const u of units.slice(AI_HARD_CAP)) {
+          u.dead = true;
+          effects.push({ x: u.x, y: u.y, t0: t, kind: 'dust' });
+        }
+      }
     }
   }
 
@@ -1800,7 +1893,10 @@ export function createWorld(
     const fs = footprint(ent.key)?.w ?? 1;
     const ey = y - decorLift(ent.key) - (fs > 1 ? 16 : 0);
     effects.push({ x, y: ey, t0: t, kind: 'ring', s: fs }, { x, y: ey, t0: t, kind: 'dust', s: fs });
-    if (ent.placed) {
+    if (ent.fresh) {
+      // Objet posé depuis l'inventaire : on le confirme sur la carte (React l'ajoute à `placed`).
+      opts.onPlaceNew?.(ent.freshKey!, ent.key, x, y);
+    } else if (ent.placed) {
       ent.placed.x = x;
       ent.placed.y = y;
       ent.placed.id = ent.key; // conserve le style de maison éventuellement choisi à la molette
@@ -2047,6 +2143,33 @@ export function createWorld(
     },
     cancelMove() {
       if (moveEnt) endMove();
+    },
+    /** Pose un objet de l'inventaire : crée un fantôme déplaçable ; il n'est ajouté à la carte qu'une fois posé. */
+    placeNew(k: string, id: string) {
+      const def = SPRITES[id];
+      if (!def) return false;
+      endOrder();
+      if (moveEnt) endMove();
+      select(null);
+      const g = snapTo(id, cam.x, cam.y);
+      const cst = COMBAT[combatBase(id) ?? ''];
+      moveEnt = {
+        key: id,
+        def,
+        x: g.x,
+        y: g.y,
+        ph: Math.random() * 10,
+        fresh: true,
+        freshKey: k,
+        acting: -1,
+        walks: !!def.run,
+        agent: !!(def.run || def.act),
+        hp: cst?.hp,
+        maxHp: cst?.hp,
+      } as Ent;
+      ghost = g;
+      opts.onMoveMode?.(true);
+      return true;
     },
     /** Active le mode « Envoyer les troupes » : le prochain toucher désigne la destination d'attaque. */
     startOrder() {

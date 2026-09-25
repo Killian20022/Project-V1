@@ -94,6 +94,13 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         setState((current) => ({ ...current, decorPos: { ...(current.decorPos ?? {}), [id]: [x, y] } })),
       onUnitLost: (k) =>
         setState((current) => ({ ...current, placed: (current.placed ?? []).filter((p) => p.k !== k) })),
+      // Objet de l'inventaire posé sur la carte : on le retire de l'inventaire et on l'ajoute aux objets placés.
+      onPlaceNew: (k, id, x, y) =>
+        setState((current) => ({
+          ...current,
+          inventory: (current.inventory ?? []).filter((it) => it.k !== k),
+          placed: [...(current.placed ?? []), { k, id, x, y }],
+        })),
       onHarvest: (kind, amount) =>
         setState((current) =>
           kind === 'gold'
@@ -233,9 +240,35 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
     setMapVersion((v) => v + 1);
   }
 
+  // Inventaire d'achats en attente de pose.
+  const invItems = state.inventory ?? [];
+  // Pose un objet de l'inventaire : on entre en mode « pose » (fantôme déplaçable). Il quitte
+  // l'inventaire seulement une fois réellement posé (via onPlaceNew).
+  function placeFromInv(k: string, id: string) {
+    setSelInfo({ id, bought: true }); // pour afficher le nom dans la bannière de pose
+    setSelected(null);
+    engineRef.current?.placeNew(k, id);
+  }
+  // Annule un achat tant qu'il n'est pas posé : rembourse (hors compte dev, qui n'a rien payé).
+  function cancelInv(k: string, id: string) {
+    const item = SHOP_MAP[id];
+    setState((current) => ({
+      ...current,
+      coins: isDev || !item ? current.coins : current.coins + item.price,
+      resources:
+        isDev || !item
+          ? current.resources ?? { wood: 0, food: 0 }
+          : {
+              wood: (current.resources?.wood ?? 0) + (item.wood ?? 0),
+              food: (current.resources?.food ?? 0) + (item.food ?? 0),
+            },
+      inventory: (current.inventory ?? []).filter((it) => it.k !== k),
+    }));
+  }
+
   // Réinitialise la carte : retire tout ce qui a été placé/récolté et restaure le décor d'origine.
   function resetMap() {
-    setState((current) => ({ ...current, coins: 0, placed: [], decorPos: {}, decorRemoved: [], resources: { wood: 0, food: 0 }, starters: false }));
+    setState((current) => ({ ...current, coins: 0, placed: [], inventory: [], decorPos: {}, decorRemoved: [], resources: { wood: 0, food: 0 }, starters: false }));
     setSelected(null);
     setSelInfo(null);
     setConfirmReset(false);
@@ -352,6 +385,34 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         </div>
       )}
 
+      {/* Inventaire : achats en attente de pose (case blanche transparente). Cliquer = poser, × = annuler (remboursé). */}
+      {invItems.length > 0 && !moving && !ordering && (
+        <div className="absolute left-2 top-1/2 z-10 flex max-h-[68vh] -translate-y-1/2 flex-col gap-2 overflow-y-auto rounded-xl border border-white/40 bg-white/15 p-2 shadow-lg backdrop-blur-sm md:left-4">
+          <div className="px-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-white/85">
+            À poser ({invItems.length})
+          </div>
+          {invItems.map(({ k, id }) => (
+            <div key={k} className="relative">
+              <button
+                onClick={() => placeFromInv(k, id)}
+                title={`Poser ${SHOP_MAP[id]?.name ?? SPRITES[id]?.name ?? id}`}
+                className="grid h-14 w-14 place-items-center overflow-hidden rounded-lg border-2 border-white/50 bg-white/20 transition hover:border-[#ffe7a6] hover:bg-white/30"
+              >
+                <Sprite k={id} height={46} crop={0.12} />
+              </button>
+              <button
+                onClick={() => cancelInv(k, id)}
+                title="Annuler l’achat (remboursé)"
+                aria-label="Annuler l’achat"
+                className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full border border-white/40 bg-[#7a1616] text-white shadow hover:bg-[#a11d1d]"
+              >
+                <X className="size-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {selected && selInfo && !moving && (
         <div className="absolute bottom-20 left-1/2 z-10 w-[min(94vw,400px)] -translate-x-1/2 md:bottom-6">
           <div className="paper-dark p-1">
@@ -416,45 +477,55 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
   const isDev = useIsDev();
   const unlocked = useMemo(() => unlockedIslands(isDev ? TOTAL_LESSONS : questsDone(state)), [state, isDev]);
   const placedItems = state.placed ?? [];
+  const inv = state.inventory ?? [];
   const wood = state.resources?.wood ?? 0;
   const food = state.resources?.food ?? 0;
   const caps = storageCaps(placedItems);
   const popMax = popMaxOf(placedItems);
-  const popUsed = popUsedOf(placedItems);
+  // La population « utilisée » compte aussi les soldats en attente dans l'inventaire (pas encore posés).
+  const invPop = inv.filter((it) => SHOP_MAP[it.id]?.category === 'soldats').length;
+  const popUsed = popUsedOf(placedItems) + invPop;
   const faction = state.faction ?? 'bleu';
   const factionInfo = FACTIONS.find((f) => f.id === faction)!;
+  // Combien d'un article possède-t-on déjà (posé + en attente dans l'inventaire) ?
+  const ownedOf = (item: (typeof SHOP)[number]) => {
+    const ids = item.variants ?? [item.id];
+    return placedItems.filter((p) => ids.includes(p.id)).length + inv.filter((it) => ids.includes(it.id)).length;
+  };
 
   function buy(id: string) {
     const item = SHOP_MAP[id];
     if (!item) return;
     const placed = state.placed ?? [];
-    const ids = item.variants ?? [id];
-    const count = placed.filter((p) => ids.includes(p.id)).length;
+    const count = ownedOf(item);
     const res = state.resources ?? { wood: 0, food: 0 };
     const woodCost = item.wood ?? 0;
     const foodCost = item.food ?? 0;
-    // Vérifs (or, ressources, bâtiment requis, population) — si ça ne passe pas, on ne fait rien.
+    // Vérifs (or, ressources, bâtiment requis, population) — ignorées sur le compte dev (achat libre pour tout tester).
     if (count >= item.max) return;
-    if (state.coins < item.price || res.wood < woodCost || res.food < foodCost) return;
-    if (item.needs && !ownsBuilding(placed, item.needs)) return;
-    if ((item.pop ?? 0) > 0 && popUsed + (item.pop ?? 0) > popMax) return;
+    if (!isDev) {
+      if (state.coins < item.price || res.wood < woodCost || res.food < foodCost) return;
+      if (item.needs && !ownsBuilding(placed, item.needs)) return;
+      if ((item.pop ?? 0) > 0 && popUsed + (item.pop ?? 0) > popMax) return;
+    }
     const k = `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const { x, y } = findSpot(unlocked, placed, id, state.decorPos ?? {}, state.decorRemoved ?? []);
+    // L'achat va dans l'inventaire (case à poser) au lieu d'être posé d'office : plus d'allers-retours,
+    // et on peut annuler tant que ce n'est pas posé. On reste au marché pour continuer à acheter.
     setState((current) => ({
       ...current,
-      coins: current.coins - item.price,
-      resources: {
-        wood: (current.resources?.wood ?? 0) - woodCost,
-        food: (current.resources?.food ?? 0) - foodCost,
-      },
-      placed: [...(current.placed ?? []), { k, id, x: Math.round(x), y: Math.round(y) }],
+      // Dev : rien n'est débité (ressources illimitées, seulement sur ton compte).
+      coins: isDev ? current.coins : current.coins - item.price,
+      resources: isDev
+        ? current.resources ?? { wood: 0, food: 0 }
+        : {
+            wood: (current.resources?.wood ?? 0) - woodCost,
+            food: (current.resources?.food ?? 0) - foodCost,
+          },
+      inventory: [...(current.inventory ?? []), { k, id }],
       stats: { ...current.stats, bought: (current.stats.bought ?? 0) + 1 },
     }));
     setBought(id);
     window.setTimeout(() => setBought((b) => (b === id ? null : b)), 1400);
-    // On file sur la carte pour poser l'objet soi-même (mode « pose »).
-    pendingPlace = k;
-    navigate?.('island');
   }
 
   // Le joueur ne recrute/bâtit que dans sa couleur (les autres couleurs sont des rivaux).
@@ -491,7 +562,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
           </div>
           {navigate && (
             <Button variant="secondary" onClick={() => navigate('island')}>
-              <MapPin /> Voir mon royaume
+              <MapPin /> {inv.length ? `Poser (${inv.length})` : 'Voir mon royaume'}
             </Button>
           )}
         </div>
@@ -522,15 +593,13 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((item) => {
-          const count = item.variants
-            ? item.variants.reduce((sum, v) => sum + countOwned(state, v), 0)
-            : countOwned(state, item.id);
+          const count = ownedOf(item);
           const maxed = count >= item.max;
           const person = item.category === 'soldats' || item.category === 'animaux';
           const needBld = item.needs && !ownsBuilding(placedItems, item.needs);
           const popFull = (item.pop ?? 0) > 0 && popUsed + (item.pop ?? 0) > popMax;
           const afford = state.coins >= item.price && wood >= (item.wood ?? 0) && food >= (item.food ?? 0);
-          const canBuy = !maxed && afford && !needBld && !popFull;
+          const canBuy = isDev ? !maxed : !maxed && afford && !needBld && !popFull;
           const verb = item.category === 'batiments' ? 'Construire' : item.category === 'soldats' ? 'Recruter' : 'Acheter';
           const reason = needBld ? `Nécessite ${needsLabel(item.needs!)}` : popFull ? 'Population pleine' : null;
           return (

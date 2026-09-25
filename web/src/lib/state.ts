@@ -37,6 +37,7 @@ export const DEFAULT_STATE: GameState = {
   starters: false,
   island: [],
   placed: [],
+  inventory: [],
   trophies: [],
   stats: {},
   dailyXP: 0,
@@ -62,6 +63,7 @@ export function loadGameState(): GameState {
       srs: { ...(parsed.srs ?? {}) },
       island: parsed.island ?? [],
       placed: parsed.placed ?? [],
+      inventory: parsed.inventory ?? [],
       trophies: parsed.trophies ?? [],
     });
   } catch {

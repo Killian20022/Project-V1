@@ -101,6 +101,7 @@ export interface GameState {
   starters?: boolean; // ressources de départ (filons d'or) déjà déposées une fois
   island: string[];
   placed: PlacedItem[];
+  inventory?: { k: string; id: string }[]; // achats en attente de pose (case blanche transparente)
   decorPos?: Record<string, [number, number]>;
   decorRemoved?: string[]; // personnages d'origine renvoyés du royaume // personnages de la carte déplacés par le joueur
   trophies: string[];
