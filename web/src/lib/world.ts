@@ -805,9 +805,16 @@ export function createWorld(
       if (selected === keyOf(u)) select(null);
       if (u.placed) opts.onUnitLost?.(u.placed.k);
       if (u.reservedBy !== undefined) u.reservedBy = undefined;
+      // Libère le nœud que l'unité exploitait (sinon il reste réservé à jamais par un mort) + sa tâche.
+      const kk = keyOf(u);
+      eachNode((n) => {
+        if (n.reservedBy === kk) n.reservedBy = undefined;
+      });
+      u.task = undefined;
     }
   }
   function combatMove(e: Ent, tx: number, ty: number, dt: number) {
+    if (!e.home) return; // sécurité : pas de déplacement sans île d'attache (évite un crash)
     const dx = tx - e.x;
     const dy = ty - e.y;
     const d = Math.hypot(dx, dy);
@@ -1015,14 +1022,32 @@ export function createWorld(
       else nextActivity(e);
     }
   }
+  // Fait avancer une unité sans jamais pouvoir figer la carte : en cas d'erreur, on réinitialise
+  // proprement son état de combat/tâche (et on la retire si son état est irrécupérable).
+  function safeStep(e: Ent, dt: number) {
+    try {
+      stepAgent(e, dt);
+    } catch (err) {
+      console.error('Scriptoria: unité en erreur, réinitialisée', err);
+      e.target = undefined;
+      e.orderTarget = undefined;
+      e.order = undefined;
+      e.task = undefined;
+      e.strike = undefined;
+      e.acting = -1;
+      e.moving = false;
+      e.wait = 1;
+      if (!e.home) e.dead = true;
+    }
+  }
   function update(dt: number) {
     for (const e of placed) {
       if (!e.agent || e.dead || e === drag?.ent || e === moveEnt) continue;
-      if (e.home!.isl < 0 || !unlocked.has(e.home!.isl)) continue;
-      stepAgent(e, dt);
+      if (!e.home || e.home.isl < 0 || !unlocked.has(e.home.isl)) continue;
+      safeStep(e, dt);
     }
-    for (const e of decor)
-      if (e.agent && !e.dead && e !== drag?.ent && e !== moveEnt && (e.home ? unlocked.has(e.home.isl) : true)) stepAgent(e, dt);
+    for (const e of [...decor])
+      if (e.agent && !e.dead && e !== drag?.ent && e !== moveEnt && (e.home ? unlocked.has(e.home.isl) : true)) safeStep(e, dt);
     // Tours : tir automatique sur l'ennemi le plus proche.
     for (const e of [...placed, ...decor]) {
       if (combatBase(e.key) !== 'tour' || e.dead) continue;
@@ -1075,23 +1100,23 @@ export function createWorld(
         p.y += (dy / d) * step;
       }
     }
-    // Raids : un royaume rival débarque périodiquement sur l'île de départ.
+    // Raids / production / escadrons : on avance TOUJOURS le minuteur AVANT d'appeler (et on isole
+    // l'appel) pour qu'une éventuelle erreur ne relance pas la fonction à chaque image (fini le gel).
     if (t >= raidAt) {
-      spawnRaid();
       raidAt = t + 75 + Math.random() * 45;
+      try { spawnRaid(); } catch (err) { console.error('Scriptoria: raid', err); }
     }
-    // Royaumes IA vivants : leurs bâtiments produisent des unités au fil du temps.
     if (t >= produceAt) {
-      aiProduce();
       produceAt = t + 9;
+      try { aiProduce(); } catch (err) { console.error('Scriptoria: production IA', err); }
     }
-    // Anti-surpopulation : les îles IA trop peuplées envoient des escadrons à l'assaut (ou désengorgent).
     if (t >= dispatchAt) {
-      aiDispatch();
       dispatchAt = t + 12;
+      try { aiDispatch(); } catch (err) { console.error('Scriptoria: escadrons IA', err); }
     }
-    // Nettoyage des morts du décor (raiders et alliés tombés).
+    // Nettoyage des morts (décor + nœuds récoltables comme les moutons tués) : plus de références fantômes.
     for (let i = decor.length - 1; i >= 0; i--) if (decor[i].dead) decor.splice(i, 1);
+    for (let i = nodes.length - 1; i >= 0; i--) if (nodes[i].dead) nodes.splice(i, 1);
     // Repousse des nœuds épuisés (décor + achetés)
     eachNode((n) => {
       if (n.regrowAt !== undefined && t >= n.regrowAt) {
