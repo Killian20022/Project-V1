@@ -1,6 +1,6 @@
 // Original short brass fanfare, synthesized locally. No audio download is needed.
 // Called only from a user gesture; failure never prevents entry to the site.
-export function playRoyalFanfare(): () => void {
+export function playRoyalFanfare(durationMs = 3900): () => void {
   const AudioCtor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AudioCtor) return () => {};
   const ctx = new AudioCtor();
@@ -18,8 +18,11 @@ export function playRoyalFanfare(): () => void {
   master.connect(echo).connect(room).connect(limiter);
   const wave = ctx.createPeriodicWave(new Float32Array(13), new Float32Array([0, 1, .7, .5, .32, .22, .15, .1, .065, .035, .02, .012, .008]));
   const origin = ctx.currentTime + .04;
+  const tempo = Math.min(1, Math.max(.15, (durationMs / 1000 - .3) / 3.24));
 
   function horn(midi: number, offset: number, length: number, level: number) {
+    offset *= tempo;
+    length *= tempo;
     const start = origin + offset;
     const osc = ctx.createOscillator();
     const env = ctx.createGain();
@@ -35,8 +38,8 @@ export function playRoyalFanfare(): () => void {
     osc.detune.linearRampToValueAtTime(0, start + .04);
     env.gain.setValueAtTime(0, start);
     env.gain.linearRampToValueAtTime(level, start + .025);
-    env.gain.linearRampToValueAtTime(level * .8, start + .1);
-    env.gain.setValueAtTime(level * .8, start + length - .06);
+    env.gain.linearRampToValueAtTime(level * .8, start + Math.min(.1, length * .4));
+    env.gain.setValueAtTime(level * .8, start + Math.max(length * .5, length - .06));
     env.gain.exponentialRampToValueAtTime(.0001, start + length + .18);
     const vibrato = ctx.createOscillator();
     const depth = ctx.createGain();

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { ArrowRight, Castle, Swords, Volume2, VolumeX, X } from 'lucide-react';
 import { playRoyalFanfare } from '@/lib/royalFanfare';
 
-const DURATION = 3900;
+const DURATION = 2200;
+const GENTLE_DURATION = 800;
 type Stage = 'ready' | 'playing' | 'closed';
 function savedMotion(): boolean {
   try {
@@ -19,6 +20,7 @@ export function WelcomeArrival({ replay, userId, authReady }: { replay: number; 
   const [imageReady, setImageReady] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
+  const skipButton = useRef<HTMLButtonElement>(null);
   const previousUser = useRef<string | null | undefined>(undefined);
   const finishTimer = useRef<number>();
   const stopAudio = useRef<(() => void) | null>(null);
@@ -64,18 +66,20 @@ export function WelcomeArrival({ replay, userId, authReady }: { replay: number; 
     if (playing.current) return;
     playing.current = true;
     // AudioContext is created directly inside the click handler for autoplay compatibility.
-    if (sound) { try { stopAudio.current = playRoyalFanfare(); } catch { /* Continue the visual entrance. */ } }
+    if (sound) { try { stopAudio.current = playRoyalFanfare(gentle ? GENTLE_DURATION : DURATION); } catch { /* Continue the visual entrance. */ } }
+    skipButton.current?.focus({ preventScroll: true });
     setStage('playing');
-    finishTimer.current = window.setTimeout(close, DURATION);
+    finishTimer.current = window.setTimeout(close, gentle ? GENTLE_DURATION : DURATION);
   }
 
   if (!visible) return null;
-  return <dialog ref={dialog} className="kingdom-cinema" data-stage={stage} data-motion={gentle ? 'gentle' : 'full'} aria-labelledby="kingdom-title" aria-describedby="kingdom-description" onCancel={close}>
+  return <dialog ref={dialog} className="kingdom-cinema" style={{ '--arrival-duration': `${gentle ? GENTLE_DURATION : DURATION}ms` } as CSSProperties} data-stage={stage} data-motion={gentle ? 'gentle' : 'full'} aria-labelledby="kingdom-title" aria-describedby="kingdom-description" onCancel={close}>
     <div className="cinema-landscape" aria-hidden="true">
       <img src={import.meta.env.BASE_URL + 'media/kingdom-gate.png'} alt="" onLoad={() => setImageReady(true)} onError={() => { setImageReady(true); setImageFailed(true); }} className={imageReady && !imageFailed ? 'is-ready' : ''}/>
       {imageFailed && <Castle className="cinema-fallback" strokeWidth={.7}/>}
       <div className="cinema-shade"/>
     </div>
+    <div className="cinema-gate-light" aria-hidden="true"/>
     <div className="cinema-fog cinema-fog-back" aria-hidden="true"/>
     <div className="cinema-fog cinema-fog-left" aria-hidden="true"/>
     <div className="cinema-fog cinema-fog-right" aria-hidden="true"/>
@@ -96,7 +100,7 @@ export function WelcomeArrival({ replay, userId, authReady }: { replay: number; 
       </div>
     </div>
     <p className="cinema-welcome" aria-live="polite">{stage === 'playing' ? 'Bienvenue dans votre royaume.' : ''}</p>
-    <button className="cinema-skip" onClick={close}><span>{stage === 'playing' ? 'Passer l’introduction' : 'Accéder directement au site'}</span><X size={15}/></button>
+    <button ref={skipButton} className="cinema-skip" onClick={close}><span>{stage === 'playing' ? 'Passer l’introduction' : 'Accéder directement au site'}</span><X size={15}/></button>
     <div className="cinema-footer" aria-hidden="true"><span>APPRENDRE</span><i>✦</i><span>EXPLORER</span><i>✦</i><span>CONQUÉRIR</span></div>
   </dialog>;
 }
