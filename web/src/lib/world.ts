@@ -6,7 +6,7 @@
 // - tous les personnages (achetés ou du décor) se prennent et se déplacent, jamais dans l'eau
 import WORLD_JSON from '../data/world.json';
 import { SPRITES, spriteUrl, type SpriteDef } from './sprites';
-import { SHOP_MAP, houseVariants } from '../data/shop';
+import { SHOP_MAP, houseVariants, storageCaps } from '../data/shop';
 
 export interface WorldData {
   w: number;
@@ -275,6 +275,12 @@ type Ent = {
   atkCd?: number; // instant (s) de la prochaine attaque possible
   hurtT?: number; // instant du dernier coup reçu (flash / affichage barre)
   raider?: boolean; // ennemi apparu lors d'un raid (nettoyé à sa mort)
+  // Ordres du joueur (RTS)
+  order?: { x: number; y: number }; // point de marche désigné (attaque-déplacement)
+  orderTarget?: Ent; // ennemi précis à pourchasser (au-delà de l'aggro auto)
+  recoilT?: number; // instant du dernier recul (knockback visuel)
+  recoilX?: number; // direction du recul
+  recoilY?: number;
 };
 
 export function createWorld(
@@ -287,16 +293,21 @@ export function createWorld(
     onVariant?: (k: string, id: string) => void; // style de maison changé à la molette
     onSelect?: (k: string | null, info?: { id: string; bought: boolean }) => void;
     onMoveMode?: (active: boolean) => void;
+    onOrderMode?: (active: boolean) => void; // mode « envoyer les troupes » actif ?
     decorRemoved?: string[]; // personnages du décor supprimés par le joueur
     onDecorRemove?: (id: string) => void;
     decorPos?: Record<string, [number, number]>; // personnages du décor déplacés par le joueur
     onDecorMove?: (id: string, x: number, y: number) => void;
     onHarvest?: (kind: ResKind, amount: number) => void; // ressources récoltées (batché ~1/s)
+    stock?: { gold: number; wood: number; food: number }; // réserves actuelles (pour le plafond)
     onUnitLost?: (k: string) => void; // une unité achetée est morte au combat
     playerFaction?: string; // couleur du royaume du joueur (défaut : bleu)
   },
 ) {
   const ctx = canvas.getContext('2d')!;
+  // Petit canvas hors-écran réutilisé pour teinter une image (flash de dégâts « façon Dune »).
+  const tintCv = document.createElement('canvas');
+  const tintCtx = tintCv.getContext('2d')!;
   const images = new Map<string, HTMLImageElement>();
   const img = (src: string) => {
     let im = images.get(src);
@@ -330,7 +341,20 @@ export function createWorld(
   let moveEnt: Ent | null = null; // mode « Déplacer » (bouton) : on touche une case pour poser
   let ghost: { x: number; y: number } | null = null;
   let flashBad = 0; // instant du dernier refus (case rouge qui tremble)
-  const effects: { x: number; y: number; t0: number; kind: 'dust' | 'ring'; s?: number }[] = [];
+  // Effets visuels : poussière, onde, choc de combat, gerbe de sable, chiffres de dégâts, marqueur d'ordre.
+  const effects: {
+    x: number;
+    y: number;
+    t0: number;
+    kind: 'dust' | 'ring' | 'hit' | 'slash' | 'sand' | 'dmg' | 'rally';
+    s?: number; // échelle
+    vx?: number; // vitesse (particules de sable)
+    vy?: number;
+    val?: number; // valeur (chiffre de dégâts)
+    enemy?: boolean; // cible ennemie (couleur du chiffre)
+    ang?: number; // angle (éclair de mêlée)
+  }[] = [];
+  let orderMode = false; // mode « envoyer les troupes » : un toucher désigne la destination
   const projectiles: { x: number; y: number; target: Ent; dmg: number; from: 'player' | 'enemy' }[] = [];
   let raidAt = 999; // instant du prochain raid (fixé au démarrage)
   let produceAt = 10; // instant de la prochaine production des royaumes rivaux
@@ -497,11 +521,28 @@ export function createWorld(
   }
   setPlaced(opts.placed);
 
-  // ---------- Récolte : accumulateur batché ----------
+  // ---------- Récolte : accumulateur batché + plafond de stockage ----------
   const pending: Record<ResKind, number> = { wood: 0, gold: 0, food: 0 };
+  // Réserves actuelles (miroir du state React) : servent à savoir quand le stockage est plein.
+  let stock = { gold: opts.stock?.gold ?? 0, wood: opts.stock?.wood ?? 0, food: opts.stock?.food ?? 0 };
+  const capNow = () => storageCaps(placed.map((e) => ({ id: e.key })));
+  // Place restante pour une ressource (réserve + en attente vs plafond des bâtiments).
+  const roomFor = (k: ResKind) => Math.max(0, capNow()[k] - (stock[k] + pending[k]));
+  const resourceFull = (k: ResKind) => roomFor(k) <= 0;
+  // On ne récolte jamais au-delà du plafond : on n'ajoute que ce qui rentre (l'or des leçons n'est jamais détruit).
   const credit = (k: ResKind, a: number) => {
-    pending[k] += a;
+    pending[k] += Math.min(a, roomFor(k));
   };
+  // Reverse le lot accumulé au React (et met à jour le miroir des réserves) : appelé ~1×/s et à l'arrêt.
+  function flushPending() {
+    for (const k of ['wood', 'gold', 'food'] as ResKind[]) {
+      if (pending[k]) {
+        stock[k] += pending[k];
+        opts.onHarvest?.(k, pending[k]);
+        pending[k] = 0;
+      }
+    }
+  }
   const isWorker = (e: Ent) => /^villageois/.test(e.key);
   const isSoldier = (e: Ent) => /^(guerrier|lancier|archer|moine)/.test(e.key);
   const isMelee = (e: Ent) => /^(guerrier|lancier)/.test(e.key);
@@ -571,7 +612,9 @@ export function createWorld(
     n.regrowAt === undefined &&
     (n.nodeStock ?? 0) > 0 &&
     (!n.reservedBy || n.reservedBy === keyOf(e)) &&
-    islandAt(...nodeCell(n)) === e.home!.isl;
+    islandAt(...nodeCell(n)) === e.home!.isl &&
+    // Stockage plein : le villageois du joueur arrête de récolter cette ressource (plus de stacks infinis).
+    !(harvestCredits(e) && n.origKey !== undefined && resourceFull(HARVEST[n.origKey].resource));
   function nearestNode(e: Ent): Ent | null {
     let best: Ent | null = null;
     let bd = Infinity;
@@ -709,13 +752,42 @@ export function createWorld(
     }
     return best;
   }
-  function hurt(u: Ent, dmg: number) {
+  // Gerbe de sable/poussière projetée à l'impact (petites particules qui retombent).
+  function spawnSand(x: number, y: number, dirX: number, n: number, power = 1) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.atan2(-0.6 - Math.random() * 0.7, dirX * (0.4 + Math.random())) + (Math.random() - 0.5) * 0.6;
+      const sp = (60 + Math.random() * 120) * power;
+      effects.push({ x, y, t0: t, kind: 'sand', vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, s: 0.6 + Math.random() * 0.9 });
+    }
+  }
+  // Effet de coup : éclair de lame (mêlée) ou éclat d'impact (tir), + onde de choc + sable.
+  function spawnHit(u: Ent, dmg: number, from: { x: number; y: number } | undefined, melee: boolean) {
+    const hy = u.y - (u.def.fh - u.def.feet) * 0.45;
+    const dir = from ? Math.sign(u.x - from.x) || 1 : -1;
+    effects.push({ x: u.x, y: hy, t0: t, kind: 'hit', s: melee ? 1.2 : 0.8 });
+    if (melee) effects.push({ x: u.x - dir * 10, y: hy, t0: t, kind: 'slash', ang: dir < 0 ? Math.PI * 0.75 : Math.PI * 0.25 });
+    spawnSand(u.x, u.y - 4, dir, melee ? 8 : 5, melee ? 1.2 : 0.8);
+    effects.push({ x: u.x, y: hy - 6, t0: t, kind: 'dmg', val: Math.round(dmg), enemy: !isFriendly(u) });
+  }
+  function hurt(u: Ent, dmg: number, from?: { x: number; y: number }, melee = false) {
     if (!alive(u)) return;
     u.hp = (u.hp ?? u.maxHp ?? 1) - dmg;
     u.hurtT = t;
+    // Recul (knockback) : l'unité est repoussée un court instant dans la direction du coup.
+    if (from) {
+      const dx = u.x - from.x;
+      const dy = u.y - from.y;
+      const d = Math.hypot(dx, dy) || 1;
+      u.recoilT = t;
+      u.recoilX = (dx / d) * (melee ? 7 : 4);
+      u.recoilY = (dy / d) * (melee ? 4 : 2);
+    }
+    spawnHit(u, dmg, from, melee);
     if (u.hp <= 0) {
       u.dead = true;
-      effects.push({ x: u.x, y: u.y, t0: t, kind: 'dust' });
+      effects.push({ x: u.x, y: u.y, t0: t, kind: 'dust', s: 1.3 });
+      effects.push({ x: u.x, y: u.y - 18, t0: t, kind: 'hit', s: 1.6 });
+      spawnSand(u.x, u.y - 4, from ? Math.sign(u.x - from.x) || 1 : 1, 12, 1.4);
       // Une unité qu'on est en train de déplacer/sélectionner vient de mourir : on abandonne proprement.
       if (drag?.ent === u) drag = null;
       if (moveEnt === u) endMove();
@@ -752,7 +824,7 @@ export function createWorld(
     if (!e.atkCd || t >= e.atkCd) {
       e.atkCd = t + st.atk;
       if (st.ranged) projectiles.push({ x: e.x, y: e.y - 30, target: foe, dmg: st.dmg, from: isFriendly(e) ? 'player' : 'enemy' });
-      else hurt(foe, st.dmg);
+      else hurt(foe, st.dmg, { x: e.x, y: e.y }, true);
     }
   }
   // Un combattant engage l'ennemi le plus proche ; renvoie true s'il est en plein combat.
@@ -840,9 +912,28 @@ export function createWorld(
     if (e.walks && r < 0.85) pickTarget(e);
     else e.wait = 1.5 + Math.random() * 3;
   }
+  // Ordre de marche du joueur : la troupe fonce vers le point désigné (le combat prime au-dessus).
+  function issueMarch(e: Ent) {
+    if (!e.order) return;
+    const dx = e.order.x - e.x;
+    const dy = e.order.y - e.y;
+    if (Math.hypot(dx, dy) < TS * 0.6) {
+      e.order = undefined; // arrivé : l'unité tient la position
+      e.wait = 0.3;
+      return;
+    }
+    e.tx = e.order.x;
+    e.ty = e.order.y;
+    e.moving = true;
+  }
   function stepAgent(e: Ent, dt: number) {
     if (e.dead) return;
     if (e.reservedBy) return; // nœud-agent (mouton) figé pendant qu'un villageois le récolte
+    // Ordre d'attaque sur une cible précise : on force le combat à la pourchasser (au-delà de l'aggro).
+    if (e.orderTarget) {
+      if (!alive(e.orderTarget) || e.orderTarget.home?.isl !== e.home?.isl) e.orderTarget = undefined;
+      else e.target = e.orderTarget;
+    }
     if (isFighter(e) && combatStep(e, dt)) return; // le combat prime sur tout le reste
     if (e.acting! >= 0) {
       if (t >= e.actEnd!) {
@@ -877,6 +968,9 @@ export function createWorld(
         if (e.task && e.task.phase === 'goto') {
           e.task.phase = 'work';
           startCycle(e); // arrivé au nœud : on commence à travailler
+        } else if (e.order) {
+          e.order = undefined; // arrivé au point d'ordre
+          e.wait = 0.3;
         } else {
           e.wait = 1 + Math.random() * 3;
         }
@@ -904,7 +998,10 @@ export function createWorld(
       return;
     }
     e.wait! -= dt;
-    if (e.wait! <= 0) nextActivity(e);
+    if (e.wait! <= 0) {
+      if (e.order) issueMarch(e); // priorité à l'ordre du joueur sur la vie autonome
+      else nextActivity(e);
+    }
   }
   function update(dt: number) {
     for (const e of placed) {
@@ -940,7 +1037,7 @@ export function createWorld(
       const d = Math.hypot(dx, dy);
       const step = 380 * dt;
       if (d <= step) {
-        hurt(p.target, p.dmg);
+        hurt(p.target, p.dmg, { x: p.x, y: p.y }, false);
         projectiles.splice(i, 1);
       } else {
         p.x += (dx / d) * step;
@@ -1193,6 +1290,17 @@ export function createWorld(
   }
   function drawSprite(e: Ent, alpha = 1, lift = 0) {
     const def = e.def;
+    // Flash de dégâts (l'unité vire au blanc-rouge un court instant) + recul décroissant.
+    const flash = e.hurtT !== undefined ? Math.max(0, 1 - (t - e.hurtT) / 0.18) * 0.85 : 0;
+    let recoilX = 0;
+    let recoilY = 0;
+    if (e.recoilT !== undefined) {
+      const rk = 1 - (t - e.recoilT) / 0.18;
+      if (rk > 0) {
+        recoilX = (e.recoilX ?? 0) * rk;
+        recoilY = (e.recoilY ?? 0) * rk;
+      }
+    }
     const run = e.moving && def.run;
     const act = !run && e.acting !== undefined && e.acting >= 0 ? def.act?.[e.acting] : undefined;
     const sheet = run ? def.run! : act ?? { src: def.src, n: def.n };
@@ -1229,16 +1337,36 @@ export function createWorld(
     ctx.globalAlpha = alpha;
     drawFrame();
     ctx.globalAlpha = 1;
+    // Silhouette teintée superposée à l'image quand l'unité vient d'être frappée.
+    function drawTint() {
+      tintCv.width = def.fw;
+      tintCv.height = def.fh;
+      tintCtx.clearRect(0, 0, def.fw, def.fh);
+      tintCtx.globalCompositeOperation = 'source-over';
+      tintCtx.drawImage(im, f * def.fw, 0, def.fw, def.fh, 0, 0, def.fw, def.fh);
+      tintCtx.globalCompositeOperation = 'source-atop';
+      tintCtx.fillStyle = 'rgb(255, 232, 228)';
+      tintCtx.fillRect(0, 0, def.fw, def.fh);
+      tintCtx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = flash * alpha;
+      ctx.drawImage(tintCv, dx, dy, def.fw, def.fh);
+      ctx.globalAlpha = 1;
+    }
     function drawFrame() {
+      ctx.save();
+      if (recoilX || recoilY) ctx.translate(recoilX, recoilY);
       if (e.face === -1) {
         ctx.save();
         ctx.translate(e.x * 2, 0);
         ctx.scale(-1, 1);
         ctx.drawImage(im, f * def.fw, 0, def.fw, def.fh, dx, dy, def.fw, def.fh);
+        if (flash > 0) drawTint();
         ctx.restore();
       } else {
         ctx.drawImage(im, f * def.fw, 0, def.fw, def.fh, dx, dy, def.fw, def.fh);
+        if (flash > 0) drawTint();
       }
+      ctx.restore();
     }
   }
 
@@ -1406,7 +1534,7 @@ export function createWorld(
         }
         const ds = 128 * Math.max(1, (fx.s ?? 1) * 0.8);
         if (dust.complete && dust.naturalWidth) ctx.drawImage(dust, f * 64, 0, 64, 64, fx.x - ds / 2, fx.y - ds * 0.75, ds, ds);
-      } else {
+      } else if (fx.kind === 'ring') {
         if (age > 0.6) {
           effects.splice(i, 1);
           continue;
@@ -1420,6 +1548,116 @@ export function createWorld(
         ctx.beginPath();
         const rs = fx.s ?? 1;
         ctx.ellipse(fx.x, fx.y, (20 + 50 * k) * rs, (8 + 18 * k) * Math.max(1, rs * 0.7), 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      } else if (fx.kind === 'hit') {
+        // Onde de choc de l'impact : anneau blanc-orangé qui s'ouvre vite (façon Dune).
+        const dur = 0.32;
+        if (age > dur) {
+          effects.splice(i, 1);
+          continue;
+        }
+        const k = age / dur;
+        const rs = fx.s ?? 1;
+        ctx.save();
+        ctx.strokeStyle = `rgba(255, ${Math.round(220 - 120 * k)}, 150, ${1 - k})`;
+        ctx.shadowColor = 'rgba(255, 200, 120, 0.9)';
+        ctx.shadowBlur = 14;
+        ctx.lineWidth = (5 * (1 - k) + 1.5) * rs;
+        ctx.beginPath();
+        ctx.arc(fx.x, fx.y, (6 + 34 * k) * rs, 0, Math.PI * 2);
+        ctx.stroke();
+        // cœur lumineux au tout début
+        if (k < 0.4) {
+          ctx.globalAlpha = (1 - k / 0.4) * 0.9;
+          ctx.fillStyle = 'rgba(255, 250, 235, 1)';
+          ctx.beginPath();
+          ctx.arc(fx.x, fx.y, 7 * rs * (1 - k), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      } else if (fx.kind === 'slash') {
+        // Éclair de lame : trait blanc lumineux dans le sens du coup.
+        const dur = 0.18;
+        if (age > dur) {
+          effects.splice(i, 1);
+          continue;
+        }
+        const k = age / dur;
+        const len = 34;
+        const ang = fx.ang ?? 0;
+        ctx.save();
+        ctx.translate(fx.x, fx.y);
+        ctx.rotate(ang);
+        ctx.globalAlpha = 1 - k;
+        ctx.strokeStyle = 'rgba(255, 255, 245, 1)';
+        ctx.shadowColor = 'rgba(255, 240, 200, 1)';
+        ctx.shadowBlur = 12;
+        ctx.lineWidth = 4 * (1 - k) + 1;
+        ctx.beginPath();
+        ctx.moveTo(-len / 2, 0);
+        ctx.lineTo(len / 2, 0);
+        ctx.stroke();
+        ctx.restore();
+      } else if (fx.kind === 'sand') {
+        // Particule de sable/poussière projetée puis qui retombe (gravité).
+        const dur = 0.5;
+        if (age > dur) {
+          effects.splice(i, 1);
+          continue;
+        }
+        const px = fx.x + (fx.vx ?? 0) * age;
+        const py = fx.y + (fx.vy ?? 0) * age + 260 * age * age; // gravité
+        ctx.save();
+        ctx.globalAlpha = (1 - age / dur) * 0.85;
+        ctx.fillStyle = 'rgba(214, 188, 140, 1)';
+        ctx.beginPath();
+        ctx.arc(px, py, 2.2 * (fx.s ?? 1), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      } else if (fx.kind === 'dmg') {
+        // Chiffre de dégâts qui monte et s'estompe.
+        const dur = 0.9;
+        if (age > dur) {
+          effects.splice(i, 1);
+          continue;
+        }
+        const k = age / dur;
+        const py = fx.y - 26 * k;
+        ctx.save();
+        ctx.globalAlpha = 1 - k * k;
+        ctx.font = '700 16px "MedievalSharp", Georgia, serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(20, 12, 8, 0.9)';
+        ctx.fillStyle = fx.enemy ? 'rgb(255, 226, 120)' : 'rgb(255, 130, 120)';
+        const txt = `-${fx.val ?? 0}`;
+        ctx.strokeText(txt, fx.x, py);
+        ctx.fillText(txt, fx.x, py);
+        ctx.restore();
+      } else if (fx.kind === 'rally') {
+        // Marqueur de destination des troupes : chevrons qui pulsent puis disparaissent.
+        const dur = 1.1;
+        if (age > dur) {
+          effects.splice(i, 1);
+          continue;
+        }
+        const k = age / dur;
+        ctx.save();
+        ctx.globalAlpha = 1 - k;
+        ctx.strokeStyle = 'rgba(255, 226, 120, 1)';
+        ctx.shadowColor = 'rgba(255, 200, 90, 0.9)';
+        ctx.shadowBlur = 12;
+        ctx.lineWidth = 3;
+        const r = 8 + (1 - Math.abs(Math.sin(age * 8))) * 6;
+        ctx.beginPath();
+        ctx.arc(fx.x, fx.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(fx.x - 6, fx.y - 2);
+        ctx.lineTo(fx.x, fx.y + 5);
+        ctx.lineTo(fx.x + 6, fx.y - 2);
         ctx.stroke();
         ctx.restore();
       }
@@ -1527,8 +1765,8 @@ export function createWorld(
       drag = null;
       return;
     }
-    // mode « Déplacer » : le glisser déplace la carte, un simple toucher pose le personnage
-    const ent = moveEnt ? undefined : pick(p.x, p.y);
+    // modes « Déplacer » / « Envoyer les troupes » : le glisser déplace la carte, un simple toucher agit
+    const ent = moveEnt || orderMode ? undefined : pick(p.x, p.y);
     if (moveEnt) ghost = snapGhost(p.x, p.y);
     const wg = s2w(p.x, p.y); // point saisi (monde) → on garde l'écart avec l'ancre de l'objet
     drag = { ent, ox: cam.x, oy: cam.y, sx: p.x, sy: p.y, moved: false, start: ent ? { x: ent.x, y: ent.y } : { x: 0, y: 0 }, gx: ent ? ent.x - wg.x : 0, gy: ent ? ent.y - wg.y : 0 };
@@ -1587,11 +1825,66 @@ export function createWorld(
     ghost = null;
     opts.onMoveMode?.(false);
   }
+  function endOrder() {
+    if (!orderMode) return;
+    orderMode = false;
+    opts.onOrderMode?.(false);
+  }
+  // Ennemi vivant sous (ou tout près de) le point monde (x, y), même île de préférence.
+  function enemyAt(x: number, y: number, isl: number): Ent | null {
+    let near: Ent | null = null;
+    let nd = TS * 1.4;
+    for (const o of [...decor, ...placed]) {
+      if (!o.agent || !alive(o) || o.maxHp === undefined || isFriendly(o)) continue;
+      const b = hitBox(o);
+      if (x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1) return o;
+      if (o.home?.isl === isl) {
+        const d = Math.hypot(o.x - x, o.y - y);
+        if (d < nd) {
+          nd = d;
+          near = o;
+        }
+      }
+    }
+    return near;
+  }
+  // Ordre du joueur : envoie toutes tes unités de combat de l'île vers le point désigné.
+  // Si le point vise un ennemi, elles le prennent pour cible et le pourchassent.
+  function commandTo(sx: number, sy: number) {
+    const w = s2w(sx, sy);
+    const cx = Math.floor(w.x / TS);
+    const cy = Math.floor(w.y / TS);
+    const isl = islandAt(cx, cy);
+    if (isl < 0 || !unlocked.has(isl)) {
+      flashBad = t;
+      return;
+    }
+    const foe = enemyAt(w.x, w.y, isl);
+    const dest = foe ? { x: foe.x, y: foe.y } : { x: w.x, y: w.y };
+    let sent = 0;
+    for (const e of [...placed, ...decor]) {
+      if (!e.agent || e.dead || !isFriendly(e) || !isFighter(e)) continue;
+      if (e.home?.isl !== isl) continue;
+      if (e === drag?.ent || e === moveEnt) continue;
+      e.order = { x: dest.x, y: dest.y };
+      e.orderTarget = foe ?? undefined;
+      e.task = undefined;
+      e.moving = false;
+      e.acting = -1;
+      e.wait = 0;
+      sent++;
+    }
+    if (sent) effects.push({ x: w.x, y: w.y, t0: t, kind: 'rally' });
+    else flashBad = t;
+    endOrder();
+  }
   function onMove(ev: PointerEvent) {
     const p = localXY(ev);
     if (!pointers.has(ev.pointerId)) {
       if (moveEnt) {
         ghost = snapGhost(p.x, p.y);
+        canvas.style.cursor = 'crosshair';
+      } else if (orderMode) {
         canvas.style.cursor = 'crosshair';
       } else canvas.style.cursor = pick(p.x, p.y) ? 'grab' : 'default';
       return;
@@ -1636,12 +1929,14 @@ export function createWorld(
       const w = snapGhost(d.sx, d.sy)!;
       ghost = w;
       if (dropAt(moveEnt, w.x, w.y)) endMove();
+    } else if (orderMode && !d.moved) {
+      commandTo(d.sx, d.sy);
     } else if (d.ent) {
       if (d.moved && !dropAt(d.ent, d.ent.x, d.ent.y)) {
         d.ent.x = d.start.x;
         d.ent.y = d.start.y;
       }
-    } else if (!d.moved && !moveEnt) {
+    } else if (!d.moved && !moveEnt && !orderMode) {
       select(null);
     }
     canvas.style.cursor = 'default';
@@ -1694,18 +1989,12 @@ export function createWorld(
       raf = requestAnimationFrame(frame);
       raidAt = t + 60; // premier raid après ~1 min
       // Récolte : reversement des ressources au React ~1×/s (borne le nombre de setState/saves).
-      flushTimer = window.setInterval(() => {
-        for (const k of ['wood', 'gold', 'food'] as ResKind[]) {
-          if (pending[k]) {
-            opts.onHarvest?.(k, pending[k]);
-            pending[k] = 0;
-          }
-        }
-      }, 1000);
+      flushTimer = window.setInterval(flushPending, 1000);
     },
     stop() {
       cancelAnimationFrame(raf);
       clearInterval(flushTimer);
+      flushPending(); // ne jamais perdre le dernier lot récolté en quittant la carte / le site
       canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
@@ -1748,6 +2037,7 @@ export function createWorld(
     startMove(k: string) {
       const e = findByKey(k);
       if (!e) return false;
+      endOrder();
       moveEnt = e;
       e.moving = false;
       e.acting = -1;
@@ -1757,6 +2047,16 @@ export function createWorld(
     },
     cancelMove() {
       if (moveEnt) endMove();
+    },
+    /** Active le mode « Envoyer les troupes » : le prochain toucher désigne la destination d'attaque. */
+    startOrder() {
+      endMove();
+      select(null);
+      orderMode = true;
+      opts.onOrderMode?.(true);
+    },
+    cancelOrder() {
+      endOrder();
     },
     /** Retire un personnage du décor de la carte. */
     removeDecor(id: string) {
@@ -1776,6 +2076,14 @@ export function createWorld(
       if (set.size !== unlocked.size) fogDirty = true;
       unlocked = set;
       missionsDone = done;
+    },
+    /** Met à jour le miroir des réserves (pour savoir quand le stockage est plein). */
+    setStock(s: { gold: number; wood: number; food: number }) {
+      stock = { gold: s.gold, wood: s.wood, food: s.food };
+    },
+    /** Reverse immédiatement les ressources en attente (ex. avant de quitter le site). */
+    flush() {
+      flushPending();
     },
   };
 }

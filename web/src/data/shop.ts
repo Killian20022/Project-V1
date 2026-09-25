@@ -194,6 +194,35 @@ export function popMaxOf(placed: { id: string }[]): number {
   return placed.reduce((cap, p) => cap + (SHOP_MAP[p.id]?.popCap ?? 0), POP_BASE);
 }
 
+// ---------- Stockage des ressources ----------
+// Chaque ressource a un plafond : quand c'est plein, les villageois arrêtent de récolter.
+// Le plafond de base est modeste et AUGMENTE avec les bâtiments possédés (le château stocke le plus).
+export type Stock = { gold: number; wood: number; food: number };
+// Bases assez larges pour financer le bâtiment le plus cher (château : 1000 or / 400 bois) sans blocage.
+export const STORE_BASE: Stock = { gold: 1200, wood: 500, food: 150 };
+const STORE_PER: Record<string, Stock> = {
+  chateau: { gold: 1500, wood: 300, food: 200 },
+  maison: { gold: 150, wood: 40, food: 30 },
+  caserne: { gold: 0, wood: 80, food: 40 },
+  archerie: { gold: 0, wood: 80, food: 40 },
+  monastere: { gold: 0, wood: 40, food: 80 },
+  tour: { gold: 100, wood: 60, food: 0 },
+};
+
+/** Plafond de stockage (or/bois/nourriture) = base + apport de chaque bâtiment possédé. */
+export function storageCaps(placed: { id: string }[]): Stock {
+  const cap: Stock = { ...STORE_BASE };
+  for (const p of placed) {
+    const add = STORE_PER[buildingBase(p.id) ?? ''];
+    if (add) {
+      cap.gold += add.gold;
+      cap.wood += add.wood;
+      cap.food += add.food;
+    }
+  }
+  return cap;
+}
+
 /** Population utilisée = nombre d'unités possédées (villageois + soldats). */
 export function popUsedOf(placed: { id: string }[]): number {
   return placed.filter((p) => SHOP_MAP[p.id]?.category === 'soldats').length;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ShoppingBag, Check, Lock, Plus, Minus, LocateFixed, Scan, Trash2, MapPin, X, Move, RotateCcw } from 'lucide-react';
+import { ShoppingBag, Check, Lock, Plus, Minus, LocateFixed, Scan, Trash2, MapPin, X, Move, RotateCcw, Swords } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sprite } from '@/components/Sprite';
@@ -13,6 +13,7 @@ import {
   ownsBuilding,
   needsLabel,
   applyFaction,
+  storageCaps,
   type Faction,
   type ShopCategory,
 } from '@/data/shop';
@@ -47,6 +48,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
   const [selected, setSelected] = useState<string | null>(null);
   const [selInfo, setSelInfo] = useState<{ id: string; bought: boolean } | null>(null);
   const [moving, setMoving] = useState(false);
+  const [ordering, setOrdering] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [mapVersion, setMapVersion] = useState(0); // bump = recréer le moteur (reset / changement de couleur)
   const [confirmReset, setConfirmReset] = useState(false);
@@ -57,6 +59,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
   const unlocked = useMemo(() => unlockedIslands(done), [done]);
   const openBig = WORLD.islands.filter((isl, i) => isl.size > 12 && unlocked.has(i)).length;
   const next = nextUnlock(done);
+  const caps = useMemo(() => storageCaps(state.placed ?? []), [state.placed]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -83,6 +86,8 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         setConfirmDel(false);
       },
       onMoveMode: setMoving,
+      onOrderMode: setOrdering,
+      stock: { gold: state.coins, wood: state.resources?.wood ?? 0, food: state.resources?.food ?? 0 },
       decorPos: state.decorPos ?? {},
       decorRemoved: state.decorRemoved ?? [],
       onDecorMove: (id, x, y) =>
@@ -134,6 +139,22 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
   useEffect(() => {
     engineRef.current?.setUnlocked(unlocked, done);
   }, [unlocked, done]);
+
+  // Tient le moteur informé des réserves (pour savoir quand le stockage est plein).
+  useEffect(() => {
+    engineRef.current?.setStock({ gold: state.coins, wood: state.resources?.wood ?? 0, food: state.resources?.food ?? 0 });
+  }, [state.coins, state.resources]);
+
+  // Filet de sécurité : à la fermeture de l'onglet, on reverse le dernier lot récolté avant que la page parte.
+  useEffect(() => {
+    const flush = () => engineRef.current?.flush();
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', flush);
+    };
+  }, []);
 
   // Ressources de départ : dépose une fois 2 filons d'or sur l'île (elle n'en a pas), en objets
   // possédés — donc déplaçables, exploitables et sauvegardés. Re-déposés après une réinitialisation.
@@ -214,7 +235,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
 
   // Réinitialise la carte : retire tout ce qui a été placé/récolté et restaure le décor d'origine.
   function resetMap() {
-    setState((current) => ({ ...current, placed: [], decorPos: {}, decorRemoved: [], resources: { wood: 0, food: 0 }, starters: false }));
+    setState((current) => ({ ...current, coins: 0, placed: [], decorPos: {}, decorRemoved: [], resources: { wood: 0, food: 0 }, starters: false }));
     setSelected(null);
     setSelInfo(null);
     setConfirmReset(false);
@@ -234,20 +255,27 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         </p>
       </div>
 
-      {/* Réserves : récoltées en temps réel par les villageois */}
+      {/* Réserves : récoltées en temps réel par les villageois (x / capacité de stockage) */}
       <div className="pointer-events-none absolute left-1/2 top-3 flex -translate-x-1/2 gap-2 md:top-5">
         {([
-          { k: 'or', v: state.coins },
-          { k: 'bois', v: state.resources?.wood ?? 0 },
-          { k: 'mouton', v: state.resources?.food ?? 0 },
-        ] as const).map(({ k, v }) => (
-          <span
-            key={k}
-            className="flex items-center gap-1 rounded-md bg-[#2b1a0d]/85 px-2 py-1 text-sm font-bold text-[#ffe7a6] shadow-lg"
-          >
-            <Sprite k={k} still height={22} crop={0.15} /> {v}
-          </span>
-        ))}
+          { k: 'or', v: state.coins, cap: caps.gold },
+          { k: 'bois', v: state.resources?.wood ?? 0, cap: caps.wood },
+          { k: 'mouton', v: state.resources?.food ?? 0, cap: caps.food },
+        ] as const).map(({ k, v, cap }) => {
+          const full = v >= cap;
+          return (
+            <span
+              key={k}
+              title={full ? 'Stockage plein — construis pour agrandir' : undefined}
+              className={`flex items-center gap-1 rounded-md bg-[#2b1a0d]/85 px-2 py-1 text-sm font-bold shadow-lg ${
+                full ? 'text-[#ff9a8a]' : 'text-[#ffe7a6]'
+              }`}
+            >
+              <Sprite k={k} still height={22} crop={0.15} /> {v}
+              <span className="text-[10px] font-semibold opacity-70">/ {cap}</span>
+            </span>
+          );
+        })}
       </div>
 
       <div className="absolute right-3 top-3 flex w-[min(11rem,44vw)] flex-col items-stretch gap-2 md:right-6 md:top-5">
@@ -272,6 +300,13 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         <span className="pointer-events-none rounded-md bg-[#2b1a0d]/80 px-3 py-1 text-[11px] font-semibold text-[#ffeccc]">
           {next ? `Prochaine île : ${next.name} dans ${next.remaining} quête${next.remaining > 1 ? 's' : ''}` : 'Tout l’archipel est libéré !'}
         </span>
+        <Button
+          size="sm"
+          variant={ordering ? 'destructive' : 'default'}
+          onClick={() => (ordering ? engineRef.current?.cancelOrder() : engineRef.current?.startOrder())}
+        >
+          <Swords /> {ordering ? 'Annuler l’ordre' : 'Envoyer les troupes'}
+        </Button>
         {confirmReset ? (
           <div className="rounded-md bg-[#2b1a0d]/90 p-2 text-[11px] text-[#ffeccc] shadow-lg">
             <div className="mb-1.5">Tout effacer et repartir de zéro ?</div>
@@ -300,6 +335,17 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
           <div className="flex items-center gap-3 rounded-lg border-2 border-[#8cff9e] bg-[#1d2b14]/90 px-4 py-2 text-sm font-bold text-[#d8ffdc] shadow-[0_0_24px_rgba(120,255,150,0.45)]">
             <Move className="size-4 animate-pulse" /> Touche une case verte pour y poser : {selName}
             <Button size="sm" variant="secondary" onClick={() => engineRef.current?.cancelMove()}>
+              Annuler
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {ordering && (
+        <div className="absolute left-1/2 top-16 z-10 -translate-x-1/2 md:top-5">
+          <div className="flex items-center gap-3 rounded-lg border-2 border-[#ffcf6b] bg-[#2b1a0d]/90 px-4 py-2 text-sm font-bold text-[#ffe7a6] shadow-[0_0_24px_rgba(255,200,90,0.45)]">
+            <Swords className="size-4 animate-pulse" /> Touche un point (ou un ennemi) pour y envoyer tes troupes
+            <Button size="sm" variant="secondary" onClick={() => engineRef.current?.cancelOrder()}>
               Annuler
             </Button>
           </div>
@@ -372,6 +418,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
   const placedItems = state.placed ?? [];
   const wood = state.resources?.wood ?? 0;
   const food = state.resources?.food ?? 0;
+  const caps = storageCaps(placedItems);
   const popMax = popMaxOf(placedItems);
   const popUsed = popUsedOf(placedItems);
   const faction = state.faction ?? 'bleu';
@@ -426,11 +473,18 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-3 rounded-full bg-[#2b1a0d]/80 px-4 py-1.5 font-bold text-[#ffe7a6]">
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1" title="Or / capacité de stockage">
               <img src={uiUrl('icon_03.png')} alt="" className="pixel h-5 w-5" /> {state.coins}
+              <span className="text-[11px] opacity-70">/ {caps.gold}</span>
             </span>
-            <span className="flex items-center gap-1">🪵 {wood}</span>
-            <span className="flex items-center gap-1">🍖 {food}</span>
+            <span className={`flex items-center gap-1 ${wood >= caps.wood ? 'text-[#ff9a8a]' : ''}`} title="Bois / capacité">
+              🪵 {wood}
+              <span className="text-[11px] opacity-70">/ {caps.wood}</span>
+            </span>
+            <span className={`flex items-center gap-1 ${food >= caps.food ? 'text-[#ff9a8a]' : ''}`} title="Nourriture / capacité">
+              🍖 {food}
+              <span className="text-[11px] opacity-70">/ {caps.food}</span>
+            </span>
             <span className={`flex items-center gap-1 ${popUsed >= popMax ? 'text-[#ff9a8a]' : ''}`}>
               👥 {popUsed}/{popMax}
             </span>
