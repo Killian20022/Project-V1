@@ -5,6 +5,7 @@
 // - îles verrouillées recouvertes de brouillard tant que les quêtes ne sont pas faites
 // - tous les personnages (achetés ou du décor) se prennent et se déplacent, jamais dans l'eau
 import WORLD_JSON from '../data/world.json';
+import { createOcean } from './ocean';
 import { SPRITES, spriteUrl, type SpriteDef } from './sprites';
 import { SHOP_MAP, houseVariants, storageCaps } from '../data/shop';
 
@@ -334,6 +335,7 @@ export function createWorld(
   const landLow = img('land.png');
   const landChunk = (i: number, j: number) => img(`land-${i}-${j}.png`);
   const foam = img('sprites/foam.png');
+  const drawOcean = createOcean(WORLD_W, WORLD_H, TS, WORLD.foam, WORLD.levels);
 
   let unlocked = opts.unlocked;
   let missionsDone = opts.missionsDone;
@@ -441,7 +443,7 @@ export function createWorld(
 
   // ---------- Brouillard ----------
   // Masque basse résolution (1/8) flouté puis agrandi : un brouillard doux qui déborde sur la mer.
-  const FOG_PAD = 2;
+  const FOG_PAD = 4;
   const FOG_SCALE = 8;
   const fogCanvas = document.createElement('canvas');
   fogCanvas.width = ((WORLD.w + 2 * FOG_PAD) * TS) / FOG_SCALE;
@@ -451,49 +453,54 @@ export function createWorld(
     fogDirty = false;
     const g = fogCanvas.getContext('2d')!;
     g.clearRect(0, 0, fogCanvas.width, fogCanvas.height);
+    if (WORLD.islands.every((_, id) => unlocked.has(id))) return;
     const cell = TS / FOG_SCALE;
-    const shape = document.createElement('canvas');
-    shape.width = fogCanvas.width;
-    shape.height = fogCanvas.height;
-    const sg = shape.getContext('2d')!;
-    sg.fillStyle = '#e9eef2';
-    for (let cy = 0; cy < WORLD.h; cy++)
+    // A single blanket covers unexplored land AND the sea between islands.
+    const tint = g.createLinearGradient(0, 0, fogCanvas.width * 0.4, fogCanvas.height);
+    tint.addColorStop(0, '#c0d3d7');
+    tint.addColorStop(0.5, '#b0c8d0');
+    tint.addColorStop(1, '#9fbcc8');
+    g.fillStyle = tint;
+    g.fillRect(0, 0, fogCanvas.width, fogCanvas.height);
+    for (let y = 0; y < fogCanvas.height; y += 48) {
+      for (let x = 0; x < fogCanvas.width; x += 64) {
+        const px = x + Math.sin(y * 0.13 + x * 0.03) * 26;
+        const py = y + Math.cos(x * 0.08) * 18;
+        const wisp = g.createRadialGradient(px, py, 0, px, py, 70);
+        wisp.addColorStop(0, 'rgba(235,246,244,0.075)');
+        wisp.addColorStop(1, 'rgba(235,246,244,0)');
+        g.fillStyle = wisp;
+        g.fillRect(px - 70, py - 70, 140, 140);
+      }
+    }
+    // Reveal only explored islands and a generous band of sea around them.
+    // Union the openings before blurring: adjoining explored regions merge cleanly.
+    const reveal = document.createElement('canvas');
+    reveal.width = fogCanvas.width;
+    reveal.height = fogCanvas.height;
+    const r = reveal.getContext('2d')!;
+    r.fillStyle = '#fff';
+    r.beginPath();
+    for (let cy = 0; cy < WORLD.h; cy++) {
       for (let cx = 0; cx < WORLD.w; cx++) {
         const isl = islandAt(cx, cy);
-        if (isl >= 0 && !unlocked.has(isl)) {
-          // on déborde vers le haut pour cacher aussi les arbres et les tours
-          for (const oy of [0.5, -1.3]) {
-            sg.beginPath();
-            sg.arc((cx + FOG_PAD + 0.5) * cell, (cy + FOG_PAD + oy) * cell, cell * 1.5, 0, Math.PI * 2);
-            sg.fill();
-          }
+        if (isl < 0 || !unlocked.has(isl) || levelAt(cx, cy) <= 0) continue;
+        const spread = (3.1 + Math.sin(cx * 0.33 + cy * 0.19) * 0.3) * cell;
+        for (const oy of [0.5, -1.3]) {
+          const x = (cx + FOG_PAD + 0.5) * cell;
+          const y = (cy + FOG_PAD + oy) * cell;
+          r.moveTo(x + spread, y);
+          r.arc(x, y, spread, 0, Math.PI * 2);
         }
       }
-    g.filter = `blur(${cell * 0.9}px)`;
-    g.drawImage(shape, 0, 0);
-    g.drawImage(shape, 0, 0); // deux passes : brouillard bien opaque au centre
-    g.filter = 'none';
-  }
-  // Gros nuages posés sur chaque île verrouillée (ils ondulent doucement)
-  const fogClouds: { isl: number; def: SpriteDef; x: number; y: number; ph: number; sp: number }[] = [];
-  WORLD.islands.forEach((isl, i) => {
-    if (isl.unlock === 0) return;
-    const n = isl.size > 150 ? 4 : isl.size > 60 ? 3 : isl.size > 12 ? 2 : 1;
-    for (let k = 0; k < n; k++) {
-      const def = SPRITES[`nuage-${1 + ((i * 3 + k) % 8)}`];
-      if (!def) continue;
-      const spread = Math.sqrt(isl.size) * TS * 0.35;
-      fogClouds.push({
-        isl: i,
-        def,
-        x: isl.cx + (k - (n - 1) / 2) * spread * 0.9,
-        y: isl.cy + ((k % 2) - 0.5) * spread * 0.6,
-        ph: Math.random() * 6,
-        sp: 0.25 + Math.random() * 0.2,
-      });
     }
-  });
-
+    r.fill();
+    g.globalCompositeOperation = 'destination-out';
+    g.filter = 'blur(' + cell * 0.9 + 'px)';
+    g.drawImage(reveal, 0, 0);
+    g.filter = 'none';
+    g.globalCompositeOperation = 'source-over';
+  }
   // Objets achetés
   let placed: Ent[] = [];
   function setPlaced(list: Placed[]) {
@@ -1546,6 +1553,8 @@ export function createWorld(
     ctx.setTransform(DPR * cam.z, 0, 0, DPR * cam.z, DPR * (W / 2 - cam.x * cam.z), DPR * (H / 2 - cam.y * cam.z));
     ctx.imageSmoothingEnabled = false;
 
+    drawOcean(ctx, t, cam.z, vx0, vy0, vx1, vy1);
+
     // écume (sous la terre)
     if (foam.complete && foam.naturalWidth) {
       const f = Math.floor(t * 10) % 16;
@@ -1781,22 +1790,6 @@ export function createWorld(
       }
     }
 
-    // brouillard sur les îles verrouillées
-    if (fogDirty) buildFog();
-    ctx.imageSmoothingEnabled = true;
-    ctx.globalAlpha = 0.97;
-    ctx.drawImage(fogCanvas, 0, 0, fogCanvas.width, fogCanvas.height, -FOG_PAD * TS, -FOG_PAD * TS, WORLD_W + 2 * FOG_PAD * TS, WORLD_H + 2 * FOG_PAD * TS);
-    ctx.globalAlpha = 1;
-    ctx.imageSmoothingEnabled = false;
-    for (const c of fogClouds) {
-      if (unlocked.has(c.isl)) continue;
-      const im = img(c.def.src);
-      if (!im.complete || !im.naturalWidth) continue;
-      const x = c.x + Math.sin(t * c.sp + c.ph) * 40;
-      ctx.globalAlpha = 0.95;
-      ctx.drawImage(im, x - c.def.fw * 0.75, c.y - c.def.fh * 0.75, c.def.fw * 1.5, c.def.fh * 1.5);
-      ctx.globalAlpha = 1;
-    }
     // nuages
     for (const c of clouds) {
       const im = img(c.def.src);
@@ -1806,6 +1799,13 @@ export function createWorld(
       ctx.globalAlpha = 1;
     }
 
+    // brouillard sur les îles verrouillées
+    if (fogDirty) buildFog();
+    ctx.imageSmoothingEnabled = true;
+    ctx.globalAlpha = 1;
+    ctx.drawImage(fogCanvas, 0, 0, fogCanvas.width, fogCanvas.height, -FOG_PAD * TS, -FOG_PAD * TS, WORLD_W + 2 * FOG_PAD * TS, WORLD_H + 2 * FOG_PAD * TS);
+    ctx.globalAlpha = 1;
+    ctx.imageSmoothingEnabled = false;
     // étiquettes des îles (taille écran constante)
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     ctx.textAlign = 'center';
@@ -2221,7 +2221,7 @@ export function createWorld(
       select(null);
     },
     setUnlocked(set: Set<number>, done: number) {
-      if (set.size !== unlocked.size) fogDirty = true;
+      if (set.size !== unlocked.size || [...set].some((id) => !unlocked.has(id))) fogDirty = true;
       unlocked = set;
       missionsDone = done;
     },
