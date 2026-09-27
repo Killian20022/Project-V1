@@ -52,7 +52,17 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
   const [confirmDel, setConfirmDel] = useState(false);
   const [mapVersion, setMapVersion] = useState(0); // bump = recréer le moteur (reset / changement de couleur)
   const [confirmReset, setConfirmReset] = useState(false);
+  const [alert, setAlert] = useState<{ text: string; tone: 'war' | 'win' } | null>(null);
+  const alertT = useRef<number | null>(null);
   const faction = state.faction ?? 'bleu';
+
+  // Bandeau d'alerte éphémère (débarquement, château tombé) : le dernier message chasse le précédent.
+  const raiseAlert = (text: string, tone: 'war' | 'win' = 'war') => {
+    setAlert({ text, tone });
+    if (alertT.current) window.clearTimeout(alertT.current);
+    alertT.current = window.setTimeout(() => setAlert(null), 7000);
+  };
+  useEffect(() => () => void (alertT.current && window.clearTimeout(alertT.current)), []);
 
   const isDev = useIsDev();
   const done = isDev ? TOTAL_LESSONS : questsDone(state);
@@ -94,6 +104,14 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         setState((current) => ({ ...current, decorPos: { ...(current.decorPos ?? {}), [id]: [x, y] } })),
       onUnitLost: (k) =>
         setState((current) => ({ ...current, placed: (current.placed ?? []).filter((p) => p.k !== k) })),
+      // Un bâtiment du décor rasé ne doit pas réapparaître au rechargement : la conquête est définitive.
+      onDecorRemove: (id) =>
+        setState((current) => ({ ...current, decorRemoved: [...new Set([...(current.decorRemoved ?? []), id])] })),
+      onInvasion: (fac, island, n) => raiseAlert(`Le royaume ${fac} débarque sur « ${island} » — ${n} soldats !`),
+      onCastle: (kind, fac) =>
+        kind === 'perdu'
+          ? raiseAlert('Ton château est tombé ! Reconstruis-en un au Marché.')
+          : raiseAlert(`Le château ${fac} est rasé — l’île se libère !`, 'win'),
       // Objet de l'inventaire posé sur la carte : on le retire de l'inventaire et on l'ajoute aux objets placés.
       onPlaceNew: (k, id, x, y) =>
         setState((current) => ({
@@ -381,6 +399,21 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
             <Button size="sm" variant="secondary" onClick={() => engineRef.current?.cancelOrder()}>
               Annuler
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Alerte de guerre : débarquement ennemi, château perdu ou pris. Disparaît toute seule. */}
+      {alert && !moving && !ordering && (
+        <div className="pointer-events-none absolute left-1/2 top-16 z-20 -translate-x-1/2 md:top-5">
+          <div
+            className={`flex items-center gap-3 rounded-lg border-2 px-4 py-2 text-sm font-bold shadow-[0_0_24px_rgba(0,0,0,0.5)] ${
+              alert.tone === 'win'
+                ? 'border-[#8cff9e] bg-[#1d2b14]/90 text-[#d8ffdc]'
+                : 'border-[#ff8a6b] bg-[#2b0d0d]/90 text-[#ffd9cc]'
+            }`}
+          >
+            <Swords className="size-4 animate-pulse" /> {alert.text}
           </div>
         </div>
       )}

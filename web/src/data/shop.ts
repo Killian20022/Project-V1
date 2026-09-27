@@ -70,7 +70,7 @@ const HOUSE_STYLES = [
   { key: 'maison-3', name: 'Chaumière' },
 ];
 const OTHER_BUILDINGS: { key: string; fem: boolean; name: string; price: number; wood: number; max: number; popCap?: number; blurb?: string }[] = [
-  { key: 'tour', fem: true, name: 'Tour de guet', price: 320, wood: 120, max: 6, blurb: 'Défend l’île (bientôt)' },
+  { key: 'tour', fem: true, name: 'Tour de guet', price: 320, wood: 120, max: 6, blurb: 'Tire sur les assaillants à portée' },
   { key: 'caserne', fem: true, name: 'Caserne', price: 420, wood: 180, max: 4, blurb: 'Permet de recruter guerriers & lanciers' },
   { key: 'archerie', fem: true, name: 'Archerie', price: 420, wood: 180, max: 4, blurb: 'Permet de recruter des archers' },
   { key: 'monastere', fem: false, name: 'Monastère', price: 520, wood: 150, max: 3, blurb: 'Permet de recruter des moines' },

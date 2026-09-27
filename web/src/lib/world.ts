@@ -47,10 +47,28 @@ const COMBAT: Record<string, CombatDef> = {
   tour: { hp: 500, dmg: 13, range: 5.5, atk: 0.9, ranged: true },
 };
 const AGGRO_TILES = 7; // distance à laquelle une unité repère un ennemi
+const SIEGE_TILES = 10; // distance à laquelle elle se rabat sur un bâtiment ennemi (faute d'unité à combattre)
 // Fraction de l'animation d'attaque (à 10 img/s) au bout de laquelle l'arme « touche » :
 // c'est à cet instant précis que les dégâts s'appliquent / que la flèche part.
 const IMPACT_FRAC = 0.45;
-const combatBase = (key: string): string | null => /^(guerrier|lancier|archer|moine|villageois|tour)/.exec(key)?.[1] ?? null;
+// `(?![a-z])` : sinon « archerie » (le bâtiment) serait lu comme « archer » (l'unité) et hériterait
+// de ses 70 PV. La clé doit s'arrêter là ou continuer par un tiret de couleur (« archer-rouge »).
+const combatBase = (key: string): string | null =>
+  /^(guerrier|lancier|archer|moine|villageois|tour)(?![a-z])/.exec(key)?.[1] ?? null;
+
+// ---------- Siège (Phase 4) ----------
+// Les bâtiments ont des PV et peuvent être rasés : c'est ce qui permet de conquérir une île.
+// Beaucoup de PV pour que la chute d'un royaume soit un vrai objectif, pas un accident.
+const SIEGE: Record<string, number> = {
+  chateau: 1400, // ~15 s pour un escadron de 5, mais plus d'une minute pour un isolé : un siège se prépare
+  caserne: 600,
+  archerie: 500,
+  monastere: 480,
+  maison: 300,
+};
+const siegeBase = (key: string): string | null => /^(chateau|caserne|archerie|monastere|maison)/.exec(key)?.[1] ?? null;
+// PV de départ d'une clé, unité comme bâtiment (undefined = objet indestructible : arbre, or, rocher…).
+const maxHpOf = (key: string): number | undefined => COMBAT[combatBase(key) ?? '']?.hp ?? SIEGE[siegeBase(key) ?? ''];
 
 // ---------- Récolte (Phase 1) ----------
 // Nœuds récoltables de la carte : un villageois s'en approche et joue l'animation d'action
@@ -278,6 +296,7 @@ type Ent = {
   target?: Ent; // ennemi visé
   atkCd?: number; // instant (s) de la prochaine attaque possible
   hurtT?: number; // instant du dernier coup reçu (flash / affichage barre)
+  siegeScanAt?: number; // prochain balayage autorisé des bâtiments ennemis (recherche coûteuse)
   raider?: boolean; // ennemi apparu lors d'un raid (nettoyé à sa mort)
   // Ordres du joueur (RTS)
   order?: { x: number; y: number }; // point de marche désigné (attaque-déplacement)
@@ -312,6 +331,8 @@ export function createWorld(
     onHarvest?: (kind: ResKind, amount: number) => void; // ressources récoltées (batché ~1/s)
     stock?: { gold: number; wood: number; food: number }; // réserves actuelles (pour le plafond)
     onUnitLost?: (k: string) => void; // une unité achetée est morte au combat
+    onInvasion?: (faction: string, island: string, n: number) => void; // un royaume rival débarque
+    onCastle?: (kind: 'perdu' | 'pris', faction: string) => void; // un château est tombé (le tien ou le leur)
     playerFaction?: string; // couleur du royaume du joueur (défaut : bleu)
   },
 ) {
@@ -430,6 +451,13 @@ export function createWorld(
           e.hp = cst.hp;
           e.maxHp = cst.hp;
         }
+      } else if (maxHpOf(key) !== undefined) {
+        // Bâtiment (ou tour) du décor : assiégeable. Il lui faut une île d'attache comme aux unités,
+        // sinon les coups programmés sur lui sont annulés (contrôle « même île » au moment de l'impact).
+        const cx = Math.floor(x / TS);
+        const cy = Math.floor((y - def.feet) / TS);
+        e.home = { isl: islandAt(cx, cy), lvl: levelAt(cx, cy) };
+        e.hp = e.maxHp = maxHpOf(key);
       }
       e.id = String(index);
       if (HARVEST[key]) {
@@ -532,8 +560,8 @@ export function createWorld(
           home: { isl: islandAt(cx, cy), lvl: levelAt(cx, cy) },
           origKey: HARVEST[p.id] ? p.id : undefined,
           nodeStock: HARVEST[p.id] ? HARVEST[p.id].cycles : undefined,
-          hp: COMBAT[combatBase(p.id) ?? '']?.hp,
-          maxHp: COMBAT[combatBase(p.id) ?? '']?.hp,
+          hp: maxHpOf(p.id),
+          maxHp: maxHpOf(p.id),
         } as Ent;
       });
   }
@@ -580,6 +608,19 @@ export function createWorld(
     return !!s && (s.dmg > 0 || s.heal === true);
   };
   const alive = (e?: Ent | null): e is Ent => !!e && !e.dead && (e.hp ?? 1) > 0;
+  // Cible fixe assiégeable : PV, ne se déplace pas. La tour en fait partie — elle tirait sans jamais
+  // pouvoir être détruite, ce qui rendait une île imprenable.
+  const isBuilding = (e: Ent) =>
+    !e.agent && (SIEGE[siegeBase(e.key) ?? ''] !== undefined || combatBase(e.key) === 'tour');
+  // Point visé : les pieds pour une unité, le milieu de la façade pour un bâtiment.
+  const aimAt = (o: Ent) => ({ x: o.x, y: isBuilding(o) ? o.y - o.def.feet * 0.5 : o.y });
+  // Distance « utile » : on retire l'emprise du bâtiment, sinon une unité resterait plantée
+  // à taper dans le vide à deux cases d'un château large de quatre.
+  const distTo = (e: Ent, o: Ent) => {
+    const a = aimAt(o);
+    const slack = isBuilding(o) ? ((footprint(o.key)?.w ?? 2) * TS) / 2 : 0;
+    return Math.max(0, Math.hypot(a.x - e.x, a.y - e.y) - slack);
+  };
   // Tous les villageois récoltent (vie du monde) ; seul le bleu du joueur, sur île débloquée, crédite tes réserves.
   const canHarvest = (e: Ent) => /^villageois/.test(e.key);
   const harvestCredits = (e: Ent) => isFriendly(e) && unlocked.has(e.home?.isl ?? -1);
@@ -770,6 +811,21 @@ export function createWorld(
     }
     return best;
   }
+  // Cible de siège : bâtiment ennemi le plus proche sur la même île (quand plus aucune unité ne défend).
+  function nearestBuilding(e: Ent, maxTiles: number): Ent | null {
+    let best: Ent | null = null;
+    let bd = maxTiles * TS;
+    for (const o of [...placed, ...decor]) {
+      if (!alive(o) || o.maxHp === undefined || !isBuilding(o)) continue;
+      if (o.home?.isl !== e.home?.isl || !hostile(e, o)) continue;
+      const d = distTo(e, o);
+      if (d < bd) {
+        bd = d;
+        best = o;
+      }
+    }
+    return best;
+  }
   // Gerbe de sable/poussière projetée à l'impact (petites particules qui retombent).
   function spawnSand(x: number, y: number, dirX: number, n: number, power = 1) {
     for (let i = 0; i < n; i++) {
@@ -803,6 +859,23 @@ export function createWorld(
     spawnHit(u, dmg, from, melee);
     if (u.hp <= 0) {
       u.dead = true;
+      if (isBuilding(u)) {
+        // Effondrement : large gerbe de gravats, la case se libère, et la ruine est DÉFINITIVE
+        // (les bâtiments du décor rasés sont mémorisés comme supprimés → la conquête est persistée).
+        for (let i = 0; i < 5; i++)
+          effects.push({
+            x: u.x + (Math.random() - 0.5) * u.def.fw * 0.6,
+            y: u.y - Math.random() * u.def.feet,
+            t0: t,
+            kind: 'dust',
+            s: 1.6,
+          });
+        spawnSand(u.x, u.y - 6, 1, 22, 2);
+        spawnSand(u.x, u.y - 6, -1, 22, 2);
+        occDirty();
+        if (!u.placed && u.id && /^\d+$/.test(u.id)) opts.onDecorRemove?.(u.id);
+        if (siegeBase(u.key) === 'chateau') opts.onCastle?.(isFriendly(u) ? 'perdu' : 'pris', factionOf(u.key));
+      }
       effects.push({ x: u.x, y: u.y, t0: t, kind: 'dust', s: 1.3 });
       effects.push({ x: u.x, y: u.y - 18, t0: t, kind: 'hit', s: 1.6 });
       spawnSand(u.x, u.y - 4, from ? Math.sign(u.x - from.x) || 1 : 1, 12, 1.4);
@@ -882,15 +955,21 @@ export function createWorld(
       } else combatMove(e, ally.x, ally.y, dt);
       return true;
     }
-    const foe = alive(e.target) && e.target!.home?.isl === e.home?.isl ? e.target! : nearestFoe(e, AGGRO_TILES, false);
+    // Priorité aux unités ; à défaut, on prend d'assaut les bâtiments ennemis de l'île (siège).
+    // Le balayage des bâtiments est limité à ~1×/s par unité : il parcourt tout le décor.
+    let foe = alive(e.target) && e.target!.home?.isl === e.home?.isl ? e.target! : nearestFoe(e, AGGRO_TILES, false);
+    if (!foe && t >= (e.siegeScanAt ?? 0)) {
+      e.siegeScanAt = t + 1.2;
+      foe = nearestBuilding(e, SIEGE_TILES);
+    }
     if (!foe) {
       e.target = undefined;
       return false;
     }
     e.target = foe;
-    const d = Math.hypot(foe.x - e.x, foe.y - e.y);
-    if (d <= st.range * TS) swing(e, foe, st);
-    else combatMove(e, foe.x, foe.y, dt);
+    const aim = aimAt(foe);
+    if (distTo(e, foe) <= st.range * TS) swing(e, foe, st);
+    else combatMove(e, aim.x, aim.y, dt);
     return true;
   }
 
@@ -1082,8 +1161,7 @@ export function createWorld(
       } else {
         // Mêlée : le coup ne porte que si l'ennemi est encore à portée (sinon il a esquivé pendant le geste).
         const stx = statsFor(e);
-        const d = Math.hypot(s.foe.x - e.x, s.foe.y - e.y);
-        if (!stx || d <= (stx.range + 0.7) * TS) hurt(s.foe, s.dmg, { x: e.x, y: e.y }, true);
+        if (!stx || distTo(e, s.foe) <= (stx.range + 0.7) * TS) hurt(s.foe, s.dmg, { x: e.x, y: e.y }, true);
       }
     }
     // Projectiles (flèches) : foncent sur leur cible puis infligent les dégâts.
@@ -1111,7 +1189,7 @@ export function createWorld(
     // l'appel) pour qu'une éventuelle erreur ne relance pas la fonction à chaque image (fini le gel).
     if (t >= raidAt) {
       raidAt = t + 75 + Math.random() * 45;
-      try { spawnRaid(); } catch (err) { console.error('Scriptoria: raid', err); }
+      try { launchInvasion(); } catch (err) { console.error('Scriptoria: invasion', err); }
     }
     if (t >= produceAt) {
       produceAt = t + 9;
@@ -1221,7 +1299,8 @@ export function createWorld(
       let target: Ent | null = null;
       let bd = Infinity;
       for (const o of [...decor, ...placed]) {
-        if (!o.agent || !alive(o) || o.maxHp === undefined || o.home?.isl !== isl || !hostile(units[0], o)) continue;
+        // Unités ET bâtiments : sans défenseur, l'escadron va raser ce qui reste debout.
+        if (!(o.agent || isBuilding(o)) || !alive(o) || o.maxHp === undefined || o.home?.isl !== isl || !hostile(units[0], o)) continue;
         const d = Math.hypot(o.x - cx, o.y - cy);
         if (d < bd) {
           bd = d;
@@ -1252,61 +1331,124 @@ export function createWorld(
     }
   }
 
-  // Fait apparaître un petit groupe de raiders au bord de l'île de départ.
-  function spawnRaid() {
-    const home = WORLD.islands.findIndex((i) => i.unlock === 0);
-    if (home < 0 || !unlocked.has(home)) return;
-    // Ne raid que si le joueur a une force armée sur l'île (sinon les villageois se feraient massacrer).
-    const armed = [...placed, ...decor].some(
-      (e) => alive(e) && isFriendly(e) && e.home?.isl === home && (isFighter(e) || combatBase(e.key) === 'tour'),
-    );
-    if (!armed) return;
-    const isl = WORLD.islands[home];
-    const ccx = Math.floor(isl.cx / TS);
-    const ccy = Math.floor(isl.cy / TS);
-    // Cherche des cases de bord (marchables mais entourées d'eau/verrou) loin du centre.
+  // ---------- Invasions (Phase 4) ----------
+  // Les rivaux ne se contentent plus de produire chez eux : quand une de leurs îles a une garnison
+  // suffisante, ils EMBARQUENT une partie de leurs troupes (elles quittent vraiment leur île, pas de
+  // duplication) et les débarquent sur une de tes îles, avec ordre de marche sur ton château.
+  // Si aucun royaume n'a encore d'armée, une bande de mercenaires débarque quand même (ancien raid).
+
+  // Cases de bord d'une île, loin du centre : c'est là qu'on accoste.
+  function shoreSpots(isl: number): [number, number][] {
+    const info = WORLD.islands[isl];
+    if (!info) return [];
+    const ccx = Math.floor(info.cx / TS);
+    const ccy = Math.floor(info.cy / TS);
     const spots: [number, number][] = [];
     for (let ring = 10; ring >= 5 && spots.length < 6; ring--)
       for (let a = 0; a < 12; a++) {
         const cx = ccx + Math.round(Math.cos((a / 12) * 2 * Math.PI) * ring);
         const cy = ccy + Math.round(Math.sin((a / 12) * 2 * Math.PI) * ring);
-        if (islandAt(cx, cy) === home && walkableCell(cx, cy) && !getOcc().has(`${cx},${cy}`)) spots.push([cx, cy]);
+        if (islandAt(cx, cy) === isl && walkableCell(cx, cy) && !getOcc().has(`${cx},${cy}`)) spots.push([cx, cy]);
       }
-    if (!spots.length) return;
-    // Un royaume rival au hasard mène le raid (une seule couleur par assaut).
-    const rivals = ['bleu', 'rouge', 'jaune', 'violet', 'noir'].filter((f) => f !== playerFaction);
-    const fac = rivals[Math.floor(Math.random() * rivals.length)];
-    const suf = fac === 'bleu' ? '' : `-${fac}`;
-    const kinds = [`guerrier${suf}`, `guerrier${suf}`, `archer${suf}`, `lancier${suf}`];
-    // Taille du raid : croît avec ton armée présente sur l'île (assauts plus rudes quand tu montes).
-    const army = [...placed, ...decor].filter((e) => alive(e) && isFriendly(e) && isFighter(e) && e.home?.isl === home).length;
-    const n = Math.min(6, 2 + Math.floor(army / 3));
-    for (let k = 0; k < n; k++) {
-      const [cx, cy] = spots[Math.floor(Math.random() * spots.length)];
-      const key = kinds[Math.floor(Math.random() * kinds.length)];
-      const def = SPRITES[key];
-      if (!def) continue;
-      const cst = COMBAT[combatBase(key) ?? '']!;
-      decor.push({
-        key,
-        def,
-        x: cx * TS + TS / 2,
-        y: cy * TS + TS * 0.75,
-        ph: Math.random() * 10,
-        agent: true,
-        walks: true,
-        acting: -1,
-        radius: 3,
-        wait: Math.random(),
-        face: -1,
-        home: { isl: home, lvl: levelAt(cx, cy) },
-        origin: { x: cx * TS + TS / 2, y: cy * TS + TS * 0.75 },
-        hp: cst.hp,
-        maxHp: cst.hp,
-        raider: true,
-        id: `raider:${Math.random().toString(36).slice(2, 7)}`,
-      } as Ent);
+    return spots;
+  }
+  // Débarque une unité sur une case de bord et lui donne son ordre de marche vers l'intérieur des terres.
+  function landUnit(key: string, isl: number, spots: [number, number][], march?: { x: number; y: number }): boolean {
+    const def = SPRITES[key];
+    const cst = COMBAT[combatBase(key) ?? ''];
+    if (!def || !cst || !spots.length) return false;
+    const [cx, cy] = spots[Math.floor(Math.random() * spots.length)];
+    const x = cx * TS + TS / 2;
+    const y = cy * TS + TS * 0.75;
+    decor.push({
+      key,
+      def,
+      x,
+      y,
+      ph: Math.random() * 10,
+      agent: true,
+      walks: true,
+      acting: -1,
+      radius: 3,
+      wait: Math.random(),
+      face: -1,
+      home: { isl, lvl: levelAt(cx, cy) },
+      origin: { x, y },
+      hp: cst.hp,
+      maxHp: cst.hp,
+      raider: true,
+      order: march ? { ...march } : undefined,
+      id: `raider:${Math.random().toString(36).slice(2, 7)}`,
+    } as Ent);
+    return true;
+  }
+  // Vers quoi les envahisseurs marchent : ton bien le plus précieux sur l'île (château > bâtiment > unité).
+  function marchGoal(isl: number): { x: number; y: number } | undefined {
+    let best: Ent | null = null;
+    let score = 0;
+    for (const o of [...placed, ...decor]) {
+      if (!alive(o) || !isFriendly(o) || o.home?.isl !== isl) continue;
+      const b = siegeBase(o.key);
+      const s = b === 'chateau' ? 3 : b ? 2 : o.agent ? 1 : 0;
+      if (s > score) {
+        score = s;
+        best = o;
+      }
     }
+    return best ? aimAt(best) : undefined;
+  }
+  function launchInvasion() {
+    // On ne débarque que sur une île à toi qui a de quoi se défendre (sinon on massacre des villageois).
+    const defended = new Set<number>();
+    for (const e of [...placed, ...decor]) {
+      if (!alive(e) || !isFriendly(e)) continue;
+      const isl = e.home?.isl ?? -1;
+      if (isl < 0 || !unlocked.has(isl)) continue;
+      if (isFighter(e) || combatBase(e.key) === 'tour') defended.add(isl);
+    }
+    if (!defended.size) return;
+    const targets = [...defended];
+    const isl = targets[Math.floor(Math.random() * targets.length)];
+    const spots = shoreSpots(isl);
+    if (!spots.length) return;
+    const march = marchGoal(isl);
+
+    // 1) Un vrai royaume envoie ses troupes : on prend sa plus grosse garnison, ailleurs que sur la cible.
+    const groups = new Map<string, Ent[]>();
+    for (const e of decor) {
+      if (!e.agent || !alive(e) || !isFighter(e) || isFriendly(e)) continue;
+      const src = e.home?.isl ?? -1;
+      if (src < 0 || src === isl) continue;
+      const k = `${factionOf(e.key)}@${src}`;
+      const arr = groups.get(k);
+      if (arr) arr.push(e);
+      else groups.set(k, [e]);
+    }
+    const host = [...groups.values()].filter((g) => g.length >= 4).sort((a, b) => b.length - a.length)[0];
+    let fac = '';
+    let n = 0;
+    if (host) {
+      fac = factionOf(host[0].key);
+      const force = host.slice(0, Math.min(5, Math.max(2, Math.floor(host.length / 2))));
+      for (const u of force) {
+        if (u === drag?.ent || u === moveEnt) continue;
+        if (!landUnit(u.key, isl, spots, march)) continue;
+        u.dead = true; // embarquée : elle disparaît vraiment de son île d'origine
+        effects.push({ x: u.x, y: u.y, t0: t, kind: 'dust' });
+        n++;
+      }
+    }
+    // 2) Aucun royaume prêt : mercenaires, dont le nombre croît avec ton armée sur place.
+    if (!n) {
+      const rivals = ['bleu', 'rouge', 'jaune', 'violet', 'noir'].filter((f) => f !== playerFaction);
+      fac = rivals[Math.floor(Math.random() * rivals.length)];
+      const suf = fac === 'bleu' ? '' : `-${fac}`;
+      const kinds = [`guerrier${suf}`, `guerrier${suf}`, `archer${suf}`, `lancier${suf}`];
+      const army = [...placed, ...decor].filter((e) => alive(e) && isFriendly(e) && isFighter(e) && e.home?.isl === isl).length;
+      const size = Math.min(6, 2 + Math.floor(army / 3));
+      for (let k = 0; k < size; k++) if (landUnit(kinds[Math.floor(Math.random() * kinds.length)], isl, spots, march)) n++;
+    }
+    if (n) opts.onInvasion?.(fac, WORLD.islands[isl]?.name ?? 'ton royaume', n);
   }
 
   // ---------- Dessin ----------
@@ -1497,11 +1639,13 @@ export function createWorld(
 
 
   function drawHealth(e: Ent) {
-    const w = combatBase(e.key) === 'tour' ? 52 : 40;
-    const h = 5;
+    // Bâtiment : barre plus large, posée juste au-dessus du toit (sinon elle se perd au milieu du sprite).
+    const big = isBuilding(e);
+    const w = big ? Math.min(96, Math.max(56, e.def.fw * 0.5)) : 40;
+    const h = big ? 6 : 5;
     const frac = Math.max(0, Math.min(1, (e.hp ?? 0) / (e.maxHp ?? 1)));
     const cx = e.x;
-    const top = e.y - (e.def.fh - e.def.feet) * 0.5 - 12;
+    const top = e.y - (e.def.fh - e.def.feet) * (big ? 1 : 0.5) - (big ? 8 : 12);
     const enemy = !isFriendly(e);
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -2108,7 +2252,7 @@ export function createWorld(
       focus(home >= 0 ? home : 0, Math.max(0.55, Math.min(0.8, w / 2000)));
       last = performance.now();
       raf = requestAnimationFrame(frame);
-      raidAt = t + 60; // premier raid après ~1 min
+      raidAt = t + 60; // premier débarquement après ~1 min
       // Récolte : reversement des ressources au React ~1×/s (borne le nombre de setState/saves).
       flushTimer = window.setInterval(flushPending, 1000);
     },
