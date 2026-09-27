@@ -615,11 +615,15 @@ export function createWorld(
   const isSoldier = (e: Ent) => /^(guerrier|lancier|archer|moine)/.test(e.key);
   const isMelee = (e: Ent) => /^(guerrier|lancier)/.test(e.key);
   const factionOf = (key: string) => {
-    // Suffixes masculins ET féminins. Attention : `violette?` voudrait dire « violett » + « e » optionnel,
-    // donc « chateau-violet » n'était PAS reconnu et tout le royaume violet passait pour allié du joueur.
-    const m = /-(rouge|jaune|violet(?:te)?|noire?)$/.exec(key);
+    // La couleur peut être au masculin (`chateau-violet`), au féminin (`archerie-violette`) et suivie
+    // d'un numéro de variante (`maison-violette-1`). Deux pièges déjà tombés dedans :
+    //  - `violette?` signifie « violett » + « e » optionnel : `-violet` n'était pas reconnu ;
+    //  - sans `(?:-\d+)?`, les 12 maisons numérotées retombaient sur « bleu » par défaut, donc
+    //    alliées du joueur et ennemies de leur propre royaume (un lancier violet rasait sa maison).
+    const m = /-(bleue?|rouge|jaune|violet(?:te)?|noire?)(?:-\d+)?$/.exec(key);
     if (!m) return 'bleu';
-    return m[1].startsWith('viol') ? 'violet' : m[1].startsWith('noir') ? 'noir' : m[1];
+    const c = m[1];
+    return c.startsWith('viol') ? 'violet' : c.startsWith('noir') ? 'noir' : c.startsWith('bleu') ? 'bleu' : c;
   };
   const unitKey = (base: string, fac: string) => base + (fac === 'bleu' ? '' : `-${fac}`);
   // Allégeance par couleur : même couleur = alliés, couleurs différentes = ennemis.
@@ -994,7 +998,10 @@ export function createWorld(
     if (!st || st.dmg === 0) return false;
     if (st.heal) {
       // Moine : soigne l'allié blessé le plus proche.
-      const ally = alive(e.target) && (e.target!.hp ?? 0) < (e.target!.maxHp ?? 1) ? e.target! : nearestFoe(e, AGGRO_TILES, true);
+      const ally =
+        alive(e.target) && !hostile(e, e.target!) && (e.target!.hp ?? 0) < (e.target!.maxHp ?? 1)
+          ? e.target!
+          : nearestFoe(e, AGGRO_TILES, true);
       if (!ally) {
         e.target = undefined;
         return false;
@@ -1020,7 +1027,9 @@ export function createWorld(
     }
     // Priorité aux unités ; à défaut, on prend d'assaut les bâtiments ennemis de l'île (siège).
     // Le balayage des bâtiments est limité à ~1×/s par unité : il parcourt tout le décor.
-    let foe = alive(e.target) && e.target!.home?.isl === e.home?.isl ? e.target! : nearestFoe(e, AGGRO_TILES, false);
+    // On revérifie la couleur à chaque image : une cible gardée d'une image sur l'autre a pu
+    // changer de camp entre-temps (recoloration du royaume au Marché).
+    let foe = alive(e.target) && e.target!.home?.isl === e.home?.isl && hostile(e, e.target!) ? e.target! : nearestFoe(e, AGGRO_TILES, false);
     if (!foe && t >= (e.siegeScanAt ?? 0)) {
       e.siegeScanAt = t + 1.2;
       foe = nearestBuilding(e, SIEGE_TILES);
@@ -1099,7 +1108,8 @@ export function createWorld(
     if (e.reservedBy) return; // nœud-agent (mouton) figé pendant qu'un villageois le récolte
     // Ordre d'attaque sur une cible précise : on force le combat à la pourchasser (au-delà de l'aggro).
     if (e.orderTarget) {
-      if (!alive(e.orderTarget) || e.orderTarget.home?.isl !== e.home?.isl) e.orderTarget = undefined;
+      // Jamais de coup fratricide : même couleur = allié, quoi qu'il arrive (ordre du joueur compris).
+      if (!alive(e.orderTarget) || e.orderTarget.home?.isl !== e.home?.isl || !hostile(e, e.orderTarget)) e.orderTarget = undefined;
       else e.target = e.orderTarget;
     }
     if (isFighter(e) && combatStep(e, dt)) return; // le combat prime sur tout le reste
@@ -1222,6 +1232,7 @@ export function createWorld(
       e.strike = undefined;
       if (!alive(e) || e === drag?.ent || e === moveEnt) continue;
       if (!alive(s.foe) || s.foe.home?.isl !== e.home?.isl) continue; // la cible est morte ou a quitté l'île
+      if (s.heal ? hostile(e, s.foe) : !hostile(e, s.foe)) continue; // on ne soigne pas un ennemi, on ne frappe pas un allié
       if (s.heal) {
         s.foe.hp = Math.min(s.foe.maxHp ?? 1, (s.foe.hp ?? 0) + s.dmg);
       } else if (s.ranged) {
