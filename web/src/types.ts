@@ -99,11 +99,21 @@ export interface GameState {
   resources?: { wood: number; food: number }; // réserves récoltées sur la carte (l'or reste `coins`)
   faction?: 'bleu' | 'rouge' | 'jaune' | 'violet' | 'noir'; // couleur du royaume du joueur
   starters?: boolean; // ressources de départ (filons d'or) déjà déposées une fois
+  // Vassalité : ton dernier château est tombé. Un royaume rival prélève un tiers de chaque récolte
+  // jusqu'à ce que tu brises le joug (rançon en quêtes d'anglais, ou son château rasé).
+  vassal?: {
+    of: string; // couleur du suzerain
+    atQuests: number; // quêtes terminées au moment de la chute (point de départ de la rançon)
+    tribute: { gold: number; wood: number; food: number }; // prélevé, rendu d'un coup à la libération
+  } | null;
   island: string[];
   placed: PlacedItem[];
   inventory?: { k: string; id: string }[]; // achats en attente de pose (case blanche transparente)
   decorPos?: Record<string, [number, number]>;
   decorRemoved?: string[]; // personnages d'origine renvoyés du royaume // personnages de la carte déplacés par le joueur
+  // PV restants des bâtiments et unités abîmés, par clé d'entité (`decor:<index>` ou clé d'achat) :
+  // la carte reprend là où tu l'as laissée au lieu de tout réparer à chaque visite.
+  damage?: Record<string, number>;
   trophies: string[];
   stats: Record<string, number>;
   dailyXP: number;

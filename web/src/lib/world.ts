@@ -331,8 +331,12 @@ export function createWorld(
     onHarvest?: (kind: ResKind, amount: number) => void; // ressources récoltées (batché ~1/s)
     stock?: { gold: number; wood: number; food: number }; // réserves actuelles (pour le plafond)
     onUnitLost?: (k: string) => void; // une unité achetée est morte au combat
+    damage?: Record<string, number>; // PV restants mémorisés (bâtiments/unités abîmés) au dernier passage
+    onDamage?: (batch: Record<string, number>) => void; // PV à mémoriser (batché ~1/s ; 0 = à oublier)
     onInvasion?: (faction: string, island: string, n: number) => void; // un royaume rival débarque
-    onCastle?: (kind: 'perdu' | 'pris', faction: string) => void; // un château est tombé (le tien ou le leur)
+    // Un château est tombé. 'perdu' : l'un des tiens, il t'en reste. 'soumis' : c'était le dernier,
+    // tu passes sous tutelle. 'pris' : le dernier château d'un rival, son royaume s'effondre.
+    onCastle?: (kind: 'perdu' | 'soumis' | 'pris', faction: string) => void;
     playerFaction?: string; // couleur du royaume du joueur (défaut : bleu)
   },
 ) {
@@ -361,6 +365,10 @@ export function createWorld(
   let unlocked = opts.unlocked;
   let missionsDone = opts.missionsDone;
   const playerFaction = opts.playerFaction ?? 'bleu';
+  // PV mémorisés au dernier passage, et lot de PV à remémoriser (0 = l'entité a disparu, on oublie
+  // la clé). Déclarés ici : le décor et les objets placés sont construits juste en dessous.
+  const savedDamage = opts.damage ?? {};
+  const pendingDamage: Record<string, number> = {};
   const homeIsl = WORLD.islands.findIndex((i) => i.unlock === 0);
   let W = 300;
   let H = 300;
@@ -388,10 +396,13 @@ export function createWorld(
     ang?: number; // angle (éclair de mêlée)
   }[] = [];
   let orderMode = false; // mode « envoyer les troupes » : un toucher désigne la destination
-  const projectiles: { x: number; y: number; target: Ent; dmg: number; from: 'player' | 'enemy' }[] = [];
+  // `by` = le tireur, pour savoir qui porte le coup fatal (couleur du conquérant d'un château).
+  const projectiles: { x: number; y: number; target: Ent; dmg: number; from: 'player' | 'enemy'; by?: Ent }[] = [];
   let raidAt = 999; // instant du prochain raid (fixé au démarrage)
   let produceAt = 10; // instant de la prochaine production des royaumes rivaux
   let dispatchAt = 20; // instant du prochain envoi d'escadrons IA (anti-surpopulation)
+  let regenAt = 3; // prochaine passe de régénération hors combat
+  const REGEN_CALM = 20; // secondes sans avoir été touché avant de commencer à se soigner
   const dust = img('sprites/dust.png');
   const keyOf = (e: Ent) => (e.placed ? e.placed.k : `decor:${e.id}`);
   let occCache: Occupancy | null = null;
@@ -448,8 +459,8 @@ export function createWorld(
         e.face = x > 44 * TS ? -1 : Math.random() < 0.5 ? -1 : 1;
         const cst = COMBAT[combatBase(key) ?? ''];
         if (cst) {
-          e.hp = cst.hp;
           e.maxHp = cst.hp;
+          e.hp = Math.max(1, Math.min(cst.hp, savedDamage[`decor:${index}`] ?? cst.hp));
         }
       } else if (maxHpOf(key) !== undefined) {
         // Bâtiment (ou tour) du décor : assiégeable. Il lui faut une île d'attache comme aux unités,
@@ -457,7 +468,8 @@ export function createWorld(
         const cx = Math.floor(x / TS);
         const cy = Math.floor((y - def.feet) / TS);
         e.home = { isl: islandAt(cx, cy), lvl: levelAt(cx, cy) };
-        e.hp = e.maxHp = maxHpOf(key);
+        e.maxHp = maxHpOf(key);
+        e.hp = Math.max(1, Math.min(e.maxHp!, savedDamage[`decor:${index}`] ?? e.maxHp!));
       }
       e.id = String(index);
       if (HARVEST[key]) {
@@ -560,7 +572,8 @@ export function createWorld(
           home: { isl: islandAt(cx, cy), lvl: levelAt(cx, cy) },
           origKey: HARVEST[p.id] ? p.id : undefined,
           nodeStock: HARVEST[p.id] ? HARVEST[p.id].cycles : undefined,
-          hp: maxHpOf(p.id),
+          // PV repris là où on les avait laissés à la session précédente.
+          hp: maxHpOf(p.id) === undefined ? undefined : Math.max(1, Math.min(maxHpOf(p.id)!, savedDamage[p.k] ?? maxHpOf(p.id)!)),
           maxHp: maxHpOf(p.id),
         } as Ent;
       });
@@ -588,12 +601,23 @@ export function createWorld(
         pending[k] = 0;
       }
     }
+    const keys = Object.keys(pendingDamage);
+    if (keys.length) {
+      const batch: Record<string, number> = {};
+      for (const k of keys) {
+        batch[k] = pendingDamage[k];
+        delete pendingDamage[k];
+      }
+      opts.onDamage?.(batch);
+    }
   }
   const isWorker = (e: Ent) => /^villageois/.test(e.key);
   const isSoldier = (e: Ent) => /^(guerrier|lancier|archer|moine)/.test(e.key);
   const isMelee = (e: Ent) => /^(guerrier|lancier)/.test(e.key);
   const factionOf = (key: string) => {
-    const m = /-(rouge|jaune|violette?|noire?)$/.exec(key); // gère aussi les suffixes féminins des bâtiments
+    // Suffixes masculins ET féminins. Attention : `violette?` voudrait dire « violett » + « e » optionnel,
+    // donc « chateau-violet » n'était PAS reconnu et tout le royaume violet passait pour allié du joueur.
+    const m = /-(rouge|jaune|violet(?:te)?|noire?)$/.exec(key);
     if (!m) return 'bleu';
     return m[1].startsWith('viol') ? 'violet' : m[1].startsWith('noir') ? 'noir' : m[1];
   };
@@ -616,6 +640,16 @@ export function createWorld(
   const aimAt = (o: Ent) => ({ x: o.x, y: isBuilding(o) ? o.y - o.def.feet * 0.5 : o.y });
   // Distance « utile » : on retire l'emprise du bâtiment, sinon une unité resterait plantée
   // à taper dans le vide à deux cases d'un château large de quatre.
+  // Clé stable d'une entité : un achat, ou un élément du décor d'origine. Les unités créées au vol
+  // par l'IA / les débarquements n'en ont pas — inutile de mémoriser leurs PV, elles ne reviendront pas.
+  const stableKey = (e: Ent): string | null => (e.placed ? e.placed.k : e.id && /^\d+$/.test(e.id) ? `decor:${e.id}` : null);
+  const noteDamage = (e: Ent) => {
+    const k = stableKey(e);
+    if (!k) return;
+    // Disparue ou entièrement remise sur pied : on oublie la clé au lieu de la garder à sa valeur pleine.
+    const intact = e.dead || (e.hp ?? 0) >= (e.maxHp ?? 0);
+    pendingDamage[k] = intact ? 0 : Math.max(0, Math.round(e.hp ?? 0));
+  };
   const distTo = (e: Ent, o: Ent) => {
     const a = aimAt(o);
     const slack = isBuilding(o) ? ((footprint(o.key)?.w ?? 2) * TS) / 2 : 0;
@@ -811,6 +845,17 @@ export function createWorld(
     }
     return best;
   }
+  // Couleur ennemie la plus représentée sur une île : le conquérant présumé quand un château y tombe.
+  function dominantFoe(isl: number, victim: string): string {
+    const tally = new Map<string, number>();
+    for (const o of [...placed, ...decor]) {
+      if (!alive(o) || !o.agent || o.maxHp === undefined || o.home?.isl !== isl) continue;
+      const f = factionOf(o.key);
+      if (f === victim) continue;
+      tally.set(f, (tally.get(f) ?? 0) + 1);
+    }
+    return [...tally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+  }
   // Cible de siège : bâtiment ennemi le plus proche sur la même île (quand plus aucune unité ne défend).
   function nearestBuilding(e: Ent, maxTiles: number): Ent | null {
     let best: Ent | null = null;
@@ -843,7 +888,7 @@ export function createWorld(
     spawnSand(u.x, u.y - 4, dir, melee ? 8 : 5, melee ? 1.2 : 0.8);
     effects.push({ x: u.x, y: hy - 6, t0: t, kind: 'dmg', val: Math.round(dmg), enemy: !isFriendly(u) });
   }
-  function hurt(u: Ent, dmg: number, from?: { x: number; y: number }, melee = false) {
+  function hurt(u: Ent, dmg: number, from?: { x: number; y: number }, melee = false, by?: Ent) {
     if (!alive(u)) return;
     u.hp = (u.hp ?? u.maxHp ?? 1) - dmg;
     u.hurtT = t;
@@ -857,11 +902,16 @@ export function createWorld(
       u.recoilY = (dy / d) * (melee ? 4 : 2);
     }
     spawnHit(u, dmg, from, melee);
+    noteDamage(u);
     if (u.hp <= 0) {
       u.dead = true;
+      noteDamage(u); // 0 : plus la peine de retenir ses PV, elle ne reviendra pas
+      // Tout élément du décor D'ORIGINE qui meurt est mémorisé comme retiré : au retour sur la carte,
+      // ni les soldats tombés ni les bâtiments rasés ne réapparaissent. (Les unités créées au vol par
+      // l'IA ou par un débarquement ont un id non numérique : elles, on les laisse repartir de zéro.)
+      if (!u.placed && u.id && /^\d+$/.test(u.id)) opts.onDecorRemove?.(u.id);
       if (isBuilding(u)) {
-        // Effondrement : large gerbe de gravats, la case se libère, et la ruine est DÉFINITIVE
-        // (les bâtiments du décor rasés sont mémorisés comme supprimés → la conquête est persistée).
+        // Effondrement : large gerbe de gravats, la case se libère.
         for (let i = 0; i < 5; i++)
           effects.push({
             x: u.x + (Math.random() - 0.5) * u.def.fw * 0.6,
@@ -873,8 +923,17 @@ export function createWorld(
         spawnSand(u.x, u.y - 6, 1, 22, 2);
         spawnSand(u.x, u.y - 6, -1, 22, 2);
         occDirty();
-        if (!u.placed && u.id && /^\d+$/.test(u.id)) opts.onDecorRemove?.(u.id);
-        if (siegeBase(u.key) === 'chateau') opts.onCastle?.(isFriendly(u) ? 'perdu' : 'pris', factionOf(u.key));
+        if (siegeBase(u.key) === 'chateau') {
+          // Un royaume ne tombe qu'à la chute de son DERNIER château : « soumis » (toi) / « pris » (eux).
+          const fac = factionOf(u.key);
+          const last = ![...placed, ...decor].some((o) => alive(o) && siegeBase(o.key) === 'chateau' && factionOf(o.key) === fac);
+          // Qui s'en empare : celui qui porte le coup fatal, sinon la couleur ennemie la plus
+          // présente sur l'île (l'archer qui a tiré a pu mourir entre-temps).
+          const winner = by && factionOf(by.key) !== fac ? factionOf(by.key) : dominantFoe(u.home?.isl ?? -1, fac);
+          if (isFriendly(u)) {
+            if (winner) opts.onCastle?.(last ? 'soumis' : 'perdu', winner);
+          } else if (last) opts.onCastle?.('pris', fac);
+        }
       }
       effects.push({ x: u.x, y: u.y, t0: t, kind: 'dust', s: 1.3 });
       effects.push({ x: u.x, y: u.y - 18, t0: t, kind: 'hit', s: 1.6 });
@@ -906,6 +965,10 @@ export function createWorld(
       e.x = nx;
       e.y = ny;
       e.moving = true;
+      // On garde tx/ty cohérents : sinon, dès que la cible meurt, l'unité retombe dans la marche
+      // normale avec un tx indéfini → NaN → elle se fige (rattrapée de justesse par safeStep).
+      e.tx = nx;
+      e.ty = ny;
       e.acting = -1;
       if (Math.abs(dx) > 1) e.face = dx < 0 ? -1 : 1;
     }
@@ -1063,6 +1126,11 @@ export function createWorld(
       }
       return;
     }
+    if (e.moving && (!Number.isFinite(e.tx) || !Number.isFinite(e.ty))) {
+      e.moving = false; // ceinture : jamais de marche vers une destination indéfinie
+      e.wait = 0.3;
+      return;
+    }
     if (e.moving) {
       const dx = e.tx! - e.x;
       const dy = e.ty! - e.y;
@@ -1157,11 +1225,11 @@ export function createWorld(
       if (s.heal) {
         s.foe.hp = Math.min(s.foe.maxHp ?? 1, (s.foe.hp ?? 0) + s.dmg);
       } else if (s.ranged) {
-        projectiles.push({ x: e.x, y: e.y - s.oy, target: s.foe, dmg: s.dmg, from: isFriendly(e) ? 'player' : 'enemy' });
+        projectiles.push({ x: e.x, y: e.y - s.oy, target: s.foe, dmg: s.dmg, from: isFriendly(e) ? 'player' : 'enemy', by: e });
       } else {
         // Mêlée : le coup ne porte que si l'ennemi est encore à portée (sinon il a esquivé pendant le geste).
         const stx = statsFor(e);
-        if (!stx || distTo(e, s.foe) <= (stx.range + 0.7) * TS) hurt(s.foe, s.dmg, { x: e.x, y: e.y }, true);
+        if (!stx || distTo(e, s.foe) <= (stx.range + 0.7) * TS) hurt(s.foe, s.dmg, { x: e.x, y: e.y }, true, e);
       }
     }
     // Projectiles (flèches) : foncent sur leur cible puis infligent les dégâts.
@@ -1178,7 +1246,7 @@ export function createWorld(
       const d = Math.hypot(dx, dy);
       const step = 380 * dt;
       if (d <= step) {
-        hurt(p.target, p.dmg, { x: p.x, y: p.y }, false);
+        hurt(p.target, p.dmg, { x: p.x, y: p.y }, false, p.by);
         projectiles.splice(i, 1);
       } else {
         p.x += (dx / d) * step;
@@ -1194,6 +1262,17 @@ export function createWorld(
     if (t >= produceAt) {
       produceAt = t + 9;
       try { aiProduce(); } catch (err) { console.error('Scriptoria: production IA', err); }
+    }
+    // Régénération au calme : sans elle, les PV désormais mémorisés d'une session à l'autre
+    // ne feraient que descendre, et une armée finirait par mourir au premier coup.
+    if (t >= regenAt) {
+      regenAt = t + 1;
+      for (const e of [...placed, ...decor]) {
+        if (!alive(e) || e.maxHp === undefined || (e.hp ?? 0) >= e.maxHp) continue;
+        if (e.hurtT !== undefined && t - e.hurtT < REGEN_CALM) continue; // pas en plein combat
+        e.hp = Math.min(e.maxHp, (e.hp ?? 0) + Math.max(1, Math.round(e.maxHp * 0.02)));
+        noteDamage(e);
+      }
     }
     if (t >= dispatchAt) {
       dispatchAt = t + 12;

@@ -56,6 +56,7 @@ export const TROPHIES: Trophy[] = [
   { id: 'castle', category: 'Royaume & Marché', tier: 'gold', icon: '🏰', name: 'Seigneur du château', desc: 'Construire un château', goal: 1, progress: (s) => placedOf(s).filter((p) => p.id.startsWith('chateau')).length },
   { id: 'forest', category: 'Royaume & Marché', tier: 'bronze', icon: '🌲', name: 'Forestier', desc: 'Planter 10 arbres ou buissons', goal: 10, progress: (s) => countCat(s, 'nature') },
   { id: 'flock', category: 'Royaume & Marché', tier: 'bronze', icon: '🐑', name: 'Berger', desc: 'Élever 5 moutons', goal: 5, progress: (s) => countCat(s, 'animaux') },
+  { id: 'yoke', category: 'Royaume & Marché', tier: 'gold', icon: '⛓️', name: 'Le Joug brisé', desc: 'Se libérer d’un suzerain', goal: 1, progress: (s) => stat(s, 'yokesBroken') },
   { id: 'coin2k', category: 'Royaume & Marché', tier: 'silver', icon: '💰', name: 'Économe', desc: 'Gagner 2 000 pièces', goal: 2000, progress: (s) => stat(s, 'coinsEarned') },
   { id: 'coin10k', category: 'Royaume & Marché', tier: 'gold', icon: '💰', name: 'Fortune', desc: 'Gagner 10 000 pièces', goal: 10000, progress: (s) => stat(s, 'coinsEarned') },
 ];

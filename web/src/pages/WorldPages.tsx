@@ -18,7 +18,8 @@ import {
   type ShopCategory,
 } from '@/data/shop';
 import { TROPHIES, type Trophy } from '@/lib/trophies';
-import { createWorld, findSpot, nextUnlock, unlockedIslands, WORLD } from '@/lib/world';
+import { createWorld, findSpot, nextUnlock, unlockedIslands, WORLD, type ResKind } from '@/lib/world';
+import { breakYoke, levyTribute, ransomLeft } from '@/lib/vassal';
 import { LEVELS, lessonCount } from '@/lib/content';
 import { SPRITES, uiUrl } from '@/lib/sprites';
 import type { GameState, Page } from '../types';
@@ -64,6 +65,30 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
   };
   useEffect(() => () => void (alertT.current && window.clearTimeout(alertT.current)), []);
 
+  // Le moteur garde les callbacks de sa création : on lui donne la vassalité via une référence vivante.
+  const vassalRef = useRef(state.vassal ?? null);
+  vassalRef.current = state.vassal ?? null;
+  const tributeCarry = useRef<Record<ResKind, number>>({ gold: 0, wood: 0, food: 0 });
+
+  // Fin du vassalage (rançon payée ou suzerain rasé) : le tribut accumulé revient d'un bloc.
+  const liberate = (how: 'armes' | 'rançon') => {
+    if (!vassalRef.current) return;
+    setState(breakYoke);
+    raiseAlert(
+      how === 'armes'
+        ? 'Le château de ton suzerain est tombé — le joug est brisé ! Le tribut t’est rendu.'
+        : 'Rançon payée : tes mots ont racheté ta couronne. Le tribut t’est rendu !',
+      'win',
+    );
+  };
+
+  // Libération par les mots : la rançon se paie en quêtes d'anglais terminées.
+  useEffect(() => {
+    // On compte les VRAIES quêtes : sinon le compte dev (tout débloqué) paierait la rançon d'office.
+    if (state.vassal && ransomLeft(state, questsDone(state)) === 0) liberate('rançon');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.lessons, state.vassal]);
+
   const isDev = useIsDev();
   const done = isDev ? TOTAL_LESSONS : questsDone(state);
   const unlocked = useMemo(() => unlockedIslands(done), [done]);
@@ -100,6 +125,17 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
       stock: { gold: state.coins, wood: state.resources?.wood ?? 0, food: state.resources?.food ?? 0 },
       decorPos: state.decorPos ?? {},
       decorRemoved: state.decorRemoved ?? [],
+      damage: state.damage ?? {},
+      // PV des bâtiments et unités abîmés : la carte reprend dans l'état où tu l'as quittée.
+      onDamage: (batch) =>
+        setState((current) => {
+          const next = { ...(current.damage ?? {}) };
+          for (const [k, hp] of Object.entries(batch)) {
+            if (hp > 0) next[k] = hp;
+            else delete next[k]; // entité disparue : on oublie la clé (sinon l'état enflerait sans fin)
+          }
+          return { ...current, damage: next };
+        }),
       onDecorMove: (id, x, y) =>
         setState((current) => ({ ...current, decorPos: { ...(current.decorPos ?? {}), [id]: [x, y] } })),
       onUnitLost: (k) =>
@@ -108,10 +144,21 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
       onDecorRemove: (id) =>
         setState((current) => ({ ...current, decorRemoved: [...new Set([...(current.decorRemoved ?? []), id])] })),
       onInvasion: (fac, island, n) => raiseAlert(`Le royaume ${fac} débarque sur « ${island} » — ${n} soldats !`),
-      onCastle: (kind, fac) =>
-        kind === 'perdu'
-          ? raiseAlert('Ton château est tombé ! Reconstruis-en un au Marché.')
-          : raiseAlert(`Le château ${fac} est rasé — l’île se libère !`, 'win'),
+      onCastle: (kind, fac) => {
+        if (kind === 'perdu') return raiseAlert('Un de tes châteaux est tombé ! Défends les autres.');
+        if (kind === 'pris') {
+          // Le dernier château d'un rival : si c'était ton suzerain, le joug se brise.
+          if (vassalRef.current?.of === fac) return liberate('armes');
+          return raiseAlert(`Le royaume ${fac} n’a plus de château — son île se libère !`, 'win');
+        }
+        // 'soumis' : ton dernier château est tombé, tu passes sous tutelle.
+        setState((current) =>
+          current.vassal
+            ? current
+            : { ...current, vassal: { of: fac, atQuests: questsDone(current), tribute: { gold: 0, wood: 0, food: 0 } } },
+        );
+        raiseAlert(`Ton dernier château est tombé. Le royaume ${fac} plante sa bannière : tu lui dois tribut.`);
+      },
       // Objet de l'inventaire posé sur la carte : on le retire de l'inventaire et on l'ajoute aux objets placés.
       onPlaceNew: (k, id, x, y) =>
         setState((current) => ({
@@ -119,18 +166,25 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
           inventory: (current.inventory ?? []).filter((it) => it.k !== k),
           placed: [...(current.placed ?? []), { k, id, x, y }],
         })),
-      onHarvest: (kind, amount) =>
-        setState((current) =>
-          kind === 'gold'
-            ? { ...current, coins: current.coins + amount }
+      onHarvest: (kind, amount) => {
+        // Sous tutelle, le suzerain prélève sa part au passage (calculée hors du setState, qui doit rester pur).
+        const levy = vassalRef.current ? levyTribute(kind, amount, tributeCarry.current) : 0;
+        const net = amount - levy;
+        setState((current) => {
+          const v = current.vassal;
+          const owed = v && levy ? { ...v, tribute: { ...v.tribute, [kind]: v.tribute[kind] + levy } } : v;
+          return kind === 'gold'
+            ? { ...current, coins: current.coins + net, vassal: owed }
             : {
                 ...current,
+                vassal: owed,
                 resources: {
-                  wood: (current.resources?.wood ?? 0) + (kind === 'wood' ? amount : 0),
-                  food: (current.resources?.food ?? 0) + (kind === 'food' ? amount : 0),
+                  wood: (current.resources?.wood ?? 0) + (kind === 'wood' ? net : 0),
+                  food: (current.resources?.food ?? 0) + (kind === 'food' ? net : 0),
                 },
-              },
-        ),
+              };
+        });
+      },
     });
     engineRef.current = eng;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -286,7 +340,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
 
   // Réinitialise la carte : retire tout ce qui a été placé/récolté et restaure le décor d'origine.
   function resetMap() {
-    setState((current) => ({ ...current, coins: 0, placed: [], inventory: [], decorPos: {}, decorRemoved: [], resources: { wood: 0, food: 0 }, starters: false }));
+    setState((current) => ({ ...current, coins: 0, placed: [], inventory: [], decorPos: {}, decorRemoved: [], damage: {}, resources: { wood: 0, food: 0 }, starters: false, vassal: null }));
     setSelected(null);
     setSelInfo(null);
     setConfirmReset(false);
@@ -380,6 +434,21 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
       <div className="pointer-events-none absolute bottom-4 left-3 flex items-center gap-2 rounded-md bg-[#2b1a0d]/85 px-3 py-2 text-sm font-bold text-[#ffe7a6] shadow-xl md:bottom-6 md:left-6">
         <MapPin className="size-4" /> {openBig} / {BIG_ISLANDS} îles libérées
       </div>
+
+      {/* Sous tutelle : le suzerain prélève un tiers de chaque récolte tant que le joug n'est pas brisé. */}
+      {state.vassal && (
+        <div className="pointer-events-none absolute bottom-16 left-3 max-w-[17rem] rounded-md border-l-4 border-[#ff8a6b] bg-[#2b0d0d]/90 px-3 py-2 shadow-xl md:bottom-[4.75rem] md:left-6">
+          <div className="flex items-center gap-2 text-sm font-bold text-[#ffd9cc]">
+            <Swords className="size-4" /> Vassal du royaume {state.vassal.of}
+          </div>
+          <div className="mt-0.5 text-[11px] leading-snug text-[#ffd9cc]/80">
+            Un tiers de tes récoltes part au tribut ({state.vassal.tribute.gold} or prélevé).
+            <br />
+            Rançon : encore {ransomLeft(state, questsDone(state))} quête
+            {ransomLeft(state, questsDone(state)) > 1 ? 's' : ''} — ou rase son dernier château.
+          </div>
+        </div>
+      )}
 
       {moving && (
         <div className="absolute left-1/2 top-16 z-10 -translate-x-1/2 md:top-5">
