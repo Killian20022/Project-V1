@@ -475,12 +475,12 @@ type Ent = {
   // Ruine d'un bâtiment rasé : dessinée en gris sur place, relevable à moitié prix.
   ruin?: { k: string; id: string };
   // Expédition vers une autre île : l'unité gagne d'abord la côte, puis se met à l'eau.
-  cross?: { isl: number; march?: { x: number; y: number } };
+  cross?: { isl: number; march?: { x: number; y: number }; final?: number }; // final : île visée au bout du voyage
   // Route par les portails : l'unité marche jusqu'au portail de son île, puis ressort à l'autre bout.
   warp?: { x: number; y: number; isl: number; march?: { x: number; y: number } };
   // En pleine traversée : on interpole la position d'une rive à l'autre pour qu'on la VOIE passer.
   // Elle reste hors de portée (ni cible, ni combat, ni case occupée) le temps de la nage.
-  sailing?: { x0: number; y0: number; x1: number; y1: number; t0: number; dur: number; isl: number; march?: { x: number; y: number } };
+  sailing?: { x0: number; y0: number; x1: number; y1: number; t0: number; dur: number; isl: number; march?: { x: number; y: number }; final?: number };
   // Pose depuis l'inventaire : objet fantôme pas encore ajouté à la carte (ni placed ni decor).
   fresh?: boolean;
   freshKey?: string; // clé d'inventaire de l'objet en cours de pose
@@ -2142,20 +2142,100 @@ export function createWorld(
     const from = e.home?.isl ?? -1;
     if (!dest || from < 0) return null;
     const here = regionAt(Math.floor(e.x / TS), Math.floor(e.y / TS));
-    // On vise la côte tournée vers la destination : le point le plus proche de l'île visée, pondéré
-    // par la marche à faire pour l'atteindre.
+    const across = coastCells(to);
+    if (!across.length) return null;
+    // On mesure la mer VRAIMENT à franchir : la distance jusqu'à la côte d'en face la plus proche
+    // (et non jusqu'au centre de l'île visée, qui faisait parfois longer la terre à la nage). La mer
+    // pèse lourd : un soldat préfère marcher jusqu'au point le plus proche de l'autre rive.
     let best: [number, number] | null = null;
     let bd = Infinity;
     for (const [cx, cy] of coastCells(from)) {
-      const sail = Math.hypot(cx * TS - dest.cx, cy * TS - dest.cy);
       const walk = Math.hypot(cx * TS - e.x, cy * TS - e.y);
-      const d = sail * 1.5 + walk; // la traversée coûte plus cher que la marche : on raccourcit la mer
+      if (walk >= bd) continue; // même sans mer, ce quai coûterait déjà plus que le meilleur
+      let sea = Infinity;
+      for (const [ax, ay] of across) {
+        const q = (ax - cx) ** 2 + (ay - cy) ** 2;
+        if (q < sea) sea = q;
+      }
+      const d = Math.sqrt(sea) * TS * SEA_WEIGHT + walk;
       if (d >= bd) continue;
       if (passageRoute(here, regionAt(cx, cy)) === null) continue; // côte inatteignable pour lui
       bd = d;
       best = [cx, cy];
     }
     return best;
+  }
+  // Un pas en mer « coûte » autant que SEA_WEIGHT pas à terre : on marche tant qu'on peut, on ne
+  // nage que pour franchir le bras de mer le plus court.
+  const SEA_WEIGHT = 4;
+
+  // Plus petite largeur de mer (en cases) entre deux îles : bord à bord. Calculée à la demande, puis
+  // mémorisée — le terrain ne change jamais.
+  const gapCache = new Map<string, number>();
+  function seaGap(a: number, b: number): number {
+    const k = a < b ? `${a}-${b}` : `${b}-${a}`;
+    let d = gapCache.get(k);
+    if (d === undefined) {
+      d = Infinity;
+      const cb = coastCells(b);
+      for (const [ax, ay] of coastCells(a))
+        for (const [bx, by] of cb) {
+          const q = (ax - bx) ** 2 + (ay - by) ** 2;
+          if (q < d) d = q;
+        }
+      d = Math.sqrt(d);
+      gapCache.set(k, d);
+    }
+    return d;
+  }
+  /**
+   * Prochaine île où poser le pied pour aller de `from` à `to` en nageant le MOINS possible : on
+   * traverse à pied les îles (débloquées) qui se trouvent sur le chemin plutôt que de faire toute
+   * la route dans l'eau. Plus court chemin (Dijkstra) sur le graphe des îles, une arête = un bras de
+   * mer, son coût = sa largeur (+ un petit forfait par débarquement, pour éviter les détours absurdes).
+   */
+  function nextHop(from: number, to: number): number {
+    const nodes = WORLD.islands.map((_, i) => i).filter((i) => i === to || i === from || unlocked.has(i));
+    const dist = new Map<number, number>(nodes.map((i) => [i, Infinity]));
+    const prev = new Map<number, number>();
+    const done = new Set<number>();
+    dist.set(from, 0);
+    while (done.size < nodes.length) {
+      let u = -1;
+      let du = Infinity;
+      for (const i of nodes) if (!done.has(i) && dist.get(i)! < du) (u = i), (du = dist.get(i)!);
+      if (u < 0 || u === to) break;
+      done.add(u);
+      for (const v of nodes) {
+        if (done.has(v) || v === u) continue;
+        const nd = du + seaGap(u, v) + 2;
+        if (nd < dist.get(v)!) {
+          dist.set(v, nd);
+          prev.set(v, u);
+        }
+      }
+    }
+    if (!Number.isFinite(dist.get(to)!)) return to;
+    let hop = to;
+    while (prev.get(hop) !== undefined && prev.get(hop) !== from) hop = prev.get(hop)!;
+    return hop;
+  }
+  /**
+   * Met `e` en route vers l'île `final` : il marche jusqu'au quai le plus proche de la prochaine île
+   * de l'itinéraire, nage le bras de mer, et recommence à l'arrivée jusqu'à la destination.
+   */
+  function planCrossing(e: Ent, final: number, march?: { x: number; y: number }): boolean {
+    const from = e.home?.isl ?? -1;
+    if (from < 0 || from === final) return false;
+    let to = nextHop(from, final);
+    let quay = departureSpot(e, to);
+    // Escale impraticable (côte hors d'atteinte depuis ce palier) : on vise directement le but.
+    if (!quay && to !== final) quay = departureSpot(e, (to = final));
+    if (!quay) return false;
+    e.cross = { isl: to, march, final };
+    e.warp = undefined;
+    e.order = { x: quay[0] * TS + TS / 2, y: quay[1] * TS + TS * 0.75 };
+    return true;
   }
   /** Case de bord libre de `isl` la plus proche du point (x, y) : là où l'on touchera terre. */
   // Points d'arrivée déjà promis à un nageur : l'occupation ne les connaît pas encore (personne n'y
@@ -2281,7 +2361,7 @@ export function createWorld(
     const x1 = at[0] * TS + TS / 2;
     const y1 = at[1] * TS + TS * 0.75;
     const d = Math.hypot(x1 - e.x, y1 - e.y);
-    e.sailing = { x0: e.x, y0: e.y, x1, y1, t0: t, dur: Math.max(1.2, d / SWIM_SPEED), isl: to, march: e.cross!.march };
+    e.sailing = { x0: e.x, y0: e.y, x1, y1, t0: t, dur: Math.max(1.2, d / SWIM_SPEED), isl: to, march: e.cross!.march, final: e.cross!.final };
     e.order = undefined;
     e.moving = true; // animation de course pendant la nage
     e.acting = -1;
@@ -2300,6 +2380,8 @@ export function createWorld(
         e.sailing = undefined;
         bookedLandings.delete(`${at[0]},${at[1]}`);
         landExisting(e, s.isl, at, s.march);
+        // Escale : on n'est pas encore arrivé, on traverse cette île à pied jusqu'au prochain quai.
+        if (s.final !== undefined && s.final !== s.isl) planCrossing(e, s.final, s.march);
         continue;
       }
       e.x = s.x0 + (s.x1 - s.x0) * k;
@@ -2608,6 +2690,25 @@ export function createWorld(
       drawFrame();
       ctx.restore();
       ctx.globalAlpha = 1;
+      return;
+    }
+    if (e.sailing) {
+      // À la nage, on ne voit que le haut du corps : les jambes sont sous l'eau. Sans ça, l'unité
+      // semblait MARCHER sur la mer.
+      const water = e.y - 16 + Math.sin(t * 5 + e.ph) * 1.5;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(dx - def.fw, dy - def.fh, def.fw * 3, water - (dy - def.fh));
+      ctx.clip();
+      ctx.globalAlpha = alpha;
+      drawFrame();
+      ctx.restore();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(235, 248, 255, 0.75)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(e.x, water, 14, 4, 0, 0, Math.PI * 2);
+      ctx.stroke();
       return;
     }
     ctx.globalAlpha = alpha;
@@ -3386,11 +3487,7 @@ export function createWorld(
           e.order = { x: entryStep[0] * TS + TS / 2, y: entryStep[1] * TS + TS * 0.75 };
           warped++;
         } else {
-          const quay = departureSpot(e, isl);
-          if (!quay) continue;
-          e.cross = { isl, march: dest };
-          e.warp = undefined;
-          e.order = { x: quay[0] * TS + TS / 2, y: quay[1] * TS + TS * 0.75 };
+          if (!planCrossing(e, isl, dest)) continue;
           boarded++;
         }
         e.orderTarget = undefined;
