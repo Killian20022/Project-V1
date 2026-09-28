@@ -450,6 +450,9 @@ type Ent = {
   strike?: { at: number; foe: Ent; dmg: number; ranged: boolean; heal?: boolean; oy: number };
   // Ruine d'un bâtiment rasé : dessinée en gris sur place, relevable à moitié prix.
   ruin?: { k: string; id: string };
+  // Expédition vers une autre île : l'unité gagne d'abord la côte, puis embarque.
+  cross?: { isl: number; march?: { x: number; y: number } };
+  sailing?: number; // en mer : instant (s) du débarquement. Invisible et intouchable d'ici là.
   // Pose depuis l'inventaire : objet fantôme pas encore ajouté à la carte (ni placed ni decor).
   fresh?: boolean;
   freshKey?: string; // clé d'inventaire de l'objet en cours de pose
@@ -571,7 +574,8 @@ export function createWorld(
   const getOcc = () =>
     (occCache ??= buildOcc(
       // Les ruines occupent le sol : on rebâtit exactement à leur place, rien d'autre ne s'y pose.
-      [...placed, ...decor, ...ruins].map((e) => ({ id: keyOf(e), key: e.key, x: e.x, y: e.y })),
+      // Les unités en mer, elles, ne bloquent plus la case qu'elles viennent de quitter.
+      [...placed, ...decor, ...ruins].filter((e) => !e.sailing).map((e) => ({ id: keyOf(e), key: e.key, x: e.x, y: e.y })),
     ));
   const occDirty = () => {
     occCache = null;
@@ -811,7 +815,9 @@ export function createWorld(
     const s = statsFor(e);
     return !!s && (s.dmg > 0 || s.heal === true);
   };
-  const alive = (e?: Ent | null): e is Ent => !!e && !e.dead && (e.hp ?? 1) > 0;
+  // Une unité EN MER n'est plus sur le plateau de jeu : on ne la vise pas, elle ne combat pas, elle
+  // n'occupe aucune case. `alive` porte ce filtre pour que tous les balayages en héritent d'un coup.
+  const alive = (e?: Ent | null): e is Ent => !!e && !e.dead && !e.sailing && (e.hp ?? 1) > 0;
   // Cible fixe assiégeable : PV, ne se déplace pas. La tour en fait partie — elle tirait sans jamais
   // pouvoir être détruite, ce qui rendait une île imprenable.
   // Une ruine n'est plus un bâtiment : elle ne se défend pas, ne s'assiège pas, ne compte pour
@@ -1228,14 +1234,15 @@ export function createWorld(
     const step = Math.min(d, 48 * dt);
     const nx = e.x + (dx / d) * step;
     const ny = e.y + (dy / d) * step;
-    if (walkableAcross(Math.floor(e.x / TS), Math.floor(e.y / TS), Math.floor(nx / TS), Math.floor(ny / TS), e.home.isl)) {
-      e.x = nx;
-      e.y = ny;
+    // Même contournement qu'en marche libre : sans lui, un rocher entre l'unité et sa cible la fige
+    // à mi-chemin, l'arme au clair.
+    if (tryStep(e, nx, ny) || tryStep(e, nx, e.y) || tryStep(e, e.x, ny)) {
       e.moving = true;
-      // On garde tx/ty cohérents : sinon, dès que la cible meurt, l'unité retombe dans la marche
-      // normale avec un tx indéfini → NaN → elle se fige (rattrapée de justesse par safeStep).
-      e.tx = nx;
-      e.ty = ny;
+      // On garde tx/ty cohérents avec la position RÉELLEMENT atteinte : sinon, dès que la cible
+      // meurt, l'unité retombe dans la marche normale avec un tx incohérent → NaN → elle se fige
+      // (rattrapée de justesse par safeStep).
+      e.tx = e.x;
+      e.ty = e.y;
       e.acting = -1;
       syncLevel(e); // un palier de franchi : le niveau de rattachement suit
       if (Math.abs(dx) > 1) e.face = dx < 0 ? -1 : 1;
@@ -1359,6 +1366,7 @@ export function createWorld(
     const dx = e.order.x - e.x;
     const dy = e.order.y - e.y;
     if (Math.hypot(dx, dy) < TS * 0.6) {
+      if (e.cross) return embark(e); // arrivé à la côte : on prend la mer
       e.order = undefined; // arrivé : l'unité tient la position
       e.wait = 0.3;
       return;
@@ -1376,7 +1384,7 @@ export function createWorld(
     e.moving = true;
   }
   function stepAgent(e: Ent, dt: number) {
-    if (e.dead) return;
+    if (e.dead || e.sailing) return; // en mer : rien à animer
     if (e.reservedBy) return; // nœud-agent (mouton) figé pendant qu'un villageois le récolte
     // Ordre d'attaque sur une cible précise : on force le combat à la pourchasser (au-delà de l'aggro).
     if (e.orderTarget) {
@@ -1428,8 +1436,13 @@ export function createWorld(
           // souvent un point de passage. Effacer l'ordre ici faisait abandonner la troupe au pied de
           // la rampe. On ne le lève que si on est vraiment arrivé ; sinon on enchaîne sans attendre.
           if (Math.hypot(e.order.x - e.x, e.order.y - e.y) < TS * 0.6) {
-            e.order = undefined;
-            e.wait = 0.3;
+            // Arrivé au quai : on embarque au lieu de « tenir la position ». Sans ce test, la troupe
+            // atteignait la côte puis repartait se promener, l'expédition oubliée.
+            if (e.cross) embark(e);
+            else {
+              e.order = undefined;
+              e.wait = 0.3;
+            }
           } else e.wait = 0;
         } else {
           e.wait = 1 + Math.random() * 3;
@@ -1442,22 +1455,13 @@ export function createWorld(
         const step = Math.min(d, speed * dt);
         const nx = e.x + (dx / d) * step;
         const ny = e.y + (dy / d) * step;
-        const ncx = Math.floor(nx / TS);
-        const ncy = Math.floor(ny / TS);
-        const occ = getOcc();
-        const inside = occ.has(`${Math.floor(e.x / TS)},${Math.floor(e.y / TS)}`);
-        // Sous un ordre du joueur, l'unité a le droit de changer de palier (escalier / pente) ; en
-        // vie autonome elle reste sur le sien, sinon les villageois descendraient des plateaux au
-        // hasard en pleine promenade.
-        const ok = e.order
-          ? walkableAcross(Math.floor(e.x / TS), Math.floor(e.y / TS), ncx, ncy, e.home!.isl)
-          : walkable(ncx, ncy, e.home!);
-        if (!ok || (!inside && occ.has(`${ncx},${ncy}`))) {
+        // Un simple rocher sur la trajectoire suffisait à figer l'unité : le pas diagonal était
+        // refusé et elle attendait indéfiniment. On glisse désormais le long de l'obstacle en
+        // retombant sur un pas purement horizontal, puis purement vertical.
+        if (!tryStep(e, nx, ny) && !tryStep(e, nx, e.y) && !tryStep(e, e.x, ny)) {
           e.moving = false;
           e.wait = 0.5;
         } else {
-          e.x = nx;
-          e.y = ny;
           if (e.order) syncLevel(e);
           if (Math.abs(dx) > 1) e.face = dx < 0 ? -1 : 1;
         }
@@ -1469,6 +1473,33 @@ export function createWorld(
       if (e.order) issueMarch(e); // priorité à l'ordre du joueur sur la vie autonome
       else nextActivity(e);
     }
+  }
+  /**
+   * Tente de poser l'unité en (nx, ny). Renvoie false si la case est interdite (terrain ou objet
+   * déjà là), sans rien modifier — l'appelant peut alors essayer une autre direction.
+   */
+  function tryStep(e: Ent, nx: number, ny: number): boolean {
+    const cx = Math.floor(e.x / TS);
+    const cy = Math.floor(e.y / TS);
+    const ncx = Math.floor(nx / TS);
+    const ncy = Math.floor(ny / TS);
+    if (ncx === cx && ncy === cy) {
+      e.x = nx;
+      e.y = ny;
+      return true; // on reste dans la même case : rien à vérifier
+    }
+    // Sous un ordre du joueur, l'unité a le droit de changer de palier (rampe) ; en vie autonome elle
+    // reste sur le sien, sinon les villageois descendraient des plateaux au hasard en promenade.
+    const ok = e.order ? walkableAcross(cx, cy, ncx, ncy, e.home!.isl) : walkable(ncx, ncy, e.home!);
+    if (!ok) return false;
+    // On compare l'OCCUPANT, pas un « suis-je dedans ? » approximatif : l'ancienne heuristique
+    // comparait deux calculs de case différents (`floor(y/TS)` contre celui de `cellsOf`, décalé de
+    // 8 px), si bien qu'une unité se bloquait parfois sur sa propre case.
+    const who = getOcc().get(`${ncx},${ncy}`);
+    if (who !== undefined && who !== keyOf(e)) return false;
+    e.x = nx;
+    e.y = ny;
+    return true;
   }
   // Fait avancer une unité sans jamais pouvoir figer la carte : en cas d'erreur, on réinitialise
   // proprement son état de combat/tâche (et on la retire si son état est irrécupérable).
@@ -1574,6 +1605,7 @@ export function createWorld(
       dispatchAt = t + 12;
       try { aiDispatch(); } catch (err) { console.error('Scriptoria: escadrons IA', err); }
     }
+    stepCrossings();
     if (t >= warAt) {
       warAt = t + 110 + Math.random() * 70;
       try { launchRivalWar(); } catch (err) { console.error('Scriptoria: guerre entre rivaux', err); }
@@ -1812,6 +1844,95 @@ export function createWorld(
     }
     return n;
   }
+  // ---------- Expéditions du joueur (traversées) ----------
+  // Une armée ne marche pas sur l'eau. Quand on lui ordonne d'aller sur une AUTRE île, elle gagne
+  // d'abord sa propre côte, embarque, traverse, puis débarque — au lieu de se téléporter.
+  // Contrairement aux expéditions de l'IA, on DÉPLACE l'unité au lieu de la détruire et d'en recréer
+  // une : celles du joueur sont achetées et persistées, les perdre en route serait inacceptable.
+  const CROSS_MIN = 2.5; // durée plancher d'une traversée (s)
+
+  /**
+   * Où s'embarquer : une case de bord de l'île de `e`, joignable par lui, et tournée vers l'île
+   * visée. On pondère la distance à parcourir et celle qui reste à franchir en mer — viser
+   * uniquement la côte la plus proche de la destination envoyait parfois la troupe traverser toute
+   * l'île pour gagner trois mètres de mer.
+   */
+  function departureSpot(e: Ent, to: number): [number, number] | null {
+    const dest = WORLD.islands[to];
+    const from = e.home?.isl ?? -1;
+    if (!dest || from < 0) return null;
+    const here = regionAt(Math.floor(e.x / TS), Math.floor(e.y / TS));
+    let best: [number, number] | null = null;
+    let bd = Infinity;
+    for (const [cx, cy] of shoreSpots(from)) {
+      if (passageRoute(here, regionAt(cx, cy)) === null) continue; // côte inatteignable pour lui
+      const walk = Math.hypot(cx * TS - e.x, cy * TS - e.y);
+      const sail = Math.hypot(cx * TS - dest.cx, cy * TS - dest.cy);
+      const d = walk + sail;
+      if (d < bd) {
+        bd = d;
+        best = [cx, cy];
+      }
+    }
+    return best;
+  }
+  /** Repose une unité EXISTANTE sur une case de bord de `isl` et lui donne son ordre de marche. */
+  function landExisting(e: Ent, isl: number, march?: { x: number; y: number }): boolean {
+    const spots = shoreSpots(isl).filter(([cx, cy]) => !getOcc().has(`${cx},${cy}`));
+    if (!spots.length) return false;
+    const [cx, cy] = spots[Math.floor(Math.random() * spots.length)];
+    e.x = cx * TS + TS / 2;
+    e.y = cy * TS + TS * 0.75;
+    e.home = { isl, lvl: levelAt(cx, cy) };
+    e.origin = { x: e.x, y: e.y };
+    e.order = march ? { ...march } : undefined;
+    e.orderTarget = undefined;
+    e.target = undefined;
+    e.task = undefined;
+    e.moving = false;
+    e.acting = -1;
+    e.wait = 0;
+    e.cross = undefined;
+    e.sailing = undefined;
+    // On persiste la nouvelle position, sinon l'unité serait de retour sur son île au rechargement.
+    if (e.placed) {
+      e.placed.x = Math.round(e.x);
+      e.placed.y = Math.round(e.y);
+      e.orig = { x: e.x, y: e.y };
+      opts.onMove?.(e.placed.k, e.placed.x, e.placed.y);
+    } else if (e.id && /^\d+$/.test(e.id)) opts.onDecorMove?.(e.id, Math.round(e.x), Math.round(e.y));
+    occDirty();
+    effects.push({ x: e.x, y: e.y, t0: t, kind: 'dust', s: 1.2 }, { x: e.x, y: e.y, t0: t, kind: 'ring' });
+    return true;
+  }
+  /** L'unité a atteint la côte : elle prend la mer. */
+  function embark(e: Ent) {
+    const to = e.cross!.isl;
+    const from = e.home?.isl ?? -1;
+    const a = WORLD.islands[from];
+    const b = WORLD.islands[to];
+    const d = a && b ? Math.hypot(a.cx - b.cx, a.cy - b.cy) : 1000;
+    e.sailing = t + Math.min(9, CROSS_MIN + d / 700);
+    e.order = undefined;
+    e.moving = false;
+    e.acting = -1;
+    effects.push({ x: e.x, y: e.y, t0: t, kind: 'dust', s: 1.3 }, { x: e.x, y: e.y, t0: t, kind: 'ring', s: 1.2 });
+    occDirty();
+  }
+  /** Fait débarquer celles dont la traversée est finie (appelé à chaque image, liste presque toujours vide). */
+  function stepCrossings() {
+    for (const e of [...placed, ...decor]) {
+      if (!e.sailing || t < e.sailing || e.dead) continue;
+      const to = e.cross?.isl ?? -1;
+      // Île devenue injoignable (aucune place libre) : on retente à l'image suivante plutôt que de
+      // perdre l'unité en mer pour toujours.
+      if (to < 0) {
+        e.sailing = undefined;
+        e.cross = undefined;
+      } else if (!landExisting(e, to, e.cross?.march)) e.sailing = t + 1;
+    }
+  }
+
   function launchInvasion() {
     // On ne débarque que sur une île à toi qui a de quoi se défendre (sinon on massacre des villageois).
     const defended = new Set<number>();
@@ -2247,7 +2368,7 @@ export function createWorld(
     // sprites triés par profondeur (les ruines se mêlent au tri : un soldat passe devant l'une,
     // derrière l'autre, selon sa position)
     const all = [...decor, ...placed, ...ruins].filter((e) => {
-      if (e.dead) return false;
+      if (e.dead || e.sailing) return false;
       const b = e.y + e.def.feet;
       return e.x + e.def.fw / 2 > vx0 && e.x - e.def.fw / 2 < vx1 && b > vy0 && b - e.def.fh < vy1;
     });
@@ -2747,6 +2868,37 @@ export function createWorld(
     }
     const foe = enemyAt(w.x, w.y, isl);
     const dest = foe ? { x: foe.x, y: foe.y } : { x: w.x, y: w.y };
+
+    // Cible sur une AUTRE île : la troupe monte une expédition (côte → mer → débarquement) au lieu
+    // de refuser l'ordre. C'est le pendant joueur des invasions que les royaumes rivaux lancent déjà.
+    const corps = [...placed, ...decor].filter(
+      (e) => alive(e) && e.agent && isFriendly(e) && isFighter(e) && e !== drag?.ent && e !== moveEnt && (!troop.size || troop.has(keyOf(e))),
+    );
+    const abroad = corps.filter((e) => (e.home?.isl ?? -1) !== isl && (e.home?.isl ?? -1) >= 0);
+    if (abroad.length && !corps.some((e) => e.home?.isl === isl)) {
+      let boarded = 0;
+      for (const e of abroad) {
+        const quay = departureSpot(e, isl);
+        if (!quay) continue;
+        e.cross = { isl, march: dest };
+        e.order = { x: quay[0] * TS + TS / 2, y: quay[1] * TS + TS * 0.75 };
+        e.orderTarget = undefined;
+        e.task = undefined;
+        e.moving = false;
+        e.acting = -1;
+        e.wait = 0;
+        boarded++;
+      }
+      if (boarded) {
+        effects.push({ x: w.x, y: w.y, t0: t, kind: 'rally' });
+        opts.onNotice?.(
+          `${boarded} soldat${boarded > 1 ? 's' : ''} en route pour « ${WORLD.islands[isl]?.name ?? 'l’île'} » — ils gagnent la côte et embarquent.`,
+        );
+      } else flashBad = t;
+      endOrder();
+      return;
+    }
+
     let sent = 0;
     for (const e of [...placed, ...decor]) {
       if (!e.agent || e.dead || !isFriendly(e) || !isFighter(e)) continue;
