@@ -439,8 +439,8 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
       <div className="pointer-events-none absolute left-3 top-3 hidden sm:block md:left-6 md:top-5">
         <h1 className="ribbon text-xl md:text-2xl">L’archipel de Scriptoria</h1>
         <p className="mt-1 hidden max-w-sm rounded-md bg-[#2b1a0d]/75 px-3 py-1.5 text-xs text-[#ffeccc] md:block">
-          Clic gauche glissé : encadre une troupe · clic droit : l’envoyer · molette pressée ou souris au bord de l’écran :
-          explorer · molette : zoomer
+          Glisser : explorer la carte, ou déplacer ce qu’on saisit · double-clic maintenu : encadrer une troupe ·
+          clic droit : l’envoyer · molette : zoomer
         </p>
       </div>
 
@@ -563,7 +563,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
               {troop > 0
                 ? `${troop} soldat${troop > 1 ? 's' : ''} retenu${troop > 1 ? 's' : ''} — touche un point pour les y envoyer`
                 : 'Touche un point (ou un ennemi) pour y envoyer tes troupes'}
-              <small className="ml-2 block font-normal opacity-70 md:ml-0">Glisse pour n’encadrer qu’une partie de ton armée</small>
+              <small className="ml-2 block font-normal opacity-70 md:ml-0">Double-clic maintenu pour n’encadrer qu’une partie de ton armée</small>
             </span>
             <Button size="sm" variant="secondary" onClick={() => engineRef.current?.cancelOrder()}>
               Annuler
@@ -893,7 +893,6 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
           const count = ownedOf(item);
           const maxed = count >= item.max;
           const person = item.category === 'soldats' || item.category === 'animaux';
-          const isDemon = /^demon/.test(item.id);
           const needBld = item.needs && !ownsBuilding(placedItems, item.needs);
           const popFull = (item.pop ?? 0) > 0 && popUsed + (item.pop ?? 0) > popMax;
           const afford = state.coins >= item.price && wood >= (item.wood ?? 0) && food >= (item.food ?? 0);
@@ -904,13 +903,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
             <Card key={item.id}>
               <CardContent className="flex flex-col items-center gap-1.5 p-2 text-center">
                 <div className="grid h-28 w-full place-items-end justify-center overflow-hidden">
-                  {/* Le Démon vient d'un autre pack : sa planche fait 288×160 (large et basse) là où
-                      Tiny Swords est en 192×192. Le rognage des soldats le décapitait. */}
-                  <Sprite
-                    k={item.id}
-                    height={item.category === 'batiments' ? 108 : isDemon ? 96 : person ? 100 : 84}
-                    crop={isDemon ? 0.05 : person ? (item.id.startsWith('lancier') ? 0.3 : 0.26) : 0}
-                  />
+                  <Sprite k={item.id} height={item.category === 'batiments' ? 108 : person ? 100 : 84} crop={person ? (item.id.startsWith('lancier') ? 0.3 : 0.26) : 0} />
                 </div>
                 <div className="font-display leading-tight">{item.name}</div>
                 {item.blurb && <div className="text-[11px] text-[hsl(var(--accent))]">{item.blurb}</div>}

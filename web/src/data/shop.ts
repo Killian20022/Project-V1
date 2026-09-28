@@ -61,19 +61,6 @@ const UNITS: { key: string; name: string; price: number; wood?: number; food?: n
   { key: 'archer', name: 'Archer', price: 90, wood: 40, food: 20, needs: 'archerie', blurb: 'Vise juste de loin' },
   { key: 'guerrier', name: 'Guerrier', price: 80, wood: 20, food: 30, needs: 'caserne', blurb: 'Épée et bouclier' },
   { key: 'lancier', name: 'Lancier', price: 110, wood: 30, food: 30, needs: 'caserne', blurb: 'Garde d’élite' },
-  // Le Démon : la pièce maîtresse, hors de prix. Il encaisse comme un château (900 PV) et fauche une
-  // escouade (75 de dégâts). Exige un monastère — on ne convoque pas ça dans une grange — et le
-  // marché n'en laisse lever que deux.
-  {
-    key: 'demon',
-    name: 'Démon',
-    price: 1500,
-    wood: 250,
-    food: 400,
-    needs: 'monastere',
-    max: 2,
-    blurb: 'Colosse infernal · encaisse tout, fauche tout',
-  },
 ];
 
 // Les 3 styles de maison : une seule carte dans le marché, on change de style à la molette.
@@ -112,7 +99,7 @@ function buildingKey(b: string, f: Faction): string {
 const soldiers: ShopItem[] = FACTIONS.flatMap(({ id: f }) =>
   UNITS.map((u) => ({
     id: u.key + SUFFIX[f].m,
-    name: u.key === 'demon' ? u.name : `${u.name} ${LABEL[f].m}`,
+    name: `${u.name} ${LABEL[f].m}`,
     price: u.price + (f === 'noir' ? 30 : 0),
     wood: u.wood,
     food: u.food,
@@ -265,7 +252,7 @@ export function ownsBuilding(placed: { id: string }[], base: string): boolean {
 export function applyFaction(id: string, fac: Faction): string {
   const fem = { bleu: 'bleue', rouge: 'rouge', jaune: 'jaune', violet: 'violette', noir: 'noire' }[fac];
   let m: RegExpExecArray | null;
-  if ((m = /^(villageois|guerrier|lancier|archer|moine|demon)(?:-(?:rouge|jaune|violet|noir))?$/.exec(id)))
+  if ((m = /^(villageois|guerrier|lancier|archer|moine)(?:-(?:rouge|jaune|violet|noir))?$/.exec(id)))
     return m[1] + (fac === 'bleu' ? '' : `-${fac}`);
   if ((m = /^maison-(?:bleue|rouge|jaune|violette|noire)-(\d)$/.exec(id))) return `maison-${fem}-${m[1]}`;
   if ((m = /^(tour|caserne|archerie)(?:-(?:rouge|jaune|violette|noire))?$/.exec(id)))

@@ -46,9 +46,6 @@ const COMBAT: Record<string, CombatDef> = {
   moine: { hp: 90, dmg: 18, range: 3.0, atk: 1.6, heal: true },
   villageois: { hp: 60, dmg: 0, range: 0, atk: 1 },
   tour: { hp: 500, dmg: 13, range: 5.5, atk: 0.9, ranged: true },
-  // Le Démon : hors de prix au marché, mais il encaisse comme un château et fauche une escouade.
-  // 900 PV = 7 guerriers ; 75 de dégâts = un guerrier tué en deux coups, un archer d'un seul.
-  demon: { hp: 900, dmg: 75, range: 1.8, atk: 1.3 },
 };
 const AGGRO_TILES = 7; // distance à laquelle une unité repère un ennemi
 const SIEGE_TILES = 10; // distance à laquelle elle se rabat sur un bâtiment ennemi (faute d'unité à combattre)
@@ -58,7 +55,7 @@ const IMPACT_FRAC = 0.45;
 // `(?![a-z])` : sinon « archerie » (le bâtiment) serait lu comme « archer » (l'unité) et hériterait
 // de ses 70 PV. La clé doit s'arrêter là ou continuer par un tiret de couleur (« archer-rouge »).
 const combatBase = (key: string): string | null =>
-  /^(guerrier|lancier|archer|moine|villageois|tour|demon)(?![a-z])/.exec(key)?.[1] ?? null;
+  /^(guerrier|lancier|archer|moine|villageois|tour)(?![a-z])/.exec(key)?.[1] ?? null;
 
 // ---------- Siège (Phase 4) ----------
 // Les bâtiments ont des PV et peuvent être rasés : c'est ce qui permet de conquérir une île.
@@ -799,8 +796,8 @@ export function createWorld(
     }
   }
   const isWorker = (e: Ent) => /^villageois/.test(e.key);
-  const isSoldier = (e: Ent) => /^(guerrier|lancier|archer|moine|demon)/.test(e.key);
-  const isMelee = (e: Ent) => /^(guerrier|lancier|demon)/.test(e.key);
+  const isSoldier = (e: Ent) => /^(guerrier|lancier|archer|moine)/.test(e.key);
+  const isMelee = (e: Ent) => /^(guerrier|lancier)/.test(e.key);
   const factionOf = (key: string) => {
     // La couleur peut être au masculin (`chateau-violet`), au féminin (`archerie-violette`) et suivie
     // d'un numéro de variante (`maison-violette-1`). Deux pièges déjà tombés dedans :
@@ -2307,14 +2304,9 @@ export function createWorld(
       ctx.fill();
     }
     const bob = lift ? Math.sin(t * 8) * 3 : 0;
-    // `scale` : le sprite est agrandi AUTOUR DE SES PIEDS, pas de son cadre — sinon un colosse
-    // agrandi flotterait au-dessus du sol ou s'y enfoncerait.
-    const sc = def.scale ?? 1;
-    const dw = def.fw * sc;
-    const dh = def.fh * sc;
-    const bottom = e.y + def.feet * sc + lift + bob;
-    const dx = e.x - dw / 2;
-    const dy = bottom - dh;
+    const bottom = e.y + def.feet + lift + bob;
+    const dx = e.x - def.fw / 2;
+    const dy = bottom - def.fh;
     // rebond à l'atterrissage
     const ba = e.bounceT0 !== undefined ? t - e.bounceT0 : 9;
     if (ba < 0.45) {
@@ -2355,7 +2347,7 @@ export function createWorld(
       tintCtx.fillRect(0, 0, def.fw, def.fh);
       tintCtx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = flash * alpha;
-      ctx.drawImage(tintCv, dx, dy, dw, dh); // même échelle que le sprite, sinon le flash se décale
+      ctx.drawImage(tintCv, dx, dy, def.fw, def.fh);
       ctx.globalAlpha = 1;
     }
     function drawFrame() {
@@ -2365,11 +2357,11 @@ export function createWorld(
         ctx.save();
         ctx.translate(e.x * 2, 0);
         ctx.scale(-1, 1);
-        ctx.drawImage(im, f * def.fw, 0, def.fw, def.fh, dx, dy, dw, dh);
+        ctx.drawImage(im, f * def.fw, 0, def.fw, def.fh, dx, dy, def.fw, def.fh);
         if (flash > 0) drawTint();
         ctx.restore();
       } else {
-        ctx.drawImage(im, f * def.fw, 0, def.fw, def.fh, dx, dy, dw, dh);
+        ctx.drawImage(im, f * def.fw, 0, def.fw, def.fh, dx, dy, def.fw, def.fh);
         if (flash > 0) drawTint();
       }
       ctx.restore();
@@ -2398,17 +2390,16 @@ export function createWorld(
 
   function hitBox(e: Ent) {
     const def = e.def;
-    const sc = def.scale ?? 1; // un colosse agrandi doit se cliquer et se toucher sur toute sa taille
     const unit = !!def.run || !!def.act; // vrai personnage / animal (pas un arbre ni un bâtiment)
     if (unit) {
-      const w = Math.min(def.fw * 0.42, 70) * sc;
-      const h = Math.min((def.fh - def.feet) * 0.55, 90) * sc;
+      const w = Math.min(def.fw * 0.42, 70);
+      const h = Math.min((def.fh - def.feet) * 0.55, 90);
       return { x0: e.x - w / 2, x1: e.x + w / 2, y0: e.y - h, y1: e.y + 8 };
     }
     // décor / bâtiment : boîte calée sur le bas réellement dessiné (e.y + feet), couvrant l'image
-    const bottom = e.y + def.feet * sc;
-    const w = def.fw * 0.7 * sc;
-    const h = def.fh * 0.82 * sc;
+    const bottom = e.y + def.feet;
+    const w = def.fw * 0.7;
+    const h = def.fh * 0.82;
     return { x0: e.x - w / 2, x1: e.x + w / 2, y0: bottom - h, y1: bottom + 6 };
   }
 
@@ -2803,6 +2794,8 @@ export function createWorld(
     | null = null;
   let pinch: { d: number; z: number } | null = null;
   let edge: { x: number; y: number } | null = null; // défilement quand la souris colle à un bord
+  // Dernier relâché : sert à reconnaître le double-clic, qui ouvre le lasso.
+  let lastUp: { t: number; x: number; y: number } | null = null;
 
   function localXY(ev: PointerEvent | WheelEvent) {
     const r = canvas.getBoundingClientRect();
@@ -2861,9 +2854,21 @@ export function createWorld(
       startDrag('pan');
       return;
     }
-    // modes « Déplacer » / « Envoyer les troupes » : un simple toucher agit, le glisser trace un lasso
+    // modes « Déplacer » / « Envoyer les troupes » : un simple toucher agit
     const ent = moveEnt || orderMode ? undefined : pick(p.x, p.y);
     if (moveEnt) ghost = snapGhost(p.x, p.y);
+
+    // DOUBLE-CLIC maintenu = lasso. Réserver le glissement simple au lasso rendait la carte
+    // impossible à explorer et les objets impossibles à bouger ; le double-clic lève l'ambiguïté
+    // sans voler le geste le plus courant.
+    const now = performance.now();
+    const dbl = lastUp !== null && now - lastUp.t < 350 && Math.hypot(p.x - lastUp.x, p.y - lastUp.y) < 14;
+    if (dbl && !moveEnt && !orderMode) {
+      startDrag('band');
+      if (drag) drag.hit = true; // un double-clic ne doit rien désélectionner s'il ne traîne pas
+      return;
+    }
+
     if (ent) {
       select(ent);
       // Un clic sur un de tes combattants le prend comme troupe d'UN homme : le clic droit suivant
@@ -2872,13 +2877,20 @@ export function createWorld(
         troop = new Set([keyOf(ent)]);
         opts.onTroop?.(1);
       } else clearTroop();
+      // Prise en main réservée aux îles tenues : ailleurs on sélectionne, mais on ne porte pas
+      // l'unité — on l'envoie au clic droit et elle s'y rend à pied.
+      if (canHandle(ent)) {
+        ent.moving = false;
+        ent.acting = -1;
+        startDrag('ent', ent);
+        if (drag) drag.hit = true;
+        return;
+      }
+      flashBad = t;
+      opts.onNotice?.('Île non tenue : il faut 3 de tes bâtiments pour y porter des soldats. Clic droit pour les y envoyer.');
     }
-    // Le glissement gauche trace TOUJOURS le lasso, même s'il part d'un personnage : les boîtes de
-    // sélection sont larges et la carte est peuplée, si bien qu'on attrapait un passant au lieu
-    // d'encadrer sa troupe. Pour déplacer un objet à la main, on passe par « Déplacer » dans le
-    // panneau — qui vérifie au passage que l'île est tenue.
-    // Au doigt, le glissement reste le déplacement de la carte : indispensable au tactile.
-    startDrag(touch ? 'pan' : 'band');
+    // Terrain nu (ou objet qu'on n'a pas le droit de porter) : le glissement explore la carte.
+    startDrag('pan');
     if (ent && drag) drag.hit = true; // on a bien cliqué QUELQUE CHOSE : à ne pas désélectionner au relâché
   }
   function select(ent: Ent | null) {
@@ -3137,6 +3149,10 @@ export function createWorld(
   }
   function onUp(ev: PointerEvent) {
     pointers.delete(ev.pointerId);
+    if (ev.button === 0) {
+      const q = localXY(ev);
+      lastUp = { t: performance.now(), x: q.x, y: q.y };
+    }
     if (pointers.size < 2) pinch = null;
     if (!drag) return;
     const d = drag;
