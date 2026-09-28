@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ShoppingBag, Check, Lock, Plus, Minus, LocateFixed, Scan, Trash2, MapPin, X, Move, RotateCcw, Swords } from 'lucide-react';
+import { ShoppingBag, Check, Lock, Plus, Minus, LocateFixed, Scan, Trash2, MapPin, X, Move, RotateCcw, Swords, ScrollText, Hammer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sprite } from '@/components/Sprite';
@@ -13,13 +13,15 @@ import {
   ownsBuilding,
   needsLabel,
   applyFaction,
+  rebuildCost,
   storageCaps,
   type Faction,
   type ShopCategory,
 } from '@/data/shop';
 import { TROPHIES, type Trophy } from '@/lib/trophies';
-import { createWorld, findSpot, nextUnlock, unlockedIslands, WORLD, type ResKind } from '@/lib/world';
+import { createWorld, findSpot, nextUnlock, repairCost, unlockedIslands, WORLD, type ResKind } from '@/lib/world';
 import { breakYoke, levyTribute, ransomLeft } from '@/lib/vassal';
+import { BAN_UNITS, banAvailable, levy } from '@/lib/ban';
 import { LEVELS, lessonCount } from '@/lib/content';
 import { SPRITES, uiUrl } from '@/lib/sprites';
 import type { GameState, Page } from '../types';
@@ -41,24 +43,36 @@ export function questsDone(state: GameState) {
 
 const BIG_ISLANDS = WORLD.islands.filter((i) => i.size > 12).length;
 
+// Ton royaume est menacé ('war'), tu marques un point ('win'), ou le monde bouge sans toi ('news').
+type AlertTone = 'war' | 'win' | 'news';
+
 // ======================= Carte du royaume =======================
 export function IslandPage({ state, setState, navigate }: { state: GameState; setState: SetState; navigate: (page: Page) => void }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<ReturnType<typeof createWorld> | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [selInfo, setSelInfo] = useState<{ id: string; bought: boolean } | null>(null);
+  const [selInfo, setSelInfo] = useState<{
+    id: string;
+    bought: boolean;
+    hp?: number;
+    maxHp?: number;
+    mine?: boolean;
+    ruin?: string;
+  } | null>(null);
   const [moving, setMoving] = useState(false);
   const [ordering, setOrdering] = useState(false);
+  const [troop, setTroop] = useState(0); // unités retenues au lasso (0 = l'ordre part à toute l'île)
   const [confirmDel, setConfirmDel] = useState(false);
   const [mapVersion, setMapVersion] = useState(0); // bump = recréer le moteur (reset / changement de couleur)
   const [confirmReset, setConfirmReset] = useState(false);
-  const [alert, setAlert] = useState<{ text: string; tone: 'war' | 'win' } | null>(null);
+  const [alert, setAlert] = useState<{ text: string; tone: AlertTone } | null>(null);
   const alertT = useRef<number | null>(null);
   const faction = state.faction ?? 'bleu';
 
   // Bandeau d'alerte éphémère (débarquement, château tombé) : le dernier message chasse le précédent.
-  const raiseAlert = (text: string, tone: 'war' | 'win' = 'war') => {
+  // 'news' = chronique du monde (deux rivaux s'étripent) : ni menace pour toi, ni victoire.
+  const raiseAlert = (text: string, tone: AlertTone = 'war') => {
     setAlert({ text, tone });
     if (alertT.current) window.clearTimeout(alertT.current);
     alertT.current = window.setTimeout(() => setAlert(null), 7000);
@@ -94,6 +108,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
   const unlocked = useMemo(() => unlockedIslands(done), [done]);
   const openBig = WORLD.islands.filter((isl, i) => isl.size > 12 && unlocked.has(i)).length;
   const next = nextUnlock(done);
+  const levies = banAvailable(state, done); // soldats que l'anglais déjà fait te permet de lever
   const caps = useMemo(() => storageCaps(state.placed ?? []), [state.placed]);
 
   useEffect(() => {
@@ -104,6 +119,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
       placed: state.placed ?? [],
       unlocked,
       missionsDone: done,
+      ruins: state.ruins ?? [],
       playerFaction: state.faction ?? 'bleu',
       onMove: (k, x, y) =>
         setState((current) => ({
@@ -122,6 +138,14 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
       },
       onMoveMode: setMoving,
       onOrderMode: setOrdering,
+      onTroop: setTroop,
+      onNotice: (text) => raiseAlert(text, 'news'),
+      // Un bâtiment vient d'être rasé : on garde sa ruine sur place, relevable à moitié prix.
+      onRuin: (id, x, y) =>
+        setState((current) => ({
+          ...current,
+          ruins: [...(current.ruins ?? []), { k: `ruine-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, id, x, y }],
+        })),
       stock: { gold: state.coins, wood: state.resources?.wood ?? 0, food: state.resources?.food ?? 0 },
       decorPos: state.decorPos ?? {},
       decorRemoved: state.decorRemoved ?? [],
@@ -144,20 +168,30 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
       onDecorRemove: (id) =>
         setState((current) => ({ ...current, decorRemoved: [...new Set([...(current.decorRemoved ?? []), id])] })),
       onInvasion: (fac, island, n) => raiseAlert(`Le royaume ${fac} débarque sur « ${island} » — ${n} soldats !`),
-      onCastle: (kind, fac) => {
+      // Deux royaumes rivaux se font la guerre : le monde tourne sans toi, on te le raconte.
+      onWar: (attacker, defender, island, n) =>
+        raiseAlert(`Chronique : le royaume ${attacker} jette ${n} soldats sur « ${island} », tenue par le ${defender}.`, 'news'),
+      // `fac` = le camp qui PERD le château, `winner` = celui qui s'en empare.
+      onCastle: (kind, fac, winner) => {
         if (kind === 'perdu') return raiseAlert('Un de tes châteaux est tombé ! Défends les autres.');
+        if (kind === 'rival')
+          return raiseAlert(`Chronique : un château ${fac} est tombé aux mains du royaume ${winner}.`, 'news');
         if (kind === 'pris') {
-          // Le dernier château d'un rival : si c'était ton suzerain, le joug se brise.
+          // Le DERNIER château d'un rival : si c'était ton suzerain, le joug se brise — même si c'est
+          // un autre rival qui l'a abattu pour toi.
           if (vassalRef.current?.of === fac) return liberate('armes');
-          return raiseAlert(`Le royaume ${fac} n’a plus de château — son île se libère !`, 'win');
+          return winner === faction
+            ? raiseAlert(`Le royaume ${fac} n’a plus de château — son île se libère !`, 'win')
+            : raiseAlert(`Chronique : le royaume ${fac} s’effondre, abattu par le ${winner}.`, 'news');
         }
-        // 'soumis' : ton dernier château est tombé, tu passes sous tutelle.
+        // 'soumis' : ton dernier château est tombé, tu passes sous la tutelle du vainqueur.
+        const lord = winner ?? fac;
         setState((current) =>
           current.vassal
             ? current
-            : { ...current, vassal: { of: fac, atQuests: questsDone(current), tribute: { gold: 0, wood: 0, food: 0 } } },
+            : { ...current, vassal: { of: lord, atQuests: questsDone(current), tribute: { gold: 0, wood: 0, food: 0 } } },
         );
-        raiseAlert(`Ton dernier château est tombé. Le royaume ${fac} plante sa bannière : tu lui dois tribut.`);
+        raiseAlert(`Ton dernier château est tombé. Le royaume ${lord} plante sa bannière : tu lui dois tribut.`);
       },
       // Objet de l'inventaire posé sur la carte : on le retire de l'inventaire et on l'ajoute aux objets placés.
       onPlaceNew: (k, id, x, y) =>
@@ -216,6 +250,10 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
   }, [state.placed]);
 
   useEffect(() => {
+    engineRef.current?.setRuins(state.ruins ?? []);
+  }, [state.ruins]);
+
+  useEffect(() => {
     engineRef.current?.setUnlocked(unlocked, done);
   }, [unlocked, done]);
 
@@ -254,10 +292,13 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
 
   const sel = selected && selInfo?.bought ? (state.placed ?? []).find((p) => p.k === selected) : null;
   const selItem = selInfo ? SHOP_MAP[selInfo.id] : null;
-  const selName = selItem?.name ?? (selInfo ? SPRITES[selInfo.id]?.name ?? 'Habitant' : '');
+  const baseName = selItem?.name ?? (selInfo ? SPRITES[selInfo.id]?.name ?? 'Habitant' : '');
+  const selName = selInfo?.ruin ? `Ruine — ${baseName}` : baseName;
   const refund = sel && selItem ? Math.floor(selItem.price / 2) : 0;
   const isUnit = selInfo ? !!SPRITES[selInfo.id]?.run || selItem?.category === 'soldats' || selItem?.category === 'animaux' : false;
-  const role = selInfo
+  const role = selInfo?.ruin
+    ? 'Vestige · relève-le pour moitié prix'
+    : selInfo
     ? /^villageois/.test(selInfo.id)
       ? 'Ouvrier · récolte le bois et l’or'
       : /^(guerrier|lancier)/.test(selInfo.id)
@@ -273,6 +314,48 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
 
   function startMove() {
     if (selected && engineRef.current?.startMove(selected)) setConfirmDel(false);
+  }
+
+  // ---- Relever une ruine : moitié prix, à l'emplacement exact du bâtiment rasé, et dans TA couleur.
+  const ruinCost = selInfo?.ruin ? rebuildCost(selInfo.id, faction) : null;
+  const canRebuild =
+    !!ruinCost &&
+    (isDev ||
+      (state.coins >= ruinCost.price &&
+        (state.resources?.wood ?? 0) >= ruinCost.wood &&
+        (state.resources?.food ?? 0) >= ruinCost.food));
+  function rebuild() {
+    const k = selInfo?.ruin;
+    if (!k || !ruinCost || !canRebuild) return;
+    const spot = (state.ruins ?? []).find((r) => r.k === k);
+    if (!spot) return;
+    setState((current) => ({
+      ...current,
+      ruins: (current.ruins ?? []).filter((r) => r.k !== k),
+      // Le bâtiment reparaît directement posé : la ruine tenait déjà la place, pas de re-pose à la main.
+      placed: [...(current.placed ?? []), { k: `${ruinCost.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, id: ruinCost.id, x: spot.x, y: spot.y }],
+      coins: isDev ? current.coins : current.coins - ruinCost.price,
+      resources: isDev
+        ? (current.resources ?? { wood: 0, food: 0 })
+        : { wood: (current.resources?.wood ?? 0) - ruinCost.wood, food: (current.resources?.food ?? 0) - ruinCost.food },
+      stats: { ...current.stats, rebuilt: (current.stats.rebuilt ?? 0) + 1 },
+    }));
+    engineRef.current?.deselect();
+  }
+
+  // Réparation : un bâtiment abîmé se relève d'un coup contre du bois, au prorata des dégâts.
+  // (Les murs ne se régénèrent quasiment plus tout seuls — attendre n'est plus une option.)
+  const fixCost =
+    selInfo?.mine && selInfo.hp !== undefined && selInfo.maxHp !== undefined ? repairCost(selInfo.id, selInfo.hp, selInfo.maxHp) : 0;
+  const canFix = fixCost > 0 && (isDev || (state.resources?.wood ?? 0) >= fixCost);
+  function repair() {
+    if (!selected || !fixCost || !canFix) return;
+    const paid = engineRef.current?.repair(selected) ?? 0;
+    if (!paid || isDev) return;
+    setState((current) => ({
+      ...current,
+      resources: { wood: (current.resources?.wood ?? 0) - paid, food: current.resources?.food ?? 0 },
+    }));
   }
 
   function remove() {
@@ -356,7 +439,8 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
       <div className="pointer-events-none absolute left-3 top-3 hidden sm:block md:left-6 md:top-5">
         <h1 className="ribbon text-xl md:text-2xl">L’archipel de Scriptoria</h1>
         <p className="mt-1 hidden max-w-sm rounded-md bg-[#2b1a0d]/75 px-3 py-1.5 text-xs text-[#ffeccc] md:block">
-          Glisse pour explorer · molette pour zoomer · touche un personnage ou un bâtiment pour le déplacer ou le supprimer
+          Clic gauche glissé : encadre une troupe · clic droit : l’envoyer · molette pressée ou souris au bord de l’écran :
+          explorer · molette : zoomer
         </p>
       </div>
 
@@ -405,6 +489,16 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         <span className="pointer-events-none rounded-md bg-[#2b1a0d]/80 px-3 py-1 text-[11px] font-semibold text-[#ffeccc]">
           {next ? `Prochaine île : ${next.name} dans ${next.remaining} quête${next.remaining > 1 ? 's' : ''}` : 'Tout l’archipel est libéré !'}
         </span>
+        {/* Le ban qui t'attend : l'anglais déjà fait te doit des soldats, va les lever au Marché. */}
+        {levies > 0 && (
+          <button
+            onClick={() => navigate('shop')}
+            title="Lever des soldats au Marché, sans or ni caserne"
+            className="rounded-md border border-[#c9a24a] bg-[#2b1a0d]/80 px-3 py-1 text-[11px] font-semibold text-[#ffe7a6] transition hover:bg-[#3a2513]"
+          >
+            ⚜ Ban royal : {levies} levée{levies > 1 ? 's' : ''}
+          </button>
+        )}
         <Button
           size="sm"
           variant={ordering ? 'destructive' : 'default'}
@@ -464,7 +558,13 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
       {ordering && (
         <div className="absolute left-1/2 top-16 z-10 -translate-x-1/2 md:top-5">
           <div className="flex items-center gap-3 rounded-lg border-2 border-[#ffcf6b] bg-[#2b1a0d]/90 px-4 py-2 text-sm font-bold text-[#ffe7a6] shadow-[0_0_24px_rgba(255,200,90,0.45)]">
-            <Swords className="size-4 animate-pulse" /> Touche un point (ou un ennemi) pour y envoyer tes troupes
+            <Swords className="size-4 animate-pulse" />
+            <span>
+              {troop > 0
+                ? `${troop} soldat${troop > 1 ? 's' : ''} retenu${troop > 1 ? 's' : ''} — touche un point pour les y envoyer`
+                : 'Touche un point (ou un ennemi) pour y envoyer tes troupes'}
+              <small className="ml-2 block font-normal opacity-70 md:ml-0">Glisse pour n’encadrer qu’une partie de ton armée</small>
+            </span>
             <Button size="sm" variant="secondary" onClick={() => engineRef.current?.cancelOrder()}>
               Annuler
             </Button>
@@ -472,17 +572,20 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         </div>
       )}
 
-      {/* Alerte de guerre : débarquement ennemi, château perdu ou pris. Disparaît toute seule. */}
+      {/* Alerte de guerre : débarquement ennemi, château perdu ou pris, ou chronique du monde.
+          Disparaît toute seule. */}
       {alert && !moving && !ordering && (
         <div className="pointer-events-none absolute left-1/2 top-16 z-20 -translate-x-1/2 md:top-5">
           <div
             className={`flex items-center gap-3 rounded-lg border-2 px-4 py-2 text-sm font-bold shadow-[0_0_24px_rgba(0,0,0,0.5)] ${
               alert.tone === 'win'
                 ? 'border-[#8cff9e] bg-[#1d2b14]/90 text-[#d8ffdc]'
-                : 'border-[#ff8a6b] bg-[#2b0d0d]/90 text-[#ffd9cc]'
+                : alert.tone === 'news'
+                  ? 'border-[#c9a24a] bg-[#211a10]/90 text-[#f0dfb8]'
+                  : 'border-[#ff8a6b] bg-[#2b0d0d]/90 text-[#ffd9cc]'
             }`}
           >
-            <Swords className="size-4 animate-pulse" /> {alert.text}
+            {alert.tone === 'news' ? <ScrollText className="size-4" /> : <Swords className="size-4 animate-pulse" />} {alert.text}
           </div>
         </div>
       )}
@@ -543,13 +646,42 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
                 </Button>
               </div>
             ) : (
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <Button size="sm" onClick={startMove}>
-                  <Move /> Déplacer
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => setConfirmDel(true)}>
-                  <Trash2 /> {sel ? `Vendre (+${refund})` : 'Supprimer'}
-                </Button>
+              <div className="mt-2 space-y-2">
+                {ruinCost && (
+                  <Button size="sm" className="w-full" disabled={!canRebuild} onClick={rebuild}>
+                    <Hammer />
+                    <span className="flex items-center gap-2">
+                      Relever
+                      <span className={state.coins >= ruinCost.price ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}>🪙 {ruinCost.price}</span>
+                      {ruinCost.wood > 0 && (
+                        <span className={(state.resources?.wood ?? 0) >= ruinCost.wood ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}>🪵 {ruinCost.wood}</span>
+                      )}
+                      {ruinCost.food > 0 && (
+                        <span className={(state.resources?.food ?? 0) >= ruinCost.food ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}>🍖 {ruinCost.food}</span>
+                      )}
+                      <small className="opacity-70">moitié prix</small>
+                    </span>
+                  </Button>
+                )}
+                {fixCost > 0 && (
+                  <Button size="sm" variant="secondary" className="w-full" disabled={!canFix} onClick={repair}>
+                    <Hammer />
+                    <span>
+                      Réparer <span className={canFix ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}>🪵 {fixCost}</span>
+                    </span>
+                  </Button>
+                )}
+                {/* Une ruine ne se déplace ni ne se vend : on la relève, ou on la laisse. */}
+                {!selInfo.ruin && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button size="sm" onClick={startMove}>
+                      <Move /> Déplacer
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => setConfirmDel(true)}>
+                      <Trash2 /> {sel ? `Vendre (+${refund})` : 'Supprimer'}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -577,7 +709,8 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
   const [cat, setCat] = useState<ShopCategory>('soldats');
   const [bought, setBought] = useState<string | null>(null);
   const isDev = useIsDev();
-  const unlocked = useMemo(() => unlockedIslands(isDev ? TOTAL_LESSONS : questsDone(state)), [state, isDev]);
+  const done = isDev ? TOTAL_LESSONS : questsDone(state);
+  const unlocked = useMemo(() => unlockedIslands(done), [done]);
   const placedItems = state.placed ?? [];
   const inv = state.inventory ?? [];
   const wood = state.resources?.wood ?? 0;
@@ -630,6 +763,20 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
     window.setTimeout(() => setBought((b) => (b === id ? null : b)), 1400);
   }
 
+  // ---- Le Ban royal : une quête d'anglais = une levée, une levée = un soldat sans or ni caserne.
+  const levies = banAvailable(state, done);
+  // Le compte créateur ignore la population, comme il ignore déjà les coûts dans `buy` : sinon on
+  // pouvait acheter un soldat sans limite mais pas le lever, ce qui n'a aucun sens.
+  const banFull = !isDev && popUsed >= popMax;
+  function callBan(base: string) {
+    if (levies < 1 || banFull) return;
+    const id = applyFaction(base, faction);
+    // Le décompte est refait sur `current` : c'est lui qui fait foi au moment d'écrire l'état.
+    setState((current) => levy(current, base, faction, isDev ? TOTAL_LESSONS : questsDone(current)));
+    setBought(id);
+    window.setTimeout(() => setBought((b) => (b === id ? null : b)), 1400);
+  }
+
   // Le joueur ne recrute/bâtit que dans sa couleur (les autres couleurs sont des rivaux).
   const hasFactions = cat === 'soldats' || cat === 'batiments';
   const items = SHOP.filter((i) => i.category === cat && !i.hidden && (!hasFactions || i.faction === faction));
@@ -669,6 +816,51 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
           )}
         </div>
       </div>
+
+      {/* Le Ban royal : le pont entre l'anglais et la guerre. Une quête = une levée = un soldat
+          gratuit, sans le bâtiment normalement requis. Seule la population reste une limite. */}
+      <Card className="border-2 border-[#c9a24a] bg-[#211a10]/70">
+        <CardContent className="space-y-3 p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-display text-lg text-[#ffe7a6]">⚜ Le Ban royal</h2>
+            <span className={`text-sm font-bold ${levies > 0 ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}`}>
+              {levies} levée{levies > 1 ? 's' : ''} disponible{levies > 1 ? 's' : ''}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Chaque quête d’anglais terminée te donne une levée. Une levée lève un soldat <b>sans or et sans caserne</b> — ton étude arme le
+            royaume plus vite que ton trésor.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {BAN_UNITS.map((u) => {
+              const id = applyFaction(u.base, faction);
+              const can = levies > 0 && !banFull;
+              return (
+                <div key={u.base} className="flex items-center gap-3 rounded-md border border-[#6b552a] bg-[#1a140c]/60 p-2">
+                  <Sprite k={id} height={46} crop={u.base === 'lancier' ? 0.3 : 0.26} />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-display text-[15px] text-[#ffe7a6]">{u.name}</div>
+                    <div className="truncate text-[11px] text-muted-foreground">{u.blurb}</div>
+                  </div>
+                  <Button size="sm" disabled={!can} onClick={() => callBan(u.base)}>
+                    {bought === id ? (
+                      <>
+                        <Check /> Levé !
+                      </>
+                    ) : can ? (
+                      'Lever'
+                    ) : (
+                      <>
+                        <Lock /> {banFull ? 'Population' : 'Anglais'}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="flex flex-wrap gap-2">
         {CATEGORIES.map((c) => (

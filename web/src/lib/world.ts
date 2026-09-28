@@ -5,6 +5,7 @@
 // - îles verrouillées recouvertes de brouillard tant que les quêtes ne sont pas faites
 // - tous les personnages (achetés ou du décor) se prennent et se déplacent, jamais dans l'eau
 import WORLD_JSON from '../data/world.json';
+import RAMPS_JSON from '../data/ramps.json';
 import { createOcean } from './ocean';
 import { SPRITES, spriteUrl, type SpriteDef } from './sprites';
 import { SHOP_MAP, houseVariants, storageCaps } from '../data/shop';
@@ -67,6 +68,17 @@ const SIEGE: Record<string, number> = {
   maison: 300,
 };
 const siegeBase = (key: string): string | null => /^(chateau|caserne|archerie|monastere|maison)/.exec(key)?.[1] ?? null;
+// Bois qu'il faut pour relever un bâtiment RASÉ à neuf ; on n'en facture que la part manquante.
+const REPAIR_WOOD: Record<string, number> = { chateau: 120, caserne: 60, archerie: 50, monastere: 45, maison: 30, tour: 40 };
+/**
+ * Prix en bois d'une réparation, proportionnel aux dégâts. 0 = rien à réparer, ou objet qu'on ne
+ * répare pas (une unité se soigne, elle ne se reconstruit pas).
+ */
+export function repairCost(key: string, hp: number, maxHp: number): number {
+  const base = REPAIR_WOOD[siegeBase(key) ?? (/^tour/.test(key) ? 'tour' : '')];
+  if (!base || !maxHp || hp >= maxHp) return 0;
+  return Math.max(1, Math.ceil(((maxHp - hp) / maxHp) * base));
+}
 // PV de départ d'une clé, unité comme bâtiment (undefined = objet indestructible : arbre, or, rocher…).
 const maxHpOf = (key: string): number | undefined => COMBAT[combatBase(key) ?? '']?.hp ?? SIEGE[siegeBase(key) ?? ''];
 
@@ -110,6 +122,135 @@ export function islandAt(cx: number, cy: number): number {
 const levelAt = (cx: number, cy: number) =>
   cx < 0 || cy < 0 || cx >= WORLD.w || cy >= WORLD.h ? 0 : +WORLD.levels[cy][cx];
 const blockedAt = (cx: number, cy: number) => WORLD.blocked[cy]?.[cx] === '1';
+
+// ---------- Rampes et régions de marche ----------
+// Le terrain est en gradins. Au bout de chaque falaise, la carte dessine DÉJÀ un biseau d'herbe en
+// diagonale : la rampe par laquelle on monte d'un palier à l'autre. Mais dans world.json cette case
+// est marquée « bloquée » exactement comme la pierre de la falaise. Le moteur ne faisait donc aucune
+// différence entre une rampe et un mur : une unité restait prisonnière de son palier à vie et venait
+// se coller à la paroi sous l'ennemi qu'elle visait.
+// `bun gen-ramps.ts` sépare les deux en relisant l'image (une rampe est verte, une falaise est en
+// pierre) et écrit ici les cases franchissables et ce qu'elles relient. Aucun art n'est ajouté.
+export interface Passage {
+  a: [number, number];
+  b: [number, number];
+}
+const RAMP_DATA = RAMPS_JSON as { cells: [number, number][]; passages: { ax: number; ay: number; bx: number; by: number }[] };
+const rampCell = new Set(RAMP_DATA.cells.map(([x, y]) => `${x},${y}`));
+/** Case de rampe : bloquée dans les données, mais dessinée comme une pente — on y passe. */
+export const isRamp = (cx: number, cy: number) => rampCell.has(`${cx},${cy}`);
+const PASSAGES: Passage[] = RAMP_DATA.passages.map((p) => ({ a: [p.ax, p.ay], b: [p.bx, p.by] }));
+
+const groundAt = (cx: number, cy: number) => levelAt(cx, cy) > 0 && !blockedAt(cx, cy);
+/** Praticable : le sol normal, plus les rampes. */
+const passableAt = (cx: number, cy: number) => levelAt(cx, cy) > 0 && (!blockedAt(cx, cy) || isRamp(cx, cy));
+/**
+ * Un pas de la case (ax,ay) vers (bx,by) est-il légal ? On ne change de palier QUE par une rampe :
+ * sans ce contrôle par paire, une unité couperait le coin d'une falaise en diagonale.
+ */
+export function canStep(ax: number, ay: number, bx: number, by: number): boolean {
+  if (!passableAt(bx, by)) return false;
+  if (ax === bx && ay === by) return true;
+  if (levelAt(ax, ay) === levelAt(bx, by)) return true;
+  return isRamp(ax, ay) || isRamp(bx, by);
+}
+
+// Régions : composantes connexes de sol de même niveau et même île. Deux régions ne communiquent que
+// par un escalier. Tout ceci ne dépend que du terrain : calculé UNE fois (~10 000 cases), jamais
+// recalculé — d'où le choix d'un graphe de régions plutôt que d'un A* sur la grille à chaque pas.
+const REGION = new Int32Array(WORLD.w * WORLD.h).fill(-1);
+const REGION_ISLAND: number[] = [];
+let REGION_COUNT = 0;
+for (let y = 0; y < WORLD.h; y++)
+  for (let x = 0; x < WORLD.w; x++) {
+    if (!groundAt(x, y) || REGION[y * WORLD.w + x] >= 0) continue;
+    const id = REGION_COUNT++;
+    const lvl = levelAt(x, y);
+    const isl = islandAt(x, y);
+    REGION_ISLAND.push(isl);
+    const stack: [number, number][] = [[x, y]];
+    REGION[y * WORLD.w + x] = id;
+    while (stack.length) {
+      const [px, py] = stack.pop()!;
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ] as const) {
+        const nx = px + dx;
+        const ny = py + dy;
+        if (nx < 0 || ny < 0 || nx >= WORLD.w || ny >= WORLD.h) continue;
+        if (REGION[ny * WORLD.w + nx] >= 0) continue;
+        if (!groundAt(nx, ny) || levelAt(nx, ny) !== lvl || islandAt(nx, ny) !== isl) continue;
+        REGION[ny * WORLD.w + nx] = id;
+        stack.push([nx, ny]);
+      }
+    }
+  }
+/** Région de marche d'une case (-1 : eau, falaise, ou case bloquée). */
+export const regionAt = (cx: number, cy: number): number =>
+  cx < 0 || cy < 0 || cx >= WORLD.w || cy >= WORLD.h ? -1 : REGION[cy * WORLD.w + cx];
+
+// Graphe des régions : une arête par escalier. Quelques dizaines de nœuds — un parcours y est
+// instantané, et le résultat ne changeant jamais, on le mémorise.
+// Une « étape » est un passage orienté : on rejoint `from`, puis on vise `to` de l'autre côté de la
+// rampe. L'orientation compte — sinon l'unité ne sait pas par quel côté aborder la pente.
+export interface Step {
+  from: [number, number];
+  to: [number, number];
+}
+const REGION_LINKS: { to: number; step: Step }[][] = Array.from({ length: REGION_COUNT }, () => []);
+for (const p of PASSAGES) {
+  const a = regionAt(p.a[0], p.a[1]);
+  const b = regionAt(p.b[0], p.b[1]);
+  if (a < 0 || b < 0 || a === b) continue;
+  REGION_LINKS[a].push({ to: b, step: { from: p.a, to: p.b } });
+  REGION_LINKS[b].push({ to: a, step: { from: p.b, to: p.a } });
+}
+const routeCache = new Map<string, Step[] | null>();
+/**
+ * Suite de passages à emprunter pour aller de la région `from` à la région `to`.
+ * `[]` = même région (rien à franchir), `null` = aucun chemin (cible inatteignable).
+ */
+export function passageRoute(from: number, to: number): Step[] | null {
+  if (from < 0 || to < 0) return null;
+  if (from === to) return [];
+  const key = `${from}|${to}`;
+  const hit = routeCache.get(key);
+  if (hit !== undefined) return hit;
+  // Parcours en largeur : le premier chemin trouvé est le plus court en nombre de passages.
+  const prev = new Map<number, { from: number; step: Step }>();
+  const seen = new Set([from]);
+  const queue = [from];
+  let found = false;
+  for (let i = 0; i < queue.length && !found; i++) {
+    for (const link of REGION_LINKS[queue[i]]) {
+      if (seen.has(link.to)) continue;
+      seen.add(link.to);
+      prev.set(link.to, { from: queue[i], step: link.step });
+      if (link.to === to) {
+        found = true;
+        break;
+      }
+      queue.push(link.to);
+    }
+  }
+  let route: Step[] | null = null;
+  if (found) {
+    route = [];
+    for (let r = to; r !== from; ) {
+      const back = prev.get(r)!;
+      route.unshift(back.step);
+      r = back.from;
+    }
+  }
+  routeCache.set(key, route);
+  return route;
+}
+/** Y a-t-il un chemin de la case (ax,ay) vers (bx,by) ? Sert à écarter les cibles inatteignables. */
+export const reachable = (ax: number, ay: number, bx: number, by: number): boolean =>
+  passageRoute(regionAt(ax, ay), regionAt(bx, by)) !== null;
 
 export function unlockedIslands(missionsDone: number): Set<number> {
   return new Set(WORLD.islands.map((isl, i) => (missionsDone >= isl.unlock ? i : -1)).filter((i) => i >= 0));
@@ -307,6 +448,8 @@ type Ent = {
   // Coup programmé : les dégâts (ou la flèche) ne partent qu'au moment où l'arme touche (frame d'impact),
   // pas au début de l'animation d'attaque.
   strike?: { at: number; foe: Ent; dmg: number; ranged: boolean; heal?: boolean; oy: number };
+  // Ruine d'un bâtiment rasé : dessinée en gris sur place, relevable à moitié prix.
+  ruin?: { k: string; id: string };
   // Pose depuis l'inventaire : objet fantôme pas encore ajouté à la carte (ni placed ni decor).
   fresh?: boolean;
   freshKey?: string; // clé d'inventaire de l'objet en cours de pose
@@ -320,9 +463,18 @@ export function createWorld(
     missionsDone: number;
     onMove?: (k: string, x: number, y: number) => void;
     onVariant?: (k: string, id: string) => void; // style de maison changé à la molette
-    onSelect?: (k: string | null, info?: { id: string; bought: boolean }) => void;
+    // `mine` : l'objet est à ta couleur. Les bâtiments ennemis sont sélectionnables (on les inspecte)
+    // mais on ne répare évidemment pas le château qu'on assiège.
+    onSelect?: (
+      k: string | null,
+      info?: { id: string; bought: boolean; hp?: number; maxHp?: number; mine?: boolean; ruin?: string },
+    ) => void;
     onMoveMode?: (active: boolean) => void;
     onOrderMode?: (active: boolean) => void; // mode « envoyer les troupes » actif ?
+    onTroop?: (n: number) => void; // nombre d'unités retenues au lasso (0 = l'ordre part à toute l'île)
+    onNotice?: (text: string) => void; // message discret (ex. « île non tenue : impossible de déposer ici »)
+    ruins?: { k: string; id: string; x: number; y: number }[]; // bâtiments rasés, relevables
+    onRuin?: (id: string, x: number, y: number) => void; // un bâtiment vient d'être rasé : il en reste une ruine
     onPlaceNew?: (k: string, id: string, x: number, y: number) => void; // objet de l'inventaire posé sur la carte
     decorRemoved?: string[]; // personnages du décor supprimés par le joueur
     onDecorRemove?: (id: string) => void;
@@ -334,9 +486,12 @@ export function createWorld(
     damage?: Record<string, number>; // PV restants mémorisés (bâtiments/unités abîmés) au dernier passage
     onDamage?: (batch: Record<string, number>) => void; // PV à mémoriser (batché ~1/s ; 0 = à oublier)
     onInvasion?: (faction: string, island: string, n: number) => void; // un royaume rival débarque
+    onWar?: (attacker: string, defender: string, island: string, n: number) => void; // deux rivaux se font la guerre
     // Un château est tombé. 'perdu' : l'un des tiens, il t'en reste. 'soumis' : c'était le dernier,
-    // tu passes sous tutelle. 'pris' : le dernier château d'un rival, son royaume s'effondre.
-    onCastle?: (kind: 'perdu' | 'soumis' | 'pris', faction: string) => void;
+    // tu passes sous tutelle. 'pris' : le dernier château d'un rival, et c'est TOI qui l'as abattu.
+    // 'rival' : un château rival est tombé, mais son royaume tient encore — simple chronique.
+    // `faction` = le camp qui PERD le château ; `winner` = celui qui s'en empare (toi ou un rival).
+    onCastle?: (kind: 'perdu' | 'soumis' | 'pris' | 'rival', faction: string, winner?: string) => void;
     playerFaction?: string; // couleur du royaume du joueur (défaut : bleu)
   },
 ) {
@@ -396,25 +551,33 @@ export function createWorld(
     ang?: number; // angle (éclair de mêlée)
   }[] = [];
   let orderMode = false; // mode « envoyer les troupes » : un toucher désigne la destination
+  // Troupe retenue au lasso (clés d'unités). Distincte de `selected`, qui sert à inspecter/déplacer
+  // UN objet : ici on commande un groupe. Vide = l'ordre part à toute l'île, comme avant.
+  let troop = new Set<string>();
+  let band: { x0: number; y0: number; x1: number; y1: number } | null = null; // cadre en cours de tracé
   // `by` = le tireur, pour savoir qui porte le coup fatal (couleur du conquérant d'un château).
   const projectiles: { x: number; y: number; target: Ent; dmg: number; from: 'player' | 'enemy'; by?: Ent }[] = [];
   let raidAt = 999; // instant du prochain raid (fixé au démarrage)
   let produceAt = 10; // instant de la prochaine production des royaumes rivaux
   let dispatchAt = 20; // instant du prochain envoi d'escadrons IA (anti-surpopulation)
+  let warAt = 90; // instant de la prochaine guerre entre deux royaumes rivaux
   let regenAt = 3; // prochaine passe de régénération hors combat
   const REGEN_CALM = 20; // secondes sans avoir été touché avant de commencer à se soigner
+  const REGEN_UNIT = 0.02; // une troupe se remet en ~50 s
+  const REGEN_WALL = 0.004; // un bâtiment en ~4 min : trop lent pour attendre, d'où la réparation au bois
   const dust = img('sprites/dust.png');
   const keyOf = (e: Ent) => (e.placed ? e.placed.k : `decor:${e.id}`);
   let occCache: Occupancy | null = null;
   const getOcc = () =>
     (occCache ??= buildOcc(
-      [...placed, ...decor].map((e) => ({ id: keyOf(e), key: e.key, x: e.x, y: e.y })),
+      // Les ruines occupent le sol : on rebâtit exactement à leur place, rien d'autre ne s'y pose.
+      [...placed, ...decor, ...ruins].map((e) => ({ id: keyOf(e), key: e.key, x: e.x, y: e.y })),
     ));
   const occDirty = () => {
     occCache = null;
   };
   const movable = (e: Ent) => !!footprint(e.key);
-  const findByKey = (k: string) => [...placed, ...decor].find((e) => (e.placed || e.id) && keyOf(e) === k);
+  const findByKey = (k: string) => [...placed, ...decor, ...ruins].find((e) => (e.placed || e.id) && keyOf(e) === k);
 
   const walkableCell = (cx: number, cy: number) => islandAt(cx, cy) >= 0 && levelAt(cx, cy) > 0 && !blockedAt(cx, cy);
 
@@ -541,6 +704,18 @@ export function createWorld(
     g.filter = 'none';
     g.globalCompositeOperation = 'source-over';
   }
+  // Ruines : vestiges des bâtiments rasés. Elles occupent le terrain (on rebâtit au même endroit)
+  // mais ne sont ni attaquables ni comptées comme bâtiments — seulement sélectionnables.
+  let ruins: Ent[] = [];
+  function setRuins(list: { k: string; id: string; x: number; y: number }[]) {
+    occCache = null;
+    ruins = list
+      .filter((r) => SPRITES[r.id])
+      // `id` préfixé : `keyOf` en tire une clé unique, et le filtre `/^\d+$/` du décor d'origine ne
+      // s'y applique pas (une ruine n'a ni PV à mémoriser, ni suppression à persister).
+      .map((r) => ({ key: r.id, def: SPRITES[r.id], x: r.x, y: r.y, ph: 0, id: `ruine:${r.k}`, ruin: { k: r.k, id: r.id } }) as Ent);
+  }
+
   // Objets achetés
   let placed: Ent[] = [];
   function setPlaced(list: Placed[]) {
@@ -579,6 +754,7 @@ export function createWorld(
       });
   }
   setPlaced(opts.placed);
+  setRuins(opts.ruins ?? []);
 
   // ---------- Récolte : accumulateur batché + plafond de stockage ----------
   const pending: Record<ResKind, number> = { wood: 0, gold: 0, food: 0 };
@@ -638,8 +814,10 @@ export function createWorld(
   const alive = (e?: Ent | null): e is Ent => !!e && !e.dead && (e.hp ?? 1) > 0;
   // Cible fixe assiégeable : PV, ne se déplace pas. La tour en fait partie — elle tirait sans jamais
   // pouvoir être détruite, ce qui rendait une île imprenable.
+  // Une ruine n'est plus un bâtiment : elle ne se défend pas, ne s'assiège pas, ne compte pour
+  // personne. Elle attend seulement qu'on la relève.
   const isBuilding = (e: Ent) =>
-    !e.agent && (SIEGE[siegeBase(e.key) ?? ''] !== undefined || combatBase(e.key) === 'tour');
+    !e.agent && !e.ruin && (SIEGE[siegeBase(e.key) ?? ''] !== undefined || combatBase(e.key) === 'tour');
   // Point visé : les pieds pour une unité, le milieu de la façade pour un bâtiment.
   const aimAt = (o: Ent) => ({ x: o.x, y: isBuilding(o) ? o.y - o.def.feet * 0.5 : o.y });
   // Distance « utile » : on retire l'emprise du bâtiment, sinon une unité resterait plantée
@@ -686,6 +864,25 @@ export function createWorld(
   // ---------- Promenade des personnages ----------
   function walkable(cx: number, cy: number, home: { isl: number; lvl: number }) {
     return islandAt(cx, cy) === home.isl && levelAt(cx, cy) === home.lvl && !blockedAt(cx, cy);
+  }
+  // Marche « en expédition » : même île, mais le palier peut changer — uniquement en passant par une
+  // rampe. C'est ce qui permet enfin d'aller se battre en haut d'une falaise au lieu de s'y coller.
+  // Le contrôle porte sur la PAIRE de cases : sinon on couperait le coin d'une falaise en diagonale.
+  function walkableAcross(fromX: number, fromY: number, cx: number, cy: number, isl: number) {
+    return islandAt(cx, cy) === isl && canStep(fromX, fromY, cx, cy);
+  }
+  // L'unité vient de changer de palier : son niveau de rattachement suit, sinon toute sa vie autonome
+  // (promenade, récolte) resterait calée sur l'ancien plateau.
+  function syncLevel(e: Ent) {
+    if (!e.home) return;
+    const cx = Math.floor(e.x / TS);
+    const cy = Math.floor(e.y / TS);
+    if (blockedAt(cx, cy)) return; // encore sur la rampe : on attend d'avoir posé le pied en haut
+    const lvl = levelAt(cx, cy);
+    if (lvl > 0 && lvl !== e.home.lvl && islandAt(cx, cy) === e.home.isl) {
+      e.home.lvl = lvl;
+      e.origin = { x: e.x, y: e.y }; // il vit désormais autour de son nouveau palier
+    }
   }
   function pickTarget(e: Ent) {
     const base = e.origin ?? { x: e.x, y: e.y };
@@ -834,13 +1031,22 @@ export function createWorld(
   }
 
   // ---------- Combat ----------
+  // Une cible qu'aucun escalier ni aucune pente ne dessert doit être IGNORÉE : c'est elle qui faisait
+  // venir les soldats se coller à la paroi pour l'éternité. Seuls les tireurs font exception, à
+  // portée : une flèche n'a pas besoin d'escalier.
+  function canEngage(e: Ent, o: Ent, ranged: boolean): boolean {
+    if (ranged && Math.hypot(o.x - e.x, o.y - e.y) <= (statsFor(e)?.range ?? 0) * TS) return true;
+    return reachable(Math.floor(e.x / TS), Math.floor(e.y / TS), Math.floor(o.x / TS), Math.floor(o.y / TS));
+  }
   function nearestFoe(e: Ent, maxTiles: number, wantAlly: boolean): Ent | null {
     let best: Ent | null = null;
     let bd = maxTiles * TS;
+    const ranged = !!statsFor(e)?.ranged || !!statsFor(e)?.heal;
     for (const o of [...placed, ...decor]) {
       if (o === e || !o.agent || !alive(o) || o.maxHp === undefined) continue;
       if (o.home?.isl !== e.home?.isl) continue;
       if (wantAlly ? hostile(e, o) || (o.hp ?? 0) >= (o.maxHp ?? 1) : !hostile(e, o)) continue;
+      if (!canEngage(e, o, ranged)) continue;
       const d = Math.hypot(o.x - e.x, o.y - e.y);
       if (d < bd) {
         bd = d;
@@ -864,9 +1070,12 @@ export function createWorld(
   function nearestBuilding(e: Ent, maxTiles: number): Ent | null {
     let best: Ent | null = null;
     let bd = maxTiles * TS;
+    const ranged = !!statsFor(e)?.ranged;
     for (const o of [...placed, ...decor]) {
       if (!alive(o) || o.maxHp === undefined || !isBuilding(o)) continue;
       if (o.home?.isl !== e.home?.isl || !hostile(e, o)) continue;
+      // Un bâtiment qu'on ne peut pas rejoindre n'est pas assiégeable : on ne s'y fixe pas.
+      if (!canEngage(e, o, ranged)) continue;
       const d = distTo(e, o);
       if (d < bd) {
         bd = d;
@@ -915,6 +1124,8 @@ export function createWorld(
       // l'IA ou par un débarquement ont un id non numérique : elles, on les laisse repartir de zéro.)
       if (!u.placed && u.id && /^\d+$/.test(u.id)) opts.onDecorRemove?.(u.id);
       if (isBuilding(u)) {
+        // Il en reste une ruine : la pierre ne s'évapore pas, et on pourra la relever à moitié prix.
+        opts.onRuin?.(u.key, u.x, u.y);
         // Effondrement : large gerbe de gravats, la case se libère.
         for (let i = 0; i < 5; i++)
           effects.push({
@@ -935,8 +1146,15 @@ export function createWorld(
           // présente sur l'île (l'archer qui a tiré a pu mourir entre-temps).
           const winner = by && factionOf(by.key) !== fac ? factionOf(by.key) : dominantFoe(u.home?.isl ?? -1, fac);
           if (isFriendly(u)) {
-            if (winner) opts.onCastle?.(last ? 'soumis' : 'perdu', winner);
-          } else if (last) opts.onCastle?.('pris', fac);
+            if (winner) opts.onCastle?.(last ? 'soumis' : 'perdu', fac, winner);
+          } else if (last) {
+            // Le royaume rival s'effondre. Que ce soit toi ou un autre rival qui l'ait abattu, si
+            // c'était ton suzerain le joug se brise : `winner` dit lequel des deux pour le texte.
+            opts.onCastle?.('pris', fac, winner);
+          } else {
+            // Un château rival de plus est tombé : simple chronique du monde, pas une fin de royaume.
+            opts.onCastle?.('rival', fac, winner);
+          }
         }
       }
       effects.push({ x: u.x, y: u.y, t0: t, kind: 'dust', s: 1.3 });
@@ -956,16 +1174,61 @@ export function createWorld(
       u.task = undefined;
     }
   }
+  // Centre praticable d'une case (les pieds se posent un peu bas dans la case).
+  const cellMid = (c: [number, number]) => ({ x: c[0] * TS + TS / 2, y: c[1] * TS + TS * 0.75 });
+  /**
+   * Point vers lequel pousser l'unité pour rejoindre (tx,ty). Si la cible est sur un autre palier, on
+   * vise le prochain passage (escalier ou pente) au lieu de foncer dans la paroi. Renvoie `null` quand
+   * la cible est hors d'atteinte : à l'appelant d'abandonner plutôt que de rester planté contre le mur.
+   */
+  function steerPoint(e: Ent, tx: number, ty: number): { x: number; y: number } | null {
+    const cx = Math.floor(e.x / TS);
+    const cy = Math.floor(e.y / TS);
+    const goal = regionAt(Math.floor(tx / TS), Math.floor(ty / TS));
+    // Déjà engagée SUR une rampe : la case n'appartient à aucun palier, il faut viser une sortie
+    // explicite. Sans ça l'unité repartait en ligne droite et restait plantée au milieu de la pente.
+    if (isRamp(cx, cy)) {
+      let best: { x: number; y: number } | null = null;
+      let bd = Infinity;
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const r = regionAt(cx + dx, cy + dy);
+          if (r < 0 || (goal >= 0 && passageRoute(r, goal) === null)) continue;
+          const m = cellMid([cx + dx, cy + dy]);
+          const d = Math.hypot(m.x - tx, m.y - ty);
+          if (d < bd) {
+            bd = d;
+            best = m;
+          }
+        }
+      return best ?? { x: tx, y: ty };
+    }
+    const here = regionAt(cx, cy);
+    if (here < 0 || goal < 0 || here === goal) return { x: tx, y: ty }; // même palier : ligne droite, comme avant
+    // La route ne dépend que du terrain : elle est mémorisée une fois pour toutes par `passageRoute`.
+    const route = passageRoute(here, goal);
+    if (!route) return null;
+    const next = route[0];
+    if (islandAt(next.to[0], next.to[1]) !== e.home!.isl) return null;
+    // Tant qu'on n'est pas sur la case d'entrée du passage, on marche vers elle ; ensuite on vise la
+    // sortie de l'autre côté — la ligne droite entre les deux traverse la rampe.
+    const entry = cellMid(next.from);
+    if (Math.hypot(entry.x - e.x, entry.y - e.y) > TS * 0.6) return entry;
+    return cellMid(next.to);
+  }
   function combatMove(e: Ent, tx: number, ty: number, dt: number) {
     if (!e.home) return; // sécurité : pas de déplacement sans île d'attache (évite un crash)
-    const dx = tx - e.x;
-    const dy = ty - e.y;
+    const aim = steerPoint(e, tx, ty);
+    if (!aim) return; // inatteignable : `combatStep` a déjà écarté ces cibles, ceci n'est qu'un filet
+    const dx = aim.x - e.x;
+    const dy = aim.y - e.y;
     const d = Math.hypot(dx, dy);
     if (d < 2) return;
     const step = Math.min(d, 48 * dt);
     const nx = e.x + (dx / d) * step;
     const ny = e.y + (dy / d) * step;
-    if (walkable(Math.floor(nx / TS), Math.floor(ny / TS), e.home!)) {
+    if (walkableAcross(Math.floor(e.x / TS), Math.floor(e.y / TS), Math.floor(nx / TS), Math.floor(ny / TS), e.home.isl)) {
       e.x = nx;
       e.y = ny;
       e.moving = true;
@@ -974,6 +1237,7 @@ export function createWorld(
       e.tx = nx;
       e.ty = ny;
       e.acting = -1;
+      syncLevel(e); // un palier de franchi : le niveau de rattachement suit
       if (Math.abs(dx) > 1) e.face = dx < 0 ? -1 : 1;
     }
   }
@@ -1099,8 +1363,16 @@ export function createWorld(
       e.wait = 0.3;
       return;
     }
-    e.tx = e.order.x;
-    e.ty = e.order.y;
+    // Un ordre vers un autre palier passe par les escaliers, comme le combat. Point inatteignable :
+    // on abandonne l'ordre au lieu de laisser la troupe s'agglutiner contre une falaise.
+    const aim = e.home ? steerPoint(e, e.order.x, e.order.y) : { x: e.order.x, y: e.order.y };
+    if (!aim) {
+      e.order = undefined;
+      e.wait = 0.5;
+      return;
+    }
+    e.tx = aim.x;
+    e.ty = aim.y;
     e.moving = true;
   }
   function stepAgent(e: Ent, dt: number) {
@@ -1152,8 +1424,13 @@ export function createWorld(
           e.task.phase = 'work';
           startCycle(e); // arrivé au nœud : on commence à travailler
         } else if (e.order) {
-          e.order = undefined; // arrivé au point d'ordre
-          e.wait = 0.3;
+          // `tx/ty` n'est PAS forcément la destination : depuis le routage par les rampes, c'est
+          // souvent un point de passage. Effacer l'ordre ici faisait abandonner la troupe au pied de
+          // la rampe. On ne le lève que si on est vraiment arrivé ; sinon on enchaîne sans attendre.
+          if (Math.hypot(e.order.x - e.x, e.order.y - e.y) < TS * 0.6) {
+            e.order = undefined;
+            e.wait = 0.3;
+          } else e.wait = 0;
         } else {
           e.wait = 1 + Math.random() * 3;
         }
@@ -1169,12 +1446,19 @@ export function createWorld(
         const ncy = Math.floor(ny / TS);
         const occ = getOcc();
         const inside = occ.has(`${Math.floor(e.x / TS)},${Math.floor(e.y / TS)}`);
-        if (!walkable(ncx, ncy, e.home!) || (!inside && occ.has(`${ncx},${ncy}`))) {
+        // Sous un ordre du joueur, l'unité a le droit de changer de palier (escalier / pente) ; en
+        // vie autonome elle reste sur le sien, sinon les villageois descendraient des plateaux au
+        // hasard en pleine promenade.
+        const ok = e.order
+          ? walkableAcross(Math.floor(e.x / TS), Math.floor(e.y / TS), ncx, ncy, e.home!.isl)
+          : walkable(ncx, ncy, e.home!);
+        if (!ok || (!inside && occ.has(`${ncx},${ncy}`))) {
           e.moving = false;
           e.wait = 0.5;
         } else {
           e.x = nx;
           e.y = ny;
+          if (e.order) syncLevel(e);
           if (Math.abs(dx) > 1) e.face = dx < 0 ? -1 : 1;
         }
       }
@@ -1275,19 +1559,24 @@ export function createWorld(
       try { aiProduce(); } catch (err) { console.error('Scriptoria: production IA', err); }
     }
     // Régénération au calme : sans elle, les PV désormais mémorisés d'une session à l'autre
-    // ne feraient que descendre, et une armée finirait par mourir au premier coup.
+    // ne feraient que descendre, et une armée finirait par mourir au premier coup. Les murs, eux,
+    // ne se relèvent presque pas tout seuls (REGEN_WALL) : c'est le rôle de la réparation payante.
     if (t >= regenAt) {
       regenAt = t + 1;
       for (const e of [...placed, ...decor]) {
         if (!alive(e) || e.maxHp === undefined || (e.hp ?? 0) >= e.maxHp) continue;
         if (e.hurtT !== undefined && t - e.hurtT < REGEN_CALM) continue; // pas en plein combat
-        e.hp = Math.min(e.maxHp, (e.hp ?? 0) + Math.max(1, Math.round(e.maxHp * 0.02)));
+        e.hp = Math.min(e.maxHp, (e.hp ?? 0) + Math.max(1, Math.round(e.maxHp * (isBuilding(e) ? REGEN_WALL : REGEN_UNIT))));
         noteDamage(e);
       }
     }
     if (t >= dispatchAt) {
       dispatchAt = t + 12;
       try { aiDispatch(); } catch (err) { console.error('Scriptoria: escadrons IA', err); }
+    }
+    if (t >= warAt) {
+      warAt = t + 110 + Math.random() * 70;
+      try { launchRivalWar(); } catch (err) { console.error('Scriptoria: guerre entre rivaux', err); }
     }
     // Nettoyage des morts (décor + nœuds récoltables comme les moutons tués) : plus de références fantômes.
     for (let i = decor.length - 1; i >= 0; i--) if (decor[i].dead) decor.splice(i, 1);
@@ -1343,8 +1632,30 @@ export function createWorld(
       }
     return false;
   }
+  // Recensement « qui tient quoi » : une seule passe sur la carte, partagée par la production, les
+  // escadrons et les invasions (avant, chacun refaisait son propre balayage — et la production en
+  // refaisait un PAR BÂTIMENT). `all` compte aussi les villageois (plafond de garnison), `fighters`
+  // ne garde que ceux qui savent se battre ou soigner.
+  type Garrison = { all: Ent[]; fighters: Ent[] };
+  const garKey = (fac: string, isl: number) => `${fac}@${isl}`;
+  function garrisons(): Map<string, Garrison> {
+    const map = new Map<string, Garrison>();
+    for (const e of [...decor, ...placed]) {
+      if (!e.agent || !alive(e) || e.maxHp === undefined) continue;
+      const isl = e.home?.isl ?? -1;
+      if (isl < 0) continue;
+      const k = garKey(factionOf(e.key), isl);
+      let g = map.get(k);
+      if (!g) map.set(k, (g = { all: [], fighters: [] }));
+      g.all.push(e);
+      if (isFighter(e)) g.fighters.push(e);
+    }
+    return map;
+  }
+
   // Production des royaumes rivaux : chaque bâtiment ennemi forme lentement des unités (garnison plafonnée).
   function aiProduce() {
+    const gar = garrisons();
     for (const b of [...decor]) {
       const base = /(caserne|archerie|monastere|chateau)/.exec(b.key)?.[1];
       if (!base) continue;
@@ -1352,14 +1663,19 @@ export function createWorld(
       if (fac === playerFaction) continue; // le joueur recrute lui-même au marché
       const isl = islandAt(Math.floor(b.x / TS), Math.floor((b.y - b.def.feet) / TS));
       if (isl < 0) continue;
-      const cnt = [...decor, ...placed].filter(
-        (e) => e.agent && alive(e) && e.maxHp !== undefined && factionOf(e.key) === fac && e.home?.isl === isl,
-      ).length;
-      if (cnt >= 6) continue; // garnison pleine sur cette île (plafond réduit pour désencombrer la carte)
+      const g = gar.get(garKey(fac, isl));
+      if ((g?.all.length ?? 0) >= 6) continue; // garnison pleine sur cette île (plafond réduit pour désencombrer la carte)
       if (Math.random() > 0.5) continue; // production lente
       const ut =
         base === 'caserne' ? (Math.random() < 0.5 ? 'guerrier' : 'lancier') : base === 'archerie' ? 'archer' : base === 'monastere' ? 'moine' : 'villageois';
-      spawnUnitNear(unitKey(ut, fac), b, isl);
+      const key = unitKey(ut, fac);
+      // Le recensement est une photo prise en début de tour : sans ça, deux casernes de la même île
+      // verraient toutes les deux « 5 » et dépasseraient le plafond au même tour.
+      if (spawnUnitNear(key, b, isl)) {
+        const born = { key } as Ent;
+        if (g) g.all.push(born);
+        else gar.set(garKey(fac, isl), { all: [born], fighters: [] });
+      }
     }
   }
 
@@ -1368,21 +1684,13 @@ export function createWorld(
   const SQUAD_THRESHOLD = 5;
   const AI_HARD_CAP = 8;
   function aiDispatch() {
-    const groups = new Map<string, Ent[]>();
-    for (const e of [...decor, ...placed]) {
-      if (!e.agent || !alive(e) || e.maxHp === undefined || !isFighter(e)) continue;
-      const fac = factionOf(e.key);
+    for (const [k, g] of garrisons()) {
+      const [fac, islStr] = k.split('@');
       if (fac === playerFaction) continue; // on ne bouscule que les royaumes IA
-      const isl = e.home?.isl ?? -1;
-      if (isl < 0 || !unlocked.has(isl)) continue;
-      const k = `${fac}@${isl}`;
-      let arr = groups.get(k);
-      if (!arr) groups.set(k, (arr = []));
-      arr.push(e);
-    }
-    for (const [k, units] of groups) {
+      const isl = +islStr;
+      if (!unlocked.has(isl)) continue;
+      const units = g.fighters;
       if (units.length < SQUAD_THRESHOLD) continue;
-      const isl = +k.split('@')[1];
       const cx = units.reduce((s, u) => s + u.x, 0) / units.length;
       const cy = units.reduce((s, u) => s + u.y, 0) / units.length;
       // Ennemi (autre couleur) vivant le plus proche du centre du groupe, sur la même île.
@@ -1472,20 +1780,37 @@ export function createWorld(
     } as Ent);
     return true;
   }
-  // Vers quoi les envahisseurs marchent : ton bien le plus précieux sur l'île (château > bâtiment > unité).
-  function marchGoal(isl: number): { x: number; y: number } | undefined {
+  // Vers quoi les envahisseurs marchent : le bien le plus précieux de l'île qui n'est PAS à eux
+  // (château > bâtiment > unité). Le camp visé est un paramètre : la même fonction sert aux
+  // débarquements chez toi et aux guerres que les rivaux se font entre eux.
+  function marchGoal(isl: number, attackerFac: string): { x: number; y: number } | undefined {
     let best: Ent | null = null;
     let score = 0;
     for (const o of [...placed, ...decor]) {
-      if (!alive(o) || !isFriendly(o) || o.home?.isl !== isl) continue;
+      if (!alive(o) || factionOf(o.key) === attackerFac || o.home?.isl !== isl) continue;
       const b = siegeBase(o.key);
-      const s = b === 'chateau' ? 3 : b ? 2 : o.agent ? 1 : 0;
+      // `maxHp` exigé pour le repli sur une unité : marcher sur un mouton ne mène nulle part
+      // (il n'a pas de PV, on ne peut pas l'abattre).
+      const s = b === 'chateau' ? 3 : b ? 2 : o.agent && o.maxHp !== undefined ? 1 : 0;
       if (s > score) {
         score = s;
         best = o;
       }
     }
     return best ? aimAt(best) : undefined;
+  }
+  // Embarque une partie d'une garnison et la débarque sur `toIsl`. Les hommes partis MEURENT chez eux :
+  // une expédition DÉPLACE une armée, elle ne la duplique pas.
+  function sendExpedition(units: Ent[], toIsl: number, spots: [number, number][], march?: { x: number; y: number }): number {
+    let n = 0;
+    for (const u of units.slice(0, Math.min(5, Math.max(2, Math.floor(units.length / 2))))) {
+      if (u === drag?.ent || u === moveEnt) continue;
+      if (!landUnit(u.key, toIsl, spots, march)) continue;
+      u.dead = true;
+      effects.push({ x: u.x, y: u.y, t0: t, kind: 'dust' });
+      n++;
+    }
+    return n;
   }
   function launchInvasion() {
     // On ne débarque que sur une île à toi qui a de quoi se défendre (sinon on massacre des villageois).
@@ -1501,39 +1826,24 @@ export function createWorld(
     const isl = targets[Math.floor(Math.random() * targets.length)];
     const spots = shoreSpots(isl);
     if (!spots.length) return;
-    const march = marchGoal(isl);
 
     // 1) Un vrai royaume envoie ses troupes : on prend sa plus grosse garnison, ailleurs que sur la cible.
-    const groups = new Map<string, Ent[]>();
-    for (const e of decor) {
-      if (!e.agent || !alive(e) || !isFighter(e) || isFriendly(e)) continue;
-      const src = e.home?.isl ?? -1;
-      if (src < 0 || src === isl) continue;
-      const k = `${factionOf(e.key)}@${src}`;
-      const arr = groups.get(k);
-      if (arr) arr.push(e);
-      else groups.set(k, [e]);
-    }
-    const host = [...groups.values()].filter((g) => g.length >= 4).sort((a, b) => b.length - a.length)[0];
+    const host = [...garrisons()]
+      .map(([k, g]) => ({ fac: k.split('@')[0], isl: +k.split('@')[1], units: g.fighters }))
+      .filter((h) => h.fac !== playerFaction && h.isl !== isl && h.units.length >= 4)
+      .sort((a, b) => b.units.length - a.units.length)[0];
     let fac = '';
     let n = 0;
     if (host) {
-      fac = factionOf(host[0].key);
-      const force = host.slice(0, Math.min(5, Math.max(2, Math.floor(host.length / 2))));
-      for (const u of force) {
-        if (u === drag?.ent || u === moveEnt) continue;
-        if (!landUnit(u.key, isl, spots, march)) continue;
-        u.dead = true; // embarquée : elle disparaît vraiment de son île d'origine
-        effects.push({ x: u.x, y: u.y, t0: t, kind: 'dust' });
-        n++;
-      }
+      fac = host.fac;
+      n = sendExpedition(host.units, isl, spots, marchGoal(isl, fac));
     }
     // 2) Aucun royaume prêt : mercenaires, dont le nombre croît avec ton armée sur place.
     if (!n) {
       const rivals = ['bleu', 'rouge', 'jaune', 'violet', 'noir'].filter((f) => f !== playerFaction);
       fac = rivals[Math.floor(Math.random() * rivals.length)];
-      const suf = fac === 'bleu' ? '' : `-${fac}`;
-      const kinds = [`guerrier${suf}`, `guerrier${suf}`, `archer${suf}`, `lancier${suf}`];
+      const march = marchGoal(isl, fac);
+      const kinds = ['guerrier', 'guerrier', 'archer', 'lancier'].map((b) => unitKey(b, fac));
       const army = [...placed, ...decor].filter((e) => alive(e) && isFriendly(e) && isFighter(e) && e.home?.isl === isl).length;
       const size = Math.min(6, 2 + Math.floor(army / 3));
       for (let k = 0; k < size; k++) if (landUnit(kinds[Math.floor(Math.random() * kinds.length)], isl, spots, march)) n++;
@@ -1541,10 +1851,87 @@ export function createWorld(
     if (n) opts.onInvasion?.(fac, WORLD.islands[isl]?.name ?? 'ton royaume', n);
   }
 
+  // Qui tient quoi, unités ET bâtiments, par île et par couleur. `garrisons()` ne connaît que les
+  // vivants qui marchent ; pour choisir la cible d'une guerre il faut aussi savoir où sont les murs.
+  type Holding = { fighters: number; buildings: number; castle: boolean };
+  function holdings(): Map<number, Map<string, Holding>> {
+    const map = new Map<number, Map<string, Holding>>();
+    const touch = (isl: number, fac: string): Holding => {
+      let byFac = map.get(isl);
+      if (!byFac) map.set(isl, (byFac = new Map()));
+      let h = byFac.get(fac);
+      if (!h) byFac.set(fac, (h = { fighters: 0, buildings: 0, castle: false }));
+      return h;
+    };
+    for (const e of [...decor, ...placed]) {
+      if (!alive(e)) continue;
+      if (e.agent && e.maxHp !== undefined) {
+        const isl = e.home?.isl ?? -1;
+        if (isl >= 0 && isFighter(e)) touch(isl, factionOf(e.key)).fighters++;
+      } else if (isBuilding(e)) {
+        const isl = islandAt(Math.floor(e.x / TS), Math.floor((e.y - e.def.feet) / TS));
+        if (isl < 0) continue;
+        const h = touch(isl, factionOf(e.key));
+        h.buildings++;
+        if (siegeBase(e.key) === 'chateau') h.castle = true;
+      }
+    }
+    return map;
+  }
+
+  // Les rivaux ne s'en prennent pas qu'à toi : quand l'un d'eux a une garnison de trop, il embarque
+  // pour l'île d'un AUTRE rival. Le monde change de mains même pendant que tu fais tes leçons.
+  function launchRivalWar() {
+    const held = holdings();
+    const hosts = [...garrisons()]
+      .map(([k, g]) => ({ fac: k.split('@')[0], isl: +k.split('@')[1], units: g.fighters }))
+      .filter((h) => h.fac !== playerFaction && h.units.length >= 4)
+      .sort((a, b) => b.units.length - a.units.length);
+    for (const host of hosts) {
+      // Cible : une île DÉBLOQUÉE (sous le brouillard le moteur n'anime rien, la guerre serait
+      // invisible) tenue par une autre couleur rivale, et où tu n'as pas de château — tes îles
+      // restent l'affaire de `launchInvasion`.
+      let best: { isl: number; fac: string; force: number } | null = null;
+      for (const [isl, byFac] of held) {
+        if (isl === host.isl || !unlocked.has(isl)) continue;
+        if (byFac.get(playerFaction)?.castle) continue;
+        for (const [fac, h] of byFac) {
+          if (fac === host.fac || fac === playerFaction) continue;
+          if (!h.buildings && !h.fighters) continue;
+          // On vise le plus faible : sinon les rivaux s'épuisent sans jamais prendre une île.
+          if (!best || h.fighters < best.force) best = { isl, fac, force: h.fighters };
+        }
+      }
+      if (!best) continue;
+      const spots = shoreSpots(best.isl);
+      if (!spots.length) continue;
+      const n = sendExpedition(host.units, best.isl, spots, marchGoal(best.isl, host.fac));
+      if (n) {
+        opts.onWar?.(host.fac, best.fac, WORLD.islands[best.isl]?.name ?? 'une île', n);
+        return; // une seule guerre par tour : la carte reste lisible
+      }
+    }
+  }
+
   // ---------- Dessin ----------
   function roundRect(x: number, y: number, w: number, h: number, r: number) {
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, r);
+  }
+  // Rond doré pulsant sous un objet : l'objet inspecté (plein) ou un membre de la troupe (atténué).
+  function drawRing(e: Ent, alpha: number) {
+    const pulse = (Math.sin(t * 5) + 1) / 2;
+    ctx.save();
+    ctx.shadowColor = `rgba(255, 220, 110, ${0.9 * alpha})`;
+    ctx.shadowBlur = 12 + 10 * pulse;
+    ctx.strokeStyle = `rgba(255, 226, 120, ${(0.65 + 0.35 * pulse) * alpha})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    const fw = footprint(e.key)?.w ?? 1;
+    const ringY = e.y - decorLift(e.key) - (fw > 1 ? 16 : 0); // recale le rond sous l'objet centré
+    ctx.ellipse(e.x, ringY, 30 * fw + 3 * pulse, 11 * Math.max(1, fw * 0.7) + pulse, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
   }
   function drawPlacement(ent: Ent, px: number, py: number) {
     const occ = getOcc();
@@ -1691,6 +2078,17 @@ export function createWorld(
       ctx.globalAlpha = 1;
       return;
     }
+    // Ruine : le bâtiment d'origine, désaturé et assombri. On reconnaît ainsi du premier coup d'œil
+    // CE QU'ON pourra relever là, ce qu'un tas de gravats générique ne dirait pas.
+    if (e.ruin) {
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.5;
+      ctx.filter = 'grayscale(1) brightness(0.55)';
+      drawFrame();
+      ctx.restore();
+      ctx.globalAlpha = 1;
+      return;
+    }
     ctx.globalAlpha = alpha;
     drawFrame();
     ctx.globalAlpha = 1;
@@ -1821,18 +2219,22 @@ export function createWorld(
     }
     // sélection
     const sel = selected ? findByKey(selected) : null;
-    if (sel && !drag?.ent && !moveEnt) {
-      const pulse = (Math.sin(t * 5) + 1) / 2;
+    if (sel && !drag?.ent && !moveEnt) drawRing(sel, 1);
+    // troupe retenue au lasso : même rond, plus discret (elles sont plusieurs)
+    if (troop.size)
+      for (const k of troop) {
+        const e = findByKey(k);
+        if (e && alive(e) && e !== sel) drawRing(e, 0.55);
+      }
+    // cadre du lasso en cours de tracé
+    if (band) {
       ctx.save();
-      ctx.shadowColor = 'rgba(255, 220, 110, 0.9)';
-      ctx.shadowBlur = 12 + 10 * pulse;
-      ctx.strokeStyle = `rgba(255, 226, 120, ${0.65 + 0.35 * pulse})`;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      const fw = footprint(sel.key)?.w ?? 1;
-      const ringY = sel.y - decorLift(sel.key) - (fw > 1 ? 16 : 0); // recale le rond sous l'objet centré
-      ctx.ellipse(sel.x, ringY, 30 * fw + 3 * pulse, 11 * Math.max(1, fw * 0.7) + pulse, 0, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.setLineDash([8, 6]);
+      ctx.strokeStyle = 'rgba(255, 226, 120, 0.9)';
+      ctx.fillStyle = 'rgba(255, 226, 120, 0.1)';
+      ctx.lineWidth = 2;
+      ctx.fillRect(band.x0, band.y0, band.x1 - band.x0, band.y1 - band.y0);
+      ctx.strokeRect(band.x0, band.y0, band.x1 - band.x0, band.y1 - band.y0);
       ctx.restore();
     }
     // zone de pose : grille lumineuse façon jeu de stratégie
@@ -1842,8 +2244,9 @@ export function createWorld(
       const py = placing === moveEnt ? ghost!.y : placing.y;
       drawPlacement(placing, px, py);
     }
-    // sprites triés par profondeur
-    const all = [...decor, ...placed].filter((e) => {
+    // sprites triés par profondeur (les ruines se mêlent au tri : un soldat passe devant l'une,
+    // derrière l'autre, selon sa position)
+    const all = [...decor, ...placed, ...ruins].filter((e) => {
       if (e.dead) return false;
       const b = e.y + e.def.feet;
       return e.x + e.def.fw / 2 > vx0 && e.x - e.def.fw / 2 < vx1 && b > vy0 && b - e.def.fh < vy1;
@@ -2051,20 +2454,34 @@ export function createWorld(
       const sy = (isl.cy - cam.y) * cam.z + H / 2;
       if (sx < -150 || sx > W + 150 || sy < -60 || sy > H + 60) return;
       if (!locked && cam.z >= 0.5) return; // de près, on laisse voir l'île
-      const label = locked
-        ? `🔒 ${isl.name} · ${isl.unlock - missionsDone} quête${isl.unlock - missionsDone > 1 ? 's' : ''}`
-        : isl.name;
-      ctx.font = `700 ${locked ? 13 : 14}px "MedievalSharp", Georgia, serif`;
-      const tw = ctx.measureText(label).width + 22;
-      ctx.fillStyle = locked ? 'rgba(20, 26, 34, 0.86)' : 'rgba(60, 38, 20, 0.86)';
-      ctx.strokeStyle = locked ? 'rgba(200, 200, 210, 0.35)' : 'rgba(240, 200, 110, 0.8)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.roundRect(sx - tw / 2, sy - 14, tw, 28, 8);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = locked ? '#dfe3ea' : '#ffe7a6';
-      ctx.fillText(label, sx, sy + 1);
+      // Toponyme à la manière d'une carte ancienne : pas de pastille opaque qui masque le terrain,
+      // juste des capitales espacées posées sur un halo sombre. Le cartouche d'avant faisait tache.
+      const name = isl.name.toLocaleUpperCase('fr');
+      ctx.save();
+      ctx.letterSpacing = '2px'; // ignoré par les navigateurs qui ne le gèrent pas : sans conséquence
+      ctx.font = '600 13px "MedievalSharp", Georgia, serif';
+      // Halo : le texte est tracé en épais et sombre sous lui-même, plus lisible qu'une ombre portée
+      // sur un fond clair comme le sable.
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(12, 18, 14, 0.7)';
+      ctx.strokeText(name, sx, sy);
+      ctx.fillStyle = locked ? 'rgba(214, 221, 231, 0.75)' : 'rgba(255, 235, 186, 0.92)';
+      ctx.fillText(name, sx, sy);
+      if (locked) {
+        // Le coût en quêtes passe sur une deuxième ligne, plus petit : l'essentiel reste le nom.
+        const left = isl.unlock - missionsDone;
+        // Pas d'emoji cadenas : toutes les polices ne l'ont pas et il tombe en carré « tofu ».
+        // La teinte plus pâle suffit à dire que l'île est fermée.
+        const sub = `${left} quête${left > 1 ? 's' : ''}`;
+        ctx.letterSpacing = '1px';
+        ctx.font = '600 10px Georgia, serif';
+        ctx.lineWidth = 3;
+        ctx.strokeText(sub, sx, sy + 15);
+        ctx.fillStyle = 'rgba(214, 221, 231, 0.6)';
+        ctx.fillText(sub, sx, sy + 15);
+      }
+      ctx.restore();
     });
   }
 
@@ -2073,6 +2490,13 @@ export function createWorld(
     last = now;
     t += dt;
     try {
+      if (edge) {
+        // Défilement par les bords : vitesse en pixels ÉCRAN, divisée par le zoom, pour que la carte
+        // file au même rythme apparent qu'on soit dézoomé ou collé au sol.
+        cam.x += (edge.x * 900 * dt) / cam.z;
+        cam.y += (edge.y * 900 * dt) / cam.z;
+        clamp();
+      }
       update(dt);
       draw();
     } catch (err) {
@@ -2081,10 +2505,38 @@ export function createWorld(
     raf = requestAnimationFrame(frame);
   }
 
+  // ---------- Zone contrôlée ----------
+  // On ne prend et on ne dépose une unité à la main que là où le royaume tient vraiment le terrain :
+  // au moins 3 de TES bâtiments sur l'île. Ailleurs, on commande à distance (clic droit) — les troupes
+  // s'y rendent à pied, elles ne s'y téléportent pas.
+  const CONTROL_MIN = 3;
+  function controlled(isl: number): boolean {
+    if (isl < 0) return false;
+    let n = 0;
+    for (const e of [...placed, ...decor]) {
+      if (!alive(e) || !isBuilding(e) || !isFriendly(e)) continue;
+      const bx = Math.floor(e.x / TS);
+      const by = Math.floor((e.y - e.def.feet) / TS);
+      if (islandAt(bx, by) === isl && ++n >= CONTROL_MIN) return true;
+    }
+    return false;
+  }
+  const islandOf = (e: Ent) => e.home?.isl ?? islandAt(Math.floor(e.x / TS), Math.floor((e.y - e.def.feet) / TS));
+  /** Peut-on saisir cet objet à la main ? Les unités exigent une île tenue ; le décor et les bâtiments non. */
+  function canHandle(e: Ent): boolean {
+    if (!e.agent || e.maxHp === undefined) return true;
+    return controlled(islandOf(e));
+  }
+
   // ---------- Entrées (souris, tactile, molette) ----------
   const pointers = new Map<number, { x: number; y: number }>();
-  let drag: { ent?: Ent; ox: number; oy: number; sx: number; sy: number; moved: boolean; start: { x: number; y: number }; gx: number; gy: number } | null = null;
+  // `mode` dit ce que fait le glissement en cours : déplacer la carte, tracer un lasso, ou porter un
+  // objet. Avant, tout glissement déplaçait la carte ; le clic gauche sert désormais à sélectionner.
+  let drag:
+    | { ent?: Ent; ox: number; oy: number; sx: number; sy: number; moved: boolean; start: { x: number; y: number }; gx: number; gy: number; mode: 'pan' | 'band' | 'ent' }
+    | null = null;
   let pinch: { d: number; z: number } | null = null;
+  let edge: { x: number; y: number } | null = null; // défilement quand la souris colle à un bord
 
   function localXY(ev: PointerEvent | WheelEvent) {
     const r = canvas.getBoundingClientRect();
@@ -2100,7 +2552,7 @@ export function createWorld(
         !(e.agent && e.maxHp !== undefined && !isFriendly(e)) && // pas une unité ennemie (mais arbres/or/moutons OK)
         unlocked.has(islandAt(Math.floor(e.x / TS), Math.floor((e.y - 8) / TS))),
     );
-    const sorted = [...placed.filter((e) => !e.dead), ...people].sort((a, b) => b.y - a.y);
+    const sorted = [...placed.filter((e) => !e.dead), ...ruins, ...people].sort((a, b) => b.y - a.y);
     return sorted.find((e) => {
       const b = hitBox(e);
       return p.x >= b.x0 && p.x <= b.x1 && p.y >= b.y0 && p.y <= b.y1;
@@ -2109,6 +2561,7 @@ export function createWorld(
   function onDown(ev: PointerEvent) {
     canvas.setPointerCapture(ev.pointerId);
     const p = localXY(ev);
+    const touch = ev.pointerType !== 'mouse';
     pointers.set(ev.pointerId, p);
     if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
@@ -2117,25 +2570,80 @@ export function createWorld(
       drag = null;
       return;
     }
-    // modes « Déplacer » / « Envoyer les troupes » : le glisser déplace la carte, un simple toucher agit
+    // Clic DROIT : ordre de marche vers le point visé, pour la troupe retenue (ou toute l'île).
+    if (ev.button === 2) {
+      commandTo(p.x, p.y);
+      return;
+    }
+    const startDrag = (mode: 'pan' | 'band' | 'ent', ent?: Ent) => {
+      const wg = s2w(p.x, p.y); // point saisi (monde) → on garde l'écart avec l'ancre de l'objet
+      drag = {
+        ent,
+        mode,
+        ox: cam.x,
+        oy: cam.y,
+        sx: p.x,
+        sy: p.y,
+        moved: false,
+        start: ent ? { x: ent.x, y: ent.y } : { x: 0, y: 0 },
+        gx: ent ? ent.x - wg.x : 0,
+        gy: ent ? ent.y - wg.y : 0,
+      };
+    };
+    // Molette pressée : c'est elle qui déplace la carte maintenant que le clic gauche sélectionne.
+    if (ev.button === 1) {
+      startDrag('pan');
+      return;
+    }
+    // modes « Déplacer » / « Envoyer les troupes » : un simple toucher agit, le glisser trace un lasso
     const ent = moveEnt || orderMode ? undefined : pick(p.x, p.y);
     if (moveEnt) ghost = snapGhost(p.x, p.y);
-    const wg = s2w(p.x, p.y); // point saisi (monde) → on garde l'écart avec l'ancre de l'objet
-    drag = { ent, ox: cam.x, oy: cam.y, sx: p.x, sy: p.y, moved: false, start: ent ? { x: ent.x, y: ent.y } : { x: 0, y: 0 }, gx: ent ? ent.x - wg.x : 0, gy: ent ? ent.y - wg.y : 0 };
     if (ent) {
+      select(ent);
+      // Prise en main réservée aux îles tenues : ailleurs on sélectionne, mais on ne déplace pas
+      // l'unité au doigt — on l'envoie au clic droit et elle y va à pied.
+      if (!canHandle(ent)) {
+        flashBad = t;
+        opts.onNotice?.('Île non tenue : il faut 3 de tes bâtiments pour y porter des soldats. Clic droit pour les y envoyer.');
+        startDrag(touch ? 'pan' : 'band');
+        return;
+      }
       ent.moving = false;
       ent.acting = -1;
-      select(ent);
+      startDrag('ent', ent);
+      return;
     }
+    // Terrain nu : au doigt on fait glisser la carte (indispensable au tactile), à la souris on lasso.
+    startDrag(touch ? 'pan' : 'band');
   }
   function select(ent: Ent | null) {
     selected = ent ? keyOf(ent) : null;
-    opts.onSelect?.(selected, ent ? { id: ent.placed ? ent.placed.id : ent.key, bought: !!ent.placed } : undefined);
+    // Les PV partent avec la sélection : c'est ce qui permet au panneau de proposer une réparation.
+    opts.onSelect?.(
+      selected,
+      ent
+        ? {
+            id: ent.placed ? ent.placed.id : ent.key,
+            bought: !!ent.placed,
+            hp: ent.hp,
+            maxHp: ent.maxHp,
+            mine: isFriendly(ent),
+            ruin: ent.ruin?.k, // clé de la ruine : le panneau propose alors de la relever
+          }
+        : undefined,
+    );
   }
   // pose un personnage (ou bâtiment) sur une case ; renvoie false si c'est interdit
   function dropAt(ent: Ent, wx: number, wy: number) {
     if (!checkFit(ent.key, wx, wy, unlocked, getOcc(), keyOf(ent)).ok) {
       flashBad = t;
+      return false;
+    }
+    // On ne dépose une unité que sur une île tenue : sinon on téléporterait une armée en terrain
+    // ennemi. Pour y aller, c'est le clic droit — et elles s'y rendent à pied.
+    if (ent.agent && ent.maxHp !== undefined && !controlled(islandAt(Math.floor(wx / TS), Math.floor(wy / TS)))) {
+      flashBad = t;
+      opts.onNotice?.('Île non tenue : il faut 3 de tes bâtiments pour y poser des soldats. Clic droit pour les y envoyer.');
       return false;
     }
     const x = Math.round(wx);
@@ -2180,10 +2688,31 @@ export function createWorld(
     ghost = null;
     opts.onMoveMode?.(false);
   }
+  // La troupe SURVIT à un ordre : on enchaîne plusieurs ordres sur la même sélection, comme dans
+  // n'importe quel jeu de stratégie. Elle ne se vide qu'au clic sur du terrain nu.
+  function clearTroop() {
+    band = null;
+    if (!troop.size) return;
+    troop = new Set();
+    opts.onTroop?.(0);
+  }
   function endOrder() {
+    band = null;
     if (!orderMode) return;
     orderMode = false;
     opts.onOrderMode?.(false);
+  }
+  // Lasso : retient tous tes combattants dont la silhouette croise le cadre.
+  function selectBand(b: { x0: number; y0: number; x1: number; y1: number }) {
+    troop = new Set();
+    for (const e of [...placed, ...decor]) {
+      if (!e.agent || !alive(e) || !isFriendly(e) || !isFighter(e)) continue;
+      if (!unlocked.has(e.home?.isl ?? -1)) continue;
+      const h = hitBox(e);
+      if (h.x1 < b.x0 || h.x0 > b.x1 || h.y1 < b.y0 || h.y0 > b.y1) continue;
+      troop.add(keyOf(e));
+    }
+    opts.onTroop?.(troop.size);
   }
   // Ennemi vivant sous (ou tout près de) le point monde (x, y), même île de préférence.
   function enemyAt(x: number, y: number, isl: number): Ent | null {
@@ -2203,7 +2732,9 @@ export function createWorld(
     }
     return near;
   }
-  // Ordre du joueur : envoie toutes tes unités de combat de l'île vers le point désigné.
+  // Ordre du joueur vers le point désigné. Si une troupe a été retenue au lasso, elle seule marche
+  // (et seulement ses membres présents sur l'île visée — personne ne traverse la mer) ; sinon on
+  // garde le comportement d'origine : toutes tes unités de combat de l'île y vont.
   // Si le point vise un ennemi, elles le prennent pour cible et le pourchassent.
   function commandTo(sx: number, sy: number) {
     const w = s2w(sx, sy);
@@ -2220,6 +2751,7 @@ export function createWorld(
     for (const e of [...placed, ...decor]) {
       if (!e.agent || e.dead || !isFriendly(e) || !isFighter(e)) continue;
       if (e.home?.isl !== isl) continue;
+      if (troop.size && !troop.has(keyOf(e))) continue;
       if (e === drag?.ent || e === moveEnt) continue;
       e.order = { x: dest.x, y: dest.y };
       e.orderTarget = foe ?? undefined;
@@ -2231,11 +2763,18 @@ export function createWorld(
     }
     if (sent) effects.push({ x: w.x, y: w.y, t0: t, kind: 'rally' });
     else flashBad = t;
-    endOrder();
+    endOrder(); // on quitte le mode bouton, mais la troupe reste retenue pour l'ordre suivant
   }
   function onMove(ev: PointerEvent) {
     const p = localXY(ev);
     if (!pointers.has(ev.pointerId)) {
+      // Souris collée à un bord : la carte défile toute seule, comme dans n'importe quel RTS.
+      // Bande de 28 px ; la vitesse croît à mesure qu'on s'enfonce dans le bord.
+      const M = 28;
+      const ex = p.x < M ? (p.x - M) / M : p.x > W - M ? (p.x - (W - M)) / M : 0;
+      const ey = p.y < M ? (p.y - M) / M : p.y > H - M ? (p.y - (H - M)) / M : 0;
+      const inside = p.x >= 0 && p.y >= 0 && p.x <= W && p.y <= H;
+      edge = inside && (ex || ey) ? { x: Math.max(-1, Math.min(1, ex)), y: Math.max(-1, Math.min(1, ey)) } : null;
       if (moveEnt) {
         ghost = snapGhost(p.x, p.y);
         canvas.style.cursor = 'crosshair';
@@ -2244,6 +2783,7 @@ export function createWorld(
       } else canvas.style.cursor = pick(p.x, p.y) ? 'grab' : 'default';
       return;
     }
+    edge = null; // un bouton est enfoncé : le glissement prime sur le défilement par les bords
     pointers.set(ev.pointerId, p);
     if (pinch && pointers.size === 2) {
       const [a, b] = [...pointers.values()];
@@ -2256,12 +2796,16 @@ export function createWorld(
     const dy = p.y - drag.sy;
     if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
     if (moveEnt && !drag.moved) ghost = snapGhost(p.x, p.y);
-    if (drag.ent) {
+    if (drag.mode === 'ent' && drag.ent) {
       const w = s2w(p.x, p.y);
       const sn = snapTo(drag.ent.key, w.x + drag.gx, w.y + drag.gy); // conserve le point de saisie
       drag.ent.x = sn.x;
       drag.ent.y = sn.y;
       canvas.style.cursor = 'grabbing';
+    } else if (drag.mode === 'band' && drag.moved) {
+      const a = s2w(drag.sx, drag.sy);
+      const b = s2w(p.x, p.y);
+      band = { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) };
     } else {
       cam.x = drag.ox - dx / cam.z;
       cam.y = drag.oy - dy / cam.z;
@@ -2269,6 +2813,7 @@ export function createWorld(
     }
   }
   function cancelDrag() {
+    band = null; // un second doigt (pincement) abandonne le lasso en cours
     if (drag?.ent) {
       drag.ent.x = drag.start.x;
       drag.ent.y = drag.start.y;
@@ -2284,15 +2829,22 @@ export function createWorld(
       const w = snapGhost(d.sx, d.sy)!;
       ghost = w;
       if (dropAt(moveEnt, w.x, w.y)) endMove();
+    } else if (d.mode === 'band' && d.moved && band) {
+      // Lasso relâché : la troupe est retenue et le reste — le clic droit suivant l'envoie.
+      selectBand(band);
+      if (!troop.size) flashBad = t;
+      band = null;
     } else if (orderMode && !d.moved) {
-      commandTo(d.sx, d.sy);
-    } else if (d.ent) {
+      commandTo(d.sx, d.sy); // bouton « Envoyer les troupes » : conservé pour le tactile
+    } else if (d.mode === 'ent' && d.ent) {
       if (d.moved && !dropAt(d.ent, d.ent.x, d.ent.y)) {
         d.ent.x = d.start.x;
         d.ent.y = d.start.y;
       }
     } else if (!d.moved && !moveEnt && !orderMode) {
+      // Clic dans le vide : on relâche et l'objet inspecté, et la troupe.
       select(null);
+      clearTroop();
     }
     canvas.style.cursor = 'default';
   }
@@ -2320,10 +2872,18 @@ export function createWorld(
     cam.y += before.y - after.y;
     clamp();
   }
+  // Le clic droit sert d'ordre de marche : pas de menu contextuel du navigateur par-dessus.
+  const onContext = (ev: Event) => ev.preventDefault();
+  const onLeave = () => {
+    edge = null;
+    canvas.style.cursor = 'default';
+  };
   canvas.addEventListener('pointerdown', onDown);
   canvas.addEventListener('pointermove', onMove);
   canvas.addEventListener('pointerup', onUp);
   canvas.addEventListener('pointercancel', onUp);
+  canvas.addEventListener('pointerleave', onLeave);
+  canvas.addEventListener('contextmenu', onContext);
   canvas.addEventListener('wheel', onWheel, { passive: false });
 
   function focus(i: number, z = 1) {
@@ -2354,6 +2914,8 @@ export function createWorld(
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
       canvas.removeEventListener('pointercancel', onUp);
+      canvas.removeEventListener('pointerleave', onLeave);
+      canvas.removeEventListener('contextmenu', onContext);
       canvas.removeEventListener('wheel', onWheel);
     },
     resize(dpr: number, w: number, h: number) {
@@ -2388,10 +2950,16 @@ export function createWorld(
       clamp();
     },
     setPlaced,
+    setRuins,
     /** Active le mode « Déplacer » pour l'élément sélectionné. */
     startMove(k: string) {
       const e = findByKey(k);
       if (!e) return false;
+      if (!canHandle(e)) {
+        flashBad = t;
+        opts.onNotice?.('Île non tenue : il faut 3 de tes bâtiments pour y déplacer des soldats à la main.');
+        return false;
+      }
       endOrder();
       moveEnt = e;
       e.moving = false;
@@ -2402,6 +2970,20 @@ export function createWorld(
     },
     cancelMove() {
       if (moveEnt) endMove();
+    },
+    /** Remet un bâtiment à neuf (le paiement en bois est géré côté React). Renvoie le coût facturé. */
+    repair(k: string): number {
+      const e = findByKey(k);
+      if (!e || !alive(e) || !isFriendly(e) || e.maxHp === undefined || e.hp === undefined) return 0;
+      const cost = repairCost(e.key, e.hp, e.maxHp);
+      if (!cost) return 0;
+      e.hp = e.maxHp;
+      e.hurtT = undefined;
+      noteDamage(e); // remis à neuf : la persistance oublie sa clé au lieu de la garder à valeur pleine
+      const fw = footprint(e.key)?.w ?? 1;
+      effects.push({ x: e.x, y: e.y - e.def.feet * 0.5, t0: t, kind: 'ring', s: fw }, { x: e.x, y: e.y, t0: t, kind: 'dust', s: fw });
+      select(e); // rafraîchit le panneau : le bouton « Réparer » disparaît
+      return cost;
     },
     /** Pose un objet de l'inventaire : crée un fantôme déplaçable ; il n'est ajouté à la carte qu'une fois posé. */
     placeNew(k: string, id: string) {

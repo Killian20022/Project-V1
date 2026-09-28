@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { WelcomeArrival } from '@/components/WelcomeArrival';
 import { VoiceSettings } from '@/components/VoiceSettings';
 import { uiUrl } from '@/lib/sprites';
+import { useIsDev } from '@/lib/dev';
 import type { GameState, Page } from '../types';
 const NAV = [
   { label: 'Château', page: 'home', icon: Castle }, { label: 'Quêtes', page: 'learn', icon: Swords },
@@ -19,7 +20,7 @@ export function Layout({ page, onNavigate, state, children, onAddCoins, onToggle
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, isLoaded } = useUser();
   const [welcomeReplay, setWelcomeReplay] = useState(0);
-  const isDev = user?.primaryEmailAddress?.emailAddress === 'killianlopez20@gmail.com';
+  const isDev = useIsDev(); // même test que partout ailleurs (l'adresse était recopiée en dur ici)
   function go(next: Page) { onNavigate(next); setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'instant' }); }
   return (
     <div className={`quest-shell ${page === 'island' ? 'quest-shell-world' : ''}`}>

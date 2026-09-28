@@ -246,6 +246,19 @@ export function applyFaction(id: string, fac: Faction): string {
   return id; // neutre (arbres, or, moutons, rochers…)
 }
 
+/**
+ * Relever une ruine coûte MOITIÉ moins que bâtir à neuf : les fondations et une partie des pierres
+ * sont encore là. `id` est la clé du bâtiment d'origine, quelle que soit sa couleur — on rebâtit
+ * toujours dans la sienne, donc on repasse par `applyFaction` pour trouver le tarif.
+ */
+export function rebuildCost(id: string, fac: Faction): { id: string; price: number; wood: number; food: number } | null {
+  const mine = applyFaction(id, fac);
+  const item = SHOP_MAP[mine];
+  if (!item) return null;
+  const half = (n = 0) => Math.ceil(n / 2);
+  return { id: mine, price: half(item.price), wood: half(item.wood), food: half(item.food) };
+}
+
 const BASE_LABEL: Record<string, string> = {
   caserne: 'une Caserne',
   archerie: 'une Archerie',

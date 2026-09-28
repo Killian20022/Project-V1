@@ -99,6 +99,9 @@ export interface GameState {
   resources?: { wood: number; food: number }; // réserves récoltées sur la carte (l'or reste `coins`)
   faction?: 'bleu' | 'rouge' | 'jaune' | 'violet' | 'noir'; // couleur du royaume du joueur
   starters?: boolean; // ressources de départ (filons d'or) déjà déposées une fois
+  // Ban royal : chaque quête d'anglais donne une levée, qui lève un soldat sans or ni caserne.
+  // On mémorise les levées DÉPENSÉES ; les disponibles = quêtes terminées − `banUsed`.
+  banUsed?: number;
   // Vassalité : ton dernier château est tombé. Un royaume rival prélève un tiers de chaque récolte
   // jusqu'à ce que tu brises le joug (rançon en quêtes d'anglais, ou son château rasé).
   vassal?: {
@@ -109,6 +112,9 @@ export interface GameState {
   island: string[];
   placed: PlacedItem[];
   inventory?: { k: string; id: string }[]; // achats en attente de pose (case blanche transparente)
+  // Bâtiments rasés au combat : il en reste des ruines, sur place, reconstructibles à moitié prix.
+  // `id` est la clé du bâtiment d'origine (avec sa couleur) — on rebâtit toujours dans la tienne.
+  ruins?: { k: string; id: string; x: number; y: number }[];
   decorPos?: Record<string, [number, number]>;
   decorRemoved?: string[]; // personnages d'origine renvoyés du royaume // personnages de la carte déplacés par le joueur
   // PV restants des bâtiments et unités abîmés, par clé d'entité (`decor:<index>` ou clé d'achat) :
