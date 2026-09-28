@@ -357,8 +357,44 @@
 {
 "src": "sprites/units-blue-units-pawn-pawn-interact-hammer.png",
 "n": 3
+},
+{
+"src": "sprites/units-blue-units-pawn-pawn-interact-knife.png",
+"n": 4
 }
-]
+],
+"hold": {
+"wood": {
+"idle": {
+"src": "sprites/units-blue-units-pawn-pawn-idle-wood.png",
+"n": 8
+},
+"run": {
+"src": "sprites/units-blue-units-pawn-pawn-run-wood.png",
+"n": 6
+}
+},
+"gold": {
+"idle": {
+"src": "sprites/units-blue-units-pawn-pawn-idle-gold.png",
+"n": 8
+},
+"run": {
+"src": "sprites/units-blue-units-pawn-pawn-run-gold.png",
+"n": 6
+}
+},
+"food": {
+"idle": {
+"src": "sprites/units-blue-units-pawn-pawn-idle-meat.png",
+"n": 8
+},
+"run": {
+"src": "sprites/units-blue-units-pawn-pawn-run-meat.png",
+"n": 6
+}
+}
+}
 },
 "guerrier": {
 "name": "Guerrier",
@@ -608,8 +644,44 @@
 {
 "src": "sprites/units-black-units-pawn-pawn-interact-hammer.png",
 "n": 3
+},
+{
+"src": "sprites/units-black-units-pawn-pawn-interact-knife.png",
+"n": 4
 }
-]
+],
+"hold": {
+"wood": {
+"idle": {
+"src": "sprites/units-black-units-pawn-pawn-idle-wood.png",
+"n": 8
+},
+"run": {
+"src": "sprites/units-black-units-pawn-pawn-run-wood.png",
+"n": 6
+}
+},
+"gold": {
+"idle": {
+"src": "sprites/units-black-units-pawn-pawn-idle-gold.png",
+"n": 8
+},
+"run": {
+"src": "sprites/units-black-units-pawn-pawn-run-gold.png",
+"n": 6
+}
+},
+"food": {
+"idle": {
+"src": "sprites/units-black-units-pawn-pawn-idle-meat.png",
+"n": 8
+},
+"run": {
+"src": "sprites/units-black-units-pawn-pawn-run-meat.png",
+"n": 6
+}
+}
+}
 },
 "chateau-noir": {
 "name": "Chateau noir",
@@ -783,8 +855,44 @@
 {
 "src": "sprites/units-red-units-pawn-pawn-interact-hammer.png",
 "n": 3
+},
+{
+"src": "sprites/units-red-units-pawn-pawn-interact-knife.png",
+"n": 4
 }
-]
+],
+"hold": {
+"wood": {
+"idle": {
+"src": "sprites/units-red-units-pawn-pawn-idle-wood.png",
+"n": 8
+},
+"run": {
+"src": "sprites/units-red-units-pawn-pawn-run-wood.png",
+"n": 6
+}
+},
+"gold": {
+"idle": {
+"src": "sprites/units-red-units-pawn-pawn-idle-gold.png",
+"n": 8
+},
+"run": {
+"src": "sprites/units-red-units-pawn-pawn-run-gold.png",
+"n": 6
+}
+},
+"food": {
+"idle": {
+"src": "sprites/units-red-units-pawn-pawn-idle-meat.png",
+"n": 8
+},
+"run": {
+"src": "sprites/units-red-units-pawn-pawn-run-meat.png",
+"n": 6
+}
+}
+}
 },
 "chateau-rouge": {
 "name": "Chateau rouge",
@@ -931,8 +1039,44 @@
 {
 "src": "sprites/units-purple-units-pawn-pawn-interact-hammer.png",
 "n": 3
+},
+{
+"src": "sprites/units-purple-units-pawn-pawn-interact-knife.png",
+"n": 4
 }
-]
+],
+"hold": {
+"wood": {
+"idle": {
+"src": "sprites/units-purple-units-pawn-pawn-idle-wood.png",
+"n": 8
+},
+"run": {
+"src": "sprites/units-purple-units-pawn-pawn-run-wood.png",
+"n": 6
+}
+},
+"gold": {
+"idle": {
+"src": "sprites/units-purple-units-pawn-pawn-idle-gold.png",
+"n": 8
+},
+"run": {
+"src": "sprites/units-purple-units-pawn-pawn-run-gold.png",
+"n": 6
+}
+},
+"food": {
+"idle": {
+"src": "sprites/units-purple-units-pawn-pawn-idle-meat.png",
+"n": 8
+},
+"run": {
+"src": "sprites/units-purple-units-pawn-pawn-run-meat.png",
+"n": 6
+}
+}
+}
 },
 "chateau-violet": {
 "name": "Chateau violet",
@@ -1106,8 +1250,44 @@
 {
 "src": "sprites/units-yellow-units-pawn-pawn-interact-hammer.png",
 "n": 3
+},
+{
+"src": "sprites/units-yellow-units-pawn-pawn-interact-knife.png",
+"n": 4
 }
-]
+],
+"hold": {
+"wood": {
+"idle": {
+"src": "sprites/units-yellow-units-pawn-pawn-idle-wood.png",
+"n": 8
+},
+"run": {
+"src": "sprites/units-yellow-units-pawn-pawn-run-wood.png",
+"n": 6
+}
+},
+"gold": {
+"idle": {
+"src": "sprites/units-yellow-units-pawn-pawn-idle-gold.png",
+"n": 8
+},
+"run": {
+"src": "sprites/units-yellow-units-pawn-pawn-run-gold.png",
+"n": 6
+}
+},
+"food": {
+"idle": {
+"src": "sprites/units-yellow-units-pawn-pawn-idle-meat.png",
+"n": 8
+},
+"run": {
+"src": "sprites/units-yellow-units-pawn-pawn-run-meat.png",
+"n": 6
+}
+}
+}
 },
 "chateau-jaune": {
 "name": "Chateau jaune",

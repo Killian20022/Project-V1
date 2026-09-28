@@ -7,7 +7,7 @@
 import WORLD_JSON from '../data/world.json';
 import RAMPS_JSON from '../data/ramps.json';
 import { createOcean } from './ocean';
-import { SPRITES, spriteUrl, type SpriteDef } from './sprites';
+import { SPRITES, spriteUrl, uiUrl, type SpriteDef } from './sprites';
 import { SHOP_MAP, houseVariants, storageCaps } from '../data/shop';
 
 export interface WorldData {
@@ -103,7 +103,8 @@ const HARVEST: Record<string, HarvestDef> = {
   or: { resource: 'gold', actIndex: 1, yield: 2, cycles: 3, regrowMs: 30000 },
   'or-petit': { resource: 'gold', actIndex: 1, yield: 1, cycles: 2, regrowMs: 30000 },
   'or-gros': { resource: 'gold', actIndex: 1, yield: 3, cycles: 4, regrowMs: 30000 },
-  mouton: { resource: 'food', actIndex: 0, yield: 1, cycles: 2, regrowMs: 25000 },
+  // Le mouton se dépèce au COUTEAU (act[3]) : jusqu'ici on l'abattait à la hache à bois.
+  mouton: { resource: 'food', actIndex: 3, yield: 1, cycles: 2, regrowMs: 25000 },
 };
 
 export interface Placed {
@@ -429,7 +430,14 @@ type Ent = {
   origKey?: string; // clé d'origine du nœud (pour restaurer après épuisement)
   reservedBy?: string; // clé du villageois qui exploite ce nœud
   seeded?: boolean; // nœud généré au runtime (non sélectionnable, non persisté)
-  task?: { node: Ent; phase: 'goto' | 'work'; cyclesLeft: number }; // tâche de récolte en cours
+  // Tâche de récolte. `haul` = la charge est sur le dos et l'unité la rapporte au dépôt.
+  task?: { node: Ent; phase: 'goto' | 'work' | 'haul'; cyclesLeft: number };
+  carry?: ResKind; // ce qu'il porte : change la planche dessinée, rien d'autre
+  carryQty?: number; // quantité en main, créditée à la livraison
+  // Chemin calculé pour contourner le relief, et sa péremption (on ne refait pas un A* par image).
+  path?: [number, number][];
+  pathGoal?: string;
+  pathAt?: number;
   // Combat (Phase 3)
   hp?: number;
   maxHp?: number;
@@ -522,6 +530,10 @@ export function createWorld(
   const landLow = img('land.png');
   const landChunk = (i: number, j: number) => img(`land-${i}-${j}.png`);
   const foam = img('sprites/foam.png');
+  const barBase = new Image();
+  barBase.src = uiUrl('smallbar_base.png'); // habillage des barres de vie (pack Tiny Swords)
+  const bracket = new Image();
+  bracket.src = uiUrl('cursor_04.png'); // les quatre équerres : le traqueur de pose / déplacement
   const drawOcean = createOcean(WORLD_W, WORLD_H, TS, WORLD.foam, WORLD.levels);
 
   let unlocked = opts.unlocked;
@@ -974,6 +986,112 @@ export function createWorld(
     e.task!.phase = 'goto';
     return true;
   }
+  // ---------- Dépôts : où le villageois rapporte sa charge ----------
+  // Maisons et château servent de grange. Avant, la ressource était créditée au coup de hache ;
+  // désormais elle voyage à dos d'homme, ce qui rend la chaîne visible.
+  /** Abandonne la tache en cours ET la charge : les deux vont toujours de pair. */
+  function dropTask(e: Ent) {
+    if (e.task?.node.reservedBy === keyOf(e)) e.task.node.reservedBy = undefined;
+    e.task = undefined;
+    e.carry = undefined;
+    e.carryQty = undefined;
+  }
+  const isDepot = (o: Ent) => !o.dead && isFriendly(o) && /^(maison|chateau)/.test(o.key);
+  /** Grange la plus proche, sur l'île du villageois. `null` = aucune : on créditera sur place. */
+  function nearestDepot(e: Ent): Ent | null {
+    let best: Ent | null = null;
+    let bd = Infinity;
+    for (const o of [...placed, ...decor]) {
+      if (!isDepot(o)) continue;
+      const cx = Math.floor(o.x / TS);
+      const cy = Math.floor((o.y - o.def.feet) / TS);
+      if (islandAt(cx, cy) !== e.home?.isl) continue;
+      const d = Math.hypot(o.x - e.x, o.y - e.y);
+      if (d < bd) {
+        bd = d;
+        best = o;
+      }
+    }
+    return best;
+  }
+  /**
+   * Devant la porte : une case LIBRE au pied de la grange. Viser la grange elle-même ne marche pas —
+   * ses cases sont occupées par le bâtiment, le villageois ne peut pas y entrer et attendait
+   * indéfiniment à côté, sa bûche sur le dos.
+   */
+  function depotDoor(o: Ent): { x: number; y: number } | null {
+    const fp = footprint(o.key);
+    const w = fp?.w ?? 2;
+    const bx = Math.round(o.x / TS - w / 2);
+    const by = Math.floor((o.y - decorLift(o.key) - 8) / TS);
+    const occ = getOcc();
+    let best: { x: number; y: number } | null = null;
+    let bd = Infinity;
+    // Tout le pourtour de l'emprise, la rangée du bas d'abord (c'est là qu'est la porte).
+    for (let dy = 1; dy >= -(fp?.h ?? 2); dy--)
+      for (let dx = -1; dx <= w; dx++) {
+        const cx = bx + dx;
+        const cy = by + dy;
+        if (!groundAt(cx, cy) || occ.has(`${cx},${cy}`)) continue;
+        const px = cx * TS + TS / 2;
+        const py = cy * TS + TS * 0.75;
+        const d = Math.hypot(px - o.x, py - o.y) + (dy === 1 ? 0 : 40); // on préfère le devant
+        if (d < bd) {
+          bd = d;
+          best = { x: px, y: py };
+        }
+      }
+    return best;
+  }
+
+  /**
+   * La charge est prête. S'il existe une grange, l'unité s'y rend (phase `haul`) ; sinon elle
+   * crédite sur place — sans quoi une île sans bâtiment ne rapporterait plus rien, et une partie
+   * en cours se retrouverait bloquée.
+   */
+  function haulOrCredit(e: Ent, res: ResKind, qty: number) {
+    const depot = nearestDepot(e);
+    if (!depot) {
+      if (harvestCredits(e)) credit(res, qty);
+      return false;
+    }
+    const door = depotDoor(depot);
+    if (!door) {
+      // Grange cernée : on crédite sur place plutôt que de bloquer la récolte.
+      if (harvestCredits(e)) credit(res, qty);
+      return false;
+    }
+    e.carry = res;
+    e.carryQty = qty;
+    // On passe par `order` plutôt que de fixer tx/ty à la main : c'est lui qui déclenche le routage
+    // par les rampes et le contournement d'obstacles. Sans ça, un villageois qui récolte sur un
+    // plateau et dont la grange est en contrebas venait mourir d'ennui contre la falaise.
+    e.order = door;
+    e.moving = false;
+    e.acting = -1;
+    e.wait = 0;
+    e.task!.phase = 'haul';
+    return true;
+  }
+
+  /** Arrivé à la grange : on décharge, puis on repart au nœud s'il reste de quoi faire. */
+  function deliver(e: Ent) {
+    if (e.carry && harvestCredits(e)) credit(e.carry, e.carryQty ?? 1);
+    effects.push({ x: e.x, y: e.y - 20, t0: t, kind: 'ring', s: 0.7 });
+    e.carry = undefined;
+    e.carryQty = undefined;
+    e.order = undefined; // l'ordre ne servait qu'à router la livraison
+    e.moving = false;
+    const node = e.task?.node;
+    if (node && nodeAvailable(node, e) && harvestApproach(e, node)) {
+      node.reservedBy = keyOf(e);
+      e.task!.phase = 'goto';
+    } else {
+      dropTask(e);
+      e.wait = 0.3 + Math.random() * 0.6;
+    }
+  }
+
   function startCycle(e: Ent) {
     const node = e.task!.node;
     const cfg = HARVEST[node.origKey!];
@@ -1191,41 +1309,106 @@ export function createWorld(
    * vise le prochain passage (escalier ou pente) au lieu de foncer dans la paroi. Renvoie `null` quand
    * la cible est hors d'atteinte : à l'appelant d'abandonner plutôt que de rester planté contre le mur.
    */
-  function steerPoint(e: Ent, tx: number, ty: number): { x: number; y: number } | null {
-    const cx = Math.floor(e.x / TS);
-    const cy = Math.floor(e.y / TS);
-    const goal = regionAt(Math.floor(tx / TS), Math.floor(ty / TS));
-    // Déjà engagée SUR une rampe : la case n'appartient à aucun palier, il faut viser une sortie
-    // explicite. Sans ça l'unité repartait en ligne droite et restait plantée au milieu de la pente.
-    if (isRamp(cx, cy)) {
-      let best: { x: number; y: number } | null = null;
-      let bd = Infinity;
+  /**
+   * Chemin case par case entre deux cases, en contournant falaises et rochers (A*, 8 directions).
+   * Les diagonales n'ont le droit de passer que si les deux cases orthogonales le permettent, sinon
+   * l'unité couperait le coin d'une falaise. Borné à `MAX_NODES` : sur une île de quelques centaines
+   * de cases, l'exploration s'arrête bien avant.
+   */
+  const MAX_NODES = 3000;
+  function findPath(sx: number, sy: number, gx: number, gy: number): [number, number][] | null {
+    if (sx === gx && sy === gy) return [];
+    const key = (x: number, y: number) => y * WORLD.w + x;
+    const open: { x: number; y: number; f: number }[] = [{ x: sx, y: sy, f: 0 }];
+    const came = new Map<number, number>();
+    const cost = new Map<number, number>([[key(sx, sy), 0]]);
+    let seen = 0;
+    while (open.length && seen++ < MAX_NODES) {
+      // File de priorité rudimentaire : on cherche le minimum. Les files restent courtes ici, un tas
+      // binaire n'apporterait rien de mesurable.
+      let bi = 0;
+      for (let i = 1; i < open.length; i++) if (open[i].f < open[bi].f) bi = i;
+      const cur = open.splice(bi, 1)[0];
+      if (cur.x === gx && cur.y === gy) {
+        const path: [number, number][] = [];
+        let k = key(gx, gy);
+        while (k !== key(sx, sy)) {
+          path.unshift([k % WORLD.w, Math.floor(k / WORLD.w)]);
+          const prev = came.get(k);
+          if (prev === undefined) return null;
+          k = prev;
+        }
+        return path;
+      }
+      const g0 = cost.get(key(cur.x, cur.y))!;
       for (let dy = -1; dy <= 1; dy++)
         for (let dx = -1; dx <= 1; dx++) {
           if (!dx && !dy) continue;
-          const r = regionAt(cx + dx, cy + dy);
-          if (r < 0 || (goal >= 0 && passageRoute(r, goal) === null)) continue;
-          const m = cellMid([cx + dx, cy + dy]);
-          const d = Math.hypot(m.x - tx, m.y - ty);
-          if (d < bd) {
-            bd = d;
-            best = m;
-          }
+          const nx = cur.x + dx;
+          const ny = cur.y + dy;
+          if (!canStep(cur.x, cur.y, nx, ny)) continue;
+          // Diagonale : interdite si elle rase un angle (les deux côtés doivent être franchissables).
+          if (dx && dy && (!canStep(cur.x, cur.y, nx, cur.y) || !canStep(cur.x, cur.y, cur.x, ny))) continue;
+          const g = g0 + (dx && dy ? 1.414 : 1);
+          const nk = key(nx, ny);
+          if (cost.has(nk) && cost.get(nk)! <= g) continue;
+          cost.set(nk, g);
+          came.set(nk, key(cur.x, cur.y));
+          open.push({ x: nx, y: ny, f: g + Math.hypot(gx - nx, gy - ny) });
         }
-      return best ?? { x: tx, y: ty };
     }
-    const here = regionAt(cx, cy);
-    if (here < 0 || goal < 0 || here === goal) return { x: tx, y: ty }; // même palier : ligne droite, comme avant
-    // La route ne dépend que du terrain : elle est mémorisée une fois pour toutes par `passageRoute`.
-    const route = passageRoute(here, goal);
-    if (!route) return null;
-    const next = route[0];
-    if (islandAt(next.to[0], next.to[1]) !== e.home!.isl) return null;
-    // Tant qu'on n'est pas sur la case d'entrée du passage, on marche vers elle ; ensuite on vise la
-    // sortie de l'autre côté — la ligne droite entre les deux traverse la rampe.
-    const entry = cellMid(next.from);
-    if (Math.hypot(entry.x - e.x, entry.y - e.y) > TS * 0.6) return entry;
-    return cellMid(next.to);
+    return null;
+  }
+
+  /**
+   * Point vers lequel pousser l'unité. Tant que la cible est en vue directe, on va tout droit —
+   * c'est le cas courant et ça ne coûte rien. Dès qu'un relief s'interpose, on calcule un vrai
+   * chemin et on suit ses jalons : c'est ce qui empêche de venir se coller à une falaise.
+   * `null` = cible hors d'atteinte, à l'appelant d'abandonner.
+   */
+  function steerPoint(e: Ent, tx: number, ty: number): { x: number; y: number } | null {
+    const cx = Math.floor(e.x / TS);
+    const cy = Math.floor(e.y / TS);
+    const gx = Math.floor(tx / TS);
+    const gy = Math.floor(ty / TS);
+    if (cx === gx && cy === gy) return { x: tx, y: ty };
+    if (lineOfWalk(cx, cy, gx, gy)) return { x: tx, y: ty };
+
+    // Le chemin est recalculé quand la destination change de case, ou au plus une fois par seconde :
+    // un A* par unité et par image mettrait la carte à genoux.
+    const want = `${gx},${gy}`;
+    if (e.pathGoal !== want || t >= (e.pathAt ?? 0)) {
+      e.pathGoal = want;
+      e.pathAt = t + 1;
+      e.path = findPath(cx, cy, gx, gy) ?? undefined;
+      if (!e.path) return null;
+    }
+    // On consomme les jalons déjà atteints, puis on vise le suivant.
+    while (e.path?.length && e.path[0][0] === cx && e.path[0][1] === cy) e.path.shift();
+    if (!e.path?.length) return { x: tx, y: ty };
+    return cellMid(e.path[0]);
+  }
+  /** Peut-on aller tout droit de (sx,sy) à (gx,gy) ? Tracé de Bresenham sur les cases. */
+  function lineOfWalk(sx: number, sy: number, gx: number, gy: number): boolean {
+    let x = sx;
+    let y = sy;
+    const dx = Math.abs(gx - sx);
+    const dy = Math.abs(gy - sy);
+    const stepX = sx < gx ? 1 : -1;
+    const stepY = sy < gy ? 1 : -1;
+    let err = dx - dy;
+    let guard = dx + dy + 2;
+    while ((x !== gx || y !== gy) && guard-- > 0) {
+      const e2 = 2 * err;
+      const nx = e2 > -dy ? x + stepX : x;
+      const ny = e2 < dx ? y + stepY : y;
+      if (!canStep(x, y, nx, ny)) return false;
+      if (e2 > -dy) err -= dy;
+      if (e2 < dx) err += dx;
+      x = nx;
+      y = ny;
+    }
+    return true;
   }
   function combatMove(e: Ent, tx: number, ty: number, dt: number) {
     if (!e.home) return; // sécurité : pas de déplacement sans île d'attache (évite un crash)
@@ -1372,6 +1555,7 @@ export function createWorld(
     if (Math.hypot(dx, dy) < TS * 0.6) {
       if (e.warp) return teleport(e); // arrivé au portail : on ressort à l'autre bout
       if (e.cross) return embark(e); // arrivé à la côte : on prend la mer
+      if (e.task?.phase === 'haul') return deliver(e); // arrivé à la grange : on décharge
       e.order = undefined; // arrivé : l'unité tient la position
       e.wait = 0.3;
       return;
@@ -1397,23 +1581,35 @@ export function createWorld(
       if (!alive(e.orderTarget) || e.orderTarget.home?.isl !== e.home?.isl || !hostile(e, e.orderTarget)) e.orderTarget = undefined;
       else e.target = e.orderTarget;
     }
-    if (isFighter(e) && combatStep(e, dt)) return; // le combat prime sur tout le reste
+    // Un ordre de DÉPLACEMENT du joueur casse le combat : sans ça, un soldat lancé à l'assaut
+    // ignorait qu'on le rappelait tant qu'un ennemi restait à portée d'aggro — impossible de battre
+    // en retraite. Un ordre d'ATTAQUE (clic droit sur un ennemi, `orderTarget`) continue de primer.
+    const recall = !!e.order && !e.orderTarget;
+    if (recall) {
+      e.target = undefined;
+      e.strike = undefined;
+    }
+    if (!recall && isFighter(e) && combatStep(e, dt)) return; // sinon le combat prime
     if (e.acting! >= 0) {
       if (t >= e.actEnd!) {
         e.acting = -1;
         if (e.task && e.task.phase === 'work') {
           const node = e.task.node;
           const cfg = HARVEST[node.origKey!];
-          if (harvestCredits(e)) credit(cfg.resource, cfg.yield);
           node.nodeStock = (node.nodeStock ?? 0) - 1;
           e.task.cyclesLeft--;
-          if ((node.nodeStock ?? 0) > 0) {
-            startCycle(e); // encore un coup sur le même nœud
-          } else {
+          const last = (node.nodeStock ?? 0) <= 0;
+          if (last) {
             depleteNode(node);
             node.reservedBy = undefined;
-            e.task = undefined;
-            e.wait = 0.4 + Math.random();
+          }
+          // La charge part en livraison. `haulOrCredit` renvoie false quand l'île n'a aucune grange :
+          // le crédit se fait alors sur place et le villageois enchaîne comme avant.
+          if (!haulOrCredit(e, cfg.resource, cfg.yield)) {
+            if (last) {
+              e.task = undefined;
+              e.wait = 0.4 + Math.random();
+            } else startCycle(e); // encore un coup sur le même nœud
           }
         } else {
           e.wait = 1 + Math.random() * 3;
@@ -1436,6 +1632,8 @@ export function createWorld(
         if (e.task && e.task.phase === 'goto') {
           e.task.phase = 'work';
           startCycle(e); // arrivé au nœud : on commence à travailler
+        } else if (e.task && e.task.phase === 'haul') {
+          deliver(e);
         } else if (e.order) {
           // `tx/ty` n'est PAS forcément la destination : depuis le routage par les rampes, c'est
           // souvent un point de passage. Effacer l'ordre ici faisait abandonner la troupe au pied de
@@ -1518,6 +1716,8 @@ export function createWorld(
       e.orderTarget = undefined;
       e.order = undefined;
       e.task = undefined;
+      e.carry = undefined;
+      e.carryQty = undefined;
       e.strike = undefined;
       e.acting = -1;
       e.moving = false;
@@ -1931,7 +2131,7 @@ export function createWorld(
     e.order = march ? { ...march } : undefined;
     e.orderTarget = undefined;
     e.target = undefined;
-    e.task = undefined;
+    dropTask(e);
     e.moving = false;
     e.acting = -1;
     e.wait = 0;
@@ -2000,7 +2200,7 @@ export function createWorld(
     e.order = w.march ? { ...w.march } : undefined;
     e.orderTarget = undefined;
     e.target = undefined;
-    e.task = undefined;
+    dropTask(e);
     e.moving = false;
     e.acting = -1;
     e.wait = 0;
@@ -2161,6 +2361,27 @@ export function createWorld(
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, r);
   }
+  /**
+   * Les quatre équerres du pack (`Cursor_04`) autour de l'objet qu'on pose ou qu'on déplace : on voit
+   * l'emprise exacte avant de lâcher. Chaque coin est découpé dans l'image d'origine et posé sur le
+   * coin correspondant, sans étirer le trait.
+   */
+  function drawBracket(x: number, y: number, w: number, h: number, ok: boolean) {
+    if (!bracket.complete || !bracket.naturalWidth) return;
+    const c = 34; // taille du coin découpé dans l'image source (128 px)
+    const d = Math.min(26, Math.max(14, Math.min(w, h) * 0.35)); // taille à l'écran
+    ctx.save();
+    ctx.globalAlpha = ok ? 0.95 : 0.55;
+    const corners: [number, number, number, number][] = [
+      [0, 0, x, y],
+      [128 - c, 0, x + w - d, y],
+      [0, 128 - c, x, y + h - d],
+      [128 - c, 128 - c, x + w - d, y + h - d],
+    ];
+    for (const [sx, sy, dx, dy] of corners) ctx.drawImage(bracket, sx, sy, c, c, dx, dy, d, d);
+    ctx.restore();
+  }
+
   // Rond doré pulsant sous un objet : l'objet inspecté (plein) ou un membre de la troupe (atténué).
   function drawRing(e: Ent, alpha: number) {
     const pulse = (Math.sin(t * 5) + 1) / 2;
@@ -2290,7 +2511,10 @@ export function createWorld(
     }
     const run = e.moving && def.run;
     const act = !run && e.acting !== undefined && e.acting >= 0 ? def.act?.[e.acting] : undefined;
-    const sheet = run ? def.run! : act ?? { src: def.src, n: def.n };
+    // Charge sur le dos : on remplace la planche, jamais la clé de l'unité (cf. `hold` dans
+    // sprites.ts). Le reste du moteur continue de voir un villageois ordinaire.
+    const held = e.carry ? def.hold?.[e.carry] : undefined;
+    const sheet = held ? (run ? held.run : held.idle) : run ? def.run! : act ?? { src: def.src, n: def.n };
     const im = img(sheet.src);
     if (!im.complete || !im.naturalWidth) return;
     const fps = run ? 12 : act ? 10 : def.fps || 8;
@@ -2369,23 +2593,56 @@ export function createWorld(
   }
 
 
+  // Habillage de barre du pack (`SmallBar_Base`) : 5 images de 64, dont seules 0 (embout gauche),
+  // 2 (corps répétable) et 4 (embout droit) portent du dessin, sur la bande y 22..40. Le remplissage
+  // fourni est rouge uni : on le remplace par un aplat, il faut distinguer allié et ennemi.
+  const BAR = { band: 22, tall: 19, cap: 15, fillTop: 30 - 22, fillTall: 3 };
   function drawHealth(e: Ent) {
-    // Bâtiment : barre plus large, posée juste au-dessus du toit (sinon elle se perd au milieu du sprite).
     const big = isBuilding(e);
-    const w = big ? Math.min(96, Math.max(56, e.def.fw * 0.5)) : 40;
-    const h = big ? 6 : 5;
+    const w = big ? Math.min(104, Math.max(64, e.def.fw * 0.55)) : 44;
+    const s = (big ? 14 : 11) / BAR.tall; // échelle : hauteur voulue rapportée à la bande source
     const frac = Math.max(0, Math.min(1, (e.hp ?? 0) / (e.maxHp ?? 1)));
-    const cx = e.x;
-    const top = e.y - (e.def.fh - e.def.feet) * (big ? 1 : 0.5) - (big ? 8 : 12);
-    const enemy = !isFriendly(e);
+    const x0 = e.x - w / 2;
+    const top = e.y - (e.def.fh - e.def.feet) * (big ? 1 : 0.5) - (big ? 10 : 14);
+    const cap = BAR.cap * s;
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(cx - w / 2 - 1, top - 1, w + 2, h + 2);
-    ctx.fillStyle = 'rgba(60,20,20,0.9)';
-    ctx.fillRect(cx - w / 2, top, w, h);
-    ctx.fillStyle = enemy ? 'rgba(225,70,70,0.95)' : 'rgba(95,210,95,0.95)';
-    ctx.fillRect(cx - w / 2, top, w * frac, h);
+    if (barBase.complete && barBase.naturalWidth) {
+      const mid = Math.max(0, w - 2 * cap);
+      ctx.drawImage(barBase, 49, BAR.band, BAR.cap, BAR.tall, x0, top, cap, BAR.tall * s);
+      ctx.drawImage(barBase, 128, BAR.band, 64, BAR.tall, x0 + cap, top, mid, BAR.tall * s);
+      ctx.drawImage(barBase, 256, BAR.band, BAR.cap, BAR.tall, x0 + w - cap, top, cap, BAR.tall * s);
+      ctx.fillStyle = isFriendly(e) ? 'rgba(110, 216, 96, 0.95)' : 'rgba(226, 76, 62, 0.95)';
+      ctx.fillRect(x0 + cap, top + BAR.fillTop * s, mid * frac, Math.max(2, BAR.fillTall * s));
+    } else {
+      // L'image n'est pas encore chargée : on garde l'ancienne barre pleine, jamais rien à l'écran.
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(x0 - 1, top - 1, w + 2, 7);
+      ctx.fillStyle = isFriendly(e) ? 'rgba(95,210,95,0.95)' : 'rgba(225,70,70,0.95)';
+      ctx.fillRect(x0, top, w * frac, 5);
+    }
     ctx.restore();
+  }
+
+  /** Bâtiment amoché : des flammes dansent sur le toit, d'autant plus nombreuses qu'il est bas. */
+  function drawBurning(e: Ent) {
+    const frac = (e.hp ?? 1) / (e.maxHp ?? 1);
+    if (frac >= 0.6) return;
+    const n = frac < 0.25 ? 3 : frac < 0.45 ? 2 : 1;
+    // Le feu prend sur le TOIT, pas devant la porte : on vise le haut du sprite.
+    const roof = e.y + e.def.feet - e.def.fh * 0.78;
+    const span = e.def.fw * 0.42;
+    for (let i = 0; i < n; i++) {
+      const def = SPRITES[`feu-${1 + (i % 3)}`];
+      if (!def) continue;
+      const im = img(def.src);
+      if (!im.complete || !im.naturalWidth) continue;
+      // Positions fixes par bâtiment (dérivées de sa position) : les flammes ne sautillent pas.
+      const off = n === 1 ? 0 : (i / (n - 1) - 0.5) * 2;
+      const fx = e.x + off * span * 0.5 + (((Math.floor(e.x / 13) + i * 7) % 9) - 4);
+      const fy = roof + (((i * 53) % 16) - 8);
+      const f = Math.floor(t * (def.fps || 12) + i * 3) % def.n;
+      ctx.drawImage(im, f * def.fw, 0, def.fw, def.fh, fx - def.fw / 2, fy - def.fh / 2, def.fw, def.fh);
+    }
   }
 
   function hitBox(e: Ent) {
@@ -2486,6 +2743,12 @@ export function createWorld(
       const px = placing === moveEnt ? ghost!.x : placing.x;
       const py = placing === moveEnt ? ghost!.y : placing.y;
       drawPlacement(placing, px, py);
+      // Traqueur : les équerres cadrent l'emprise réelle, vertes si la case convient.
+      const fp = footprint(placing.key);
+      const bw = (fp?.w ?? 1) * TS;
+      const bh = (fp?.h ?? 1) * TS;
+      const fit = checkFit(placing.key, px, py, unlocked, getOcc(), keyOf(placing)).ok;
+      drawBracket(px - bw / 2, py - bh + TS * 0.25, bw, bh, fit);
     }
     // sprites triés par profondeur (les ruines se mêlent au tri : un soldat passe devant l'une,
     // derrière l'autre, selon sa position)
@@ -2502,6 +2765,8 @@ export function createWorld(
       if (e === moveEnt) drawSprite(e, 0.35);
       else if (e !== lifted) drawSprite(e);
     }
+    // bâtiments qui brûlent : sous les barres, au-dessus des sprites
+    for (const e of all) if (isBuilding(e) && e.maxHp !== undefined && e.hp !== undefined) drawBurning(e);
     // barres de vie : au-dessus des unités blessées ou sélectionnées
     for (const e of all) {
       if (e.maxHp === undefined || e.hp === undefined) continue;
@@ -2772,6 +3037,15 @@ export function createWorld(
     if (!e.agent || e.maxHp === undefined) return true;
     return controlled(islandOf(e));
   }
+
+  // Curseurs du pack : flèche, main (on peut agir ici), sens interdit (on ne peut pas). Le point
+  // chaud est en haut à gauche pour la flèche, au centre du doigt pour la main. `auto` en secours si
+  // le navigateur refuse l'image.
+  const CUR = {
+    arrow: `url(${uiUrl('cursor_01.png')}) 6 4, auto`,
+    hand: `url(${uiUrl('cursor_02.png')}) 20 8, pointer`,
+    no: `url(${uiUrl('cursor_03.png')}) 24 24, not-allowed`,
+  };
 
   // ---------- Entrées (souris, tactile, molette) ----------
   const pointers = new Map<number, { x: number; y: number }>();
@@ -3062,7 +3336,7 @@ export function createWorld(
           boarded++;
         }
         e.orderTarget = undefined;
-        e.task = undefined;
+        dropTask(e);
         e.moving = false;
         e.acting = -1;
         e.wait = 0;
@@ -3083,7 +3357,7 @@ export function createWorld(
       if (e.home?.isl !== isl) continue;
       e.order = { x: dest.x, y: dest.y };
       e.orderTarget = foe ?? undefined;
-      e.task = undefined;
+      dropTask(e);
       e.moving = false;
       e.acting = -1;
       e.wait = 0;
@@ -3105,10 +3379,16 @@ export function createWorld(
       edge = inside && (ex || ey) ? { x: Math.max(-1, Math.min(1, ex)), y: Math.max(-1, Math.min(1, ey)) } : null;
       if (moveEnt) {
         ghost = snapGhost(p.x, p.y);
-        canvas.style.cursor = 'crosshair';
+        // Pose en cours : main si l'endroit convient, sens interdit sinon — on sait avant de lâcher.
+        canvas.style.cursor = ghost && checkFit(moveEnt.key, ghost.x, ghost.y, unlocked, getOcc(), keyOf(moveEnt)).ok ? CUR.hand : CUR.no;
       } else if (orderMode) {
-        canvas.style.cursor = 'crosshair';
-      } else canvas.style.cursor = pick(p.x, p.y) ? 'grab' : 'default';
+        canvas.style.cursor = CUR.hand;
+      } else {
+        const over = pick(p.x, p.y);
+        const w = s2w(p.x, p.y);
+        const isl = islandAt(Math.floor(w.x / TS), Math.floor(w.y / TS));
+        canvas.style.cursor = over ? CUR.hand : isl >= 0 && !unlocked.has(isl) ? CUR.no : CUR.arrow;
+      }
       return;
     }
     edge = null; // un bouton est enfoncé : le glissement prime sur le défilement par les bords
@@ -3129,7 +3409,7 @@ export function createWorld(
       const sn = snapTo(drag.ent.key, w.x + drag.gx, w.y + drag.gy); // conserve le point de saisie
       drag.ent.x = sn.x;
       drag.ent.y = sn.y;
-      canvas.style.cursor = 'grabbing';
+      canvas.style.cursor = CUR.hand;
     } else if (drag.mode === 'band' && drag.moved) {
       const a = s2w(drag.sx, drag.sy);
       const b = s2w(p.x, p.y);
@@ -3179,7 +3459,7 @@ export function createWorld(
       select(null);
       clearTroop();
     }
-    canvas.style.cursor = 'default';
+    canvas.style.cursor = CUR.arrow;
   }
   function onWheel(ev: WheelEvent) {
     ev.preventDefault();
@@ -3209,7 +3489,7 @@ export function createWorld(
   const onContext = (ev: Event) => ev.preventDefault();
   const onLeave = () => {
     edge = null;
-    canvas.style.cursor = 'default';
+    canvas.style.cursor = CUR.arrow;
   };
   canvas.addEventListener('pointerdown', onDown);
   canvas.addEventListener('pointermove', onMove);

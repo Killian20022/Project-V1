@@ -43,6 +43,16 @@ export function questsDone(state: GameState) {
 
 const BIG_ISLANDS = WORLD.islands.filter((i) => i.size > 12).length;
 
+/**
+ * Icône de ressource, tirée du pack (bûche, pépite, steak). Remplace les emojis 🪵🍖🪙 : toutes les
+ * polices ne les ont pas et ils s'affichaient alors en carré « tofu ».
+ */
+function Res({ kind, className = '' }: { kind: 'gold' | 'wood' | 'food'; className?: string }) {
+  const file = { gold: 'res_gold.png', wood: 'res_wood.png', food: 'res_food.png' }[kind];
+  const label = { gold: 'or', wood: 'bois', food: 'nourriture' }[kind];
+  return <img src={uiUrl(file)} alt={label} title={label} className={`pixel inline-block h-5 w-5 align-[-4px] ${className}`} />;
+}
+
 // Ton royaume est menacé ('war'), tu marques un point ('win'), ou le monde bouge sans toi ('news').
 type AlertTone = 'war' | 'win' | 'news';
 
@@ -653,12 +663,12 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
                     <Hammer />
                     <span className="flex items-center gap-2">
                       Relever
-                      <span className={state.coins >= ruinCost.price ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}>🪙 {ruinCost.price}</span>
+                      <span className={state.coins >= ruinCost.price ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}><Res kind="gold" /> {ruinCost.price}</span>
                       {ruinCost.wood > 0 && (
-                        <span className={(state.resources?.wood ?? 0) >= ruinCost.wood ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}>🪵 {ruinCost.wood}</span>
+                        <span className={(state.resources?.wood ?? 0) >= ruinCost.wood ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}><Res kind="wood" /> {ruinCost.wood}</span>
                       )}
                       {ruinCost.food > 0 && (
-                        <span className={(state.resources?.food ?? 0) >= ruinCost.food ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}>🍖 {ruinCost.food}</span>
+                        <span className={(state.resources?.food ?? 0) >= ruinCost.food ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}><Res kind="food" /> {ruinCost.food}</span>
                       )}
                       <small className="opacity-70">moitié prix</small>
                     </span>
@@ -668,7 +678,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
                   <Button size="sm" variant="secondary" className="w-full" disabled={!canFix} onClick={repair}>
                     <Hammer />
                     <span>
-                      Réparer <span className={canFix ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}>🪵 {fixCost}</span>
+                      Réparer <span className={canFix ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}><Res kind="wood" /> {fixCost}</span>
                     </span>
                   </Button>
                 )}
@@ -801,15 +811,15 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
               <span className="text-[11px] opacity-70">/ {caps.gold}</span>
             </span>
             <span className={`flex items-center gap-1 ${wood >= caps.wood ? 'text-[#ff9a8a]' : ''}`} title="Bois / capacité">
-              🪵 {wood}
+              <Res kind="wood" /> {wood}
               <span className="text-[11px] opacity-70">/ {caps.wood}</span>
             </span>
             <span className={`flex items-center gap-1 ${food >= caps.food ? 'text-[#ff9a8a]' : ''}`} title="Nourriture / capacité">
-              🍖 {food}
+              <Res kind="food" /> {food}
               <span className="text-[11px] opacity-70">/ {caps.food}</span>
             </span>
             <span className={`flex items-center gap-1 ${popUsed >= popMax ? 'text-[#ff9a8a]' : ''}`}>
-              👥 {popUsed}/{popMax}
+              <img src={uiUrl('icon_01.png')} alt="population" className="pixel inline-block h-5 w-5 align-[-4px]" /> {popUsed}/{popMax}
             </span>
           </div>
           {navigate && (
@@ -910,9 +920,9 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
                 {/* Coûts : or + bois + nourriture (rouge si insuffisant) */}
                 <div className="flex flex-wrap items-center justify-center gap-x-2 text-[11px] font-semibold">
                   <span className={state.coins >= item.price ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}>💰 {item.price}</span>
-                  {!!item.wood && <span className={wood >= item.wood ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}>🪵 {item.wood}</span>}
-                  {!!item.food && <span className={food >= item.food ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}>🍖 {item.food}</span>}
-                  {!!item.pop && <span className="text-muted-foreground">👥 {item.pop}</span>}
+                  {!!item.wood && (<span className={wood >= item.wood ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}><Res kind="wood" /> {item.wood}</span>)}
+                  {!!item.food && (<span className={food >= item.food ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}><Res kind="food" /> {item.food}</span>)}
+                  {!!item.pop && (<span className="text-muted-foreground"><img src={uiUrl('icon_01.png')} alt="population" className="pixel inline-block h-4 w-4 align-[-3px]" /> {item.pop}</span>)}
                 </div>
                 <div className="text-[11px] text-muted-foreground">
                   {count}/{item.max} possédé{item.max > 1 ? 's' : ''}

@@ -12,6 +12,10 @@ export interface SpriteDef {
   feet: number;
   run?: { src: string; n: number };
   act?: { src: string; n: number }[]; // actions : attaque, tir, soin, hache, pioche…
+  // Planches « charge à la main » : le villageois qui rapporte sa bûche, son minerai ou sa viande.
+  // On change de PLANCHE, jamais de clé : une clé `villageois-bois` perdrait sa couleur aux yeux de
+  // `factionOf`, et un villageois rouge repasserait pour un bleu — donc pour un ennemi des siens.
+  hold?: Partial<Record<'wood' | 'gold' | 'food', { idle: { src: string; n: number }; run: { src: string; n: number } }>>;
 }
 
 export const SPRITES = SPRITES_JSON as unknown as Record<string, SpriteDef>;
