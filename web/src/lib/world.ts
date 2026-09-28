@@ -550,6 +550,23 @@ export function createWorld(
   barBase.src = uiUrl('smallbar_base.png'); // habillage des barres de vie (pack Tiny Swords)
   const bracket = new Image();
   bracket.src = uiUrl('cursor_04.png'); // les quatre équerres : le traqueur de pose / déplacement
+  const paperBanner = new Image();
+  paperBanner.src = uiUrl('banner.png'); // bannière de papier (Tiny Swords) : fond des noms d'îles
+  // Découpe en 9 morceaux (px source 248×243) : les coins gardent leur forme — dont les deux
+  // rouleaux du bas — et seuls les morceaux du milieu s'étirent, pour s'adapter à chaque nom.
+  const BN = { w: 248, h: 243, l: 85, r: 83, t: 30, b: 73 };
+  function drawPaperBanner(x: number, y: number, w: number, h: number, s: number) {
+    const im = paperBanner;
+    const L = BN.l * s, R = BN.r * s, T = BN.t * s, B = BN.b * s;
+    const sx = [0, BN.l, BN.w - BN.r, BN.w], sy = [0, BN.t, BN.h - BN.b, BN.h];
+    const dx = [x, x + L, x + w - R, x + w], dy = [y, y + T, y + h - B, y + h];
+    for (let r = 0; r < 3; r++)
+      for (let c = 0; c < 3; c++) {
+        const sw = sx[c + 1] - sx[c], sh = sy[r + 1] - sy[r];
+        const dw = dx[c + 1] - dx[c], dh = dy[r + 1] - dy[r];
+        if (dw > 0 && dh > 0) ctx.drawImage(im, sx[c], sy[r], sw, sh, dx[c], dy[r], dw + 0.5, dh + 0.5);
+      }
+  }
   const drawOcean = createOcean(WORLD_W, WORLD_H, TS, WORLD.foam, WORLD.levels);
 
   let unlocked = opts.unlocked;
@@ -3001,32 +3018,38 @@ export function createWorld(
       const sy = (isl.cy - cam.y) * cam.z + H / 2;
       if (sx < -150 || sx > W + 150 || sy < -60 || sy > H + 60) return;
       if (!locked && cam.z >= 0.5) return; // de près, on laisse voir l'île
-      // Toponyme à la manière d'une carte ancienne : pas de pastille opaque qui masque le terrain,
-      // juste des capitales espacées posées sur un halo sombre. Le cartouche d'avant faisait tache.
+      // Nom de l'île écrit sur une bannière de papier (pack Tiny Swords), à taille écran constante.
       const name = isl.name.toLocaleUpperCase('fr');
+      const left = isl.unlock - missionsDone;
+      // Pas d'emoji cadenas : toutes les polices ne l'ont pas et il tombe en carré « tofu ».
+      const sub = locked ? `${left} quête${left > 1 ? 's' : ''}` : '';
       ctx.save();
       ctx.letterSpacing = '2px'; // ignoré par les navigateurs qui ne le gèrent pas : sans conséquence
       ctx.font = '600 13px "MedievalSharp", Georgia, serif';
-      // Halo : le texte est tracé en épais et sombre sous lui-même, plus lisible qu'une ombre portée
-      // sur un fond clair comme le sable.
-      ctx.lineJoin = 'round';
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = 'rgba(12, 18, 14, 0.7)';
-      ctx.strokeText(name, sx, sy);
-      ctx.fillStyle = locked ? 'rgba(214, 221, 231, 0.75)' : 'rgba(255, 235, 186, 0.92)';
-      ctx.fillText(name, sx, sy);
-      if (locked) {
-        // Le coût en quêtes passe sur une deuxième ligne, plus petit : l'essentiel reste le nom.
-        const left = isl.unlock - missionsDone;
-        // Pas d'emoji cadenas : toutes les polices ne l'ont pas et il tombe en carré « tofu ».
-        // La teinte plus pâle suffit à dire que l'île est fermée.
-        const sub = `${left} quête${left > 1 ? 's' : ''}`;
+      const tw = ctx.measureText(name).width;
+      const s = 0.26; // échelle de la bannière (243 px source → ~63 px au plus haut)
+      const padX = 18;
+      const bw = Math.max(tw + padX * 2, (BN.l + BN.r) * s + 10);
+      // Zone de papier utile : du haut de la bannière jusqu'au bord avant les rouleaux (~y 200 source).
+      const textH = sub ? 30 : 18;
+      const bh = BN.t * s + textH + BN.b * s - 10;
+      const bx = sx - bw / 2;
+      // Centre la partie papier (sans les rouleaux, ~30 px source sous le milieu) sur le point de l'île.
+      const paperTop = sy - (BN.t * s + (textH - 10) + 30 * s) / 2;
+      if (paperBanner.complete && paperBanner.naturalWidth) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.globalAlpha = locked ? 0.8 : 1;
+        drawPaperBanner(bx, paperTop, bw, bh, s);
+        ctx.globalAlpha = 1;
+      }
+      const ty = sub ? sy - 7 : sy;
+      ctx.fillStyle = locked ? 'rgba(74, 58, 42, 0.8)' : '#3b2716';
+      ctx.fillText(name, sx, ty);
+      if (sub) {
         ctx.letterSpacing = '1px';
         ctx.font = '600 10px Georgia, serif';
-        ctx.lineWidth = 3;
-        ctx.strokeText(sub, sx, sy + 15);
-        ctx.fillStyle = 'rgba(214, 221, 231, 0.6)';
-        ctx.fillText(sub, sx, sy + 15);
+        ctx.fillStyle = 'rgba(74, 58, 42, 0.75)';
+        ctx.fillText(sub, sx, sy + 8);
       }
       ctx.restore();
     });
