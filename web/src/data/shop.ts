@@ -55,12 +55,25 @@ const LABEL: Record<Faction, { m: string; f: string }> = {
 };
 
 // Recruter coûte de l'or + des ressources récoltées ; les soldats exigent le bâtiment adéquat.
-const UNITS: { key: string; name: string; price: number; wood?: number; food?: number; needs?: string; blurb: string }[] = [
+const UNITS: { key: string; name: string; price: number; wood?: number; food?: number; needs?: string; max?: number; blurb: string }[] = [
   { key: 'villageois', name: 'Villageois', price: 50, blurb: 'Récolte le bois, l’or et la nourriture' },
   { key: 'moine', name: 'Moine', price: 120, food: 20, needs: 'monastere', blurb: 'Soigne les blessés' },
   { key: 'archer', name: 'Archer', price: 90, wood: 40, food: 20, needs: 'archerie', blurb: 'Vise juste de loin' },
   { key: 'guerrier', name: 'Guerrier', price: 80, wood: 20, food: 30, needs: 'caserne', blurb: 'Épée et bouclier' },
   { key: 'lancier', name: 'Lancier', price: 110, wood: 30, food: 30, needs: 'caserne', blurb: 'Garde d’élite' },
+  // Le Démon : la pièce maîtresse, hors de prix. Il encaisse comme un château (900 PV) et fauche une
+  // escouade (75 de dégâts). Exige un monastère — on ne convoque pas ça dans une grange — et le
+  // marché n'en laisse lever que deux.
+  {
+    key: 'demon',
+    name: 'Démon',
+    price: 1500,
+    wood: 250,
+    food: 400,
+    needs: 'monastere',
+    max: 2,
+    blurb: 'Colosse infernal · encaisse tout, fauche tout',
+  },
 ];
 
 // Les 3 styles de maison : une seule carte dans le marché, on change de style à la molette.
@@ -99,7 +112,7 @@ function buildingKey(b: string, f: Faction): string {
 const soldiers: ShopItem[] = FACTIONS.flatMap(({ id: f }) =>
   UNITS.map((u) => ({
     id: u.key + SUFFIX[f].m,
-    name: `${u.name} ${LABEL[f].m}`,
+    name: u.key === 'demon' ? u.name : `${u.name} ${LABEL[f].m}`,
     price: u.price + (f === 'noir' ? 30 : 0),
     wood: u.wood,
     food: u.food,
@@ -107,7 +120,7 @@ const soldiers: ShopItem[] = FACTIONS.flatMap(({ id: f }) =>
     needs: u.needs,
     category: 'soldats' as const,
     faction: f,
-    max: 25,
+    max: u.max ?? 25,
     walks: true,
     blurb: u.blurb,
   })),
@@ -143,6 +156,21 @@ const buildings: ShopItem[] = FACTIONS.flatMap(({ id: f }) => {
   return [...houses, ...others];
 });
 
+// Le Portail n'appartient à aucun royaume : une seule et même ruine, quelle que soit ta couleur.
+// Il ne se bat pas, ne se prend pas ; il relie tes îles. Deux suffisent à ouvrir une route, d'où un
+// prix élevé mais un maximum généreux.
+const portals: ShopItem[] = [
+  {
+    id: 'portail',
+    name: 'Portail',
+    price: 900,
+    wood: 300,
+    category: 'batiments',
+    max: 6,
+    blurb: 'Relie deux de tes îles · tes troupes le traversent au lieu de nager',
+  },
+];
+
 const nature: ShopItem[] = [
   { id: 'sapin-1', name: 'Sapin', price: 40, category: 'nature', max: 30 },
   { id: 'sapin-2', name: 'Grand sapin', price: 50, category: 'nature', max: 30 },
@@ -172,7 +200,7 @@ const animals: ShopItem[] = [
   { id: 'mouton-qui-broute', name: 'Mouton gourmand', price: 55, category: 'animaux', max: 30, blurb: 'Il broute sans s’arrêter' },
 ];
 
-export const SHOP: ShopItem[] = [...soldiers, ...buildings, ...nature, ...resources, ...animals];
+export const SHOP: ShopItem[] = [...soldiers, ...buildings, ...portals, ...nature, ...resources, ...animals];
 export const SHOP_MAP: Record<string, ShopItem> = Object.fromEntries(SHOP.map((item) => [item.id, item]));
 
 // ---------- Population & bâtiments (phase 2) ----------
@@ -237,7 +265,7 @@ export function ownsBuilding(placed: { id: string }[], base: string): boolean {
 export function applyFaction(id: string, fac: Faction): string {
   const fem = { bleu: 'bleue', rouge: 'rouge', jaune: 'jaune', violet: 'violette', noir: 'noire' }[fac];
   let m: RegExpExecArray | null;
-  if ((m = /^(villageois|guerrier|lancier|archer|moine)(?:-(?:rouge|jaune|violet|noir))?$/.exec(id)))
+  if ((m = /^(villageois|guerrier|lancier|archer|moine|demon)(?:-(?:rouge|jaune|violet|noir))?$/.exec(id)))
     return m[1] + (fac === 'bleu' ? '' : `-${fac}`);
   if ((m = /^maison-(?:bleue|rouge|jaune|violette|noire)-(\d)$/.exec(id))) return `maison-${fem}-${m[1]}`;
   if ((m = /^(tour|caserne|archerie)(?:-(?:rouge|jaune|violette|noire))?$/.exec(id)))

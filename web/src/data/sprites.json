@@ -1225,5 +1225,109 @@
 "n": 16,
 "fps": 10,
 "feet": 0
+},
+"demon": {
+"name": "Demon",
+"src": "sprites/demon-idle.png",
+"fw": 288,
+"fh": 160,
+"n": 6,
+"fps": 8,
+"feet": 1,
+"run": {
+"src": "sprites/demon-run.png",
+"n": 12
+},
+"act": [
+{
+"src": "sprites/demon-cleave.png",
+"n": 15
+}
+]
+},
+"demon-rouge": {
+"name": "Demon",
+"src": "sprites/demon-idle.png",
+"fw": 288,
+"fh": 160,
+"n": 6,
+"fps": 8,
+"feet": 1,
+"run": {
+"src": "sprites/demon-run.png",
+"n": 12
+},
+"act": [
+{
+"src": "sprites/demon-cleave.png",
+"n": 15
+}
+]
+},
+"demon-jaune": {
+"name": "Demon",
+"src": "sprites/demon-idle.png",
+"fw": 288,
+"fh": 160,
+"n": 6,
+"fps": 8,
+"feet": 1,
+"run": {
+"src": "sprites/demon-run.png",
+"n": 12
+},
+"act": [
+{
+"src": "sprites/demon-cleave.png",
+"n": 15
+}
+]
+},
+"demon-violet": {
+"name": "Demon",
+"src": "sprites/demon-idle.png",
+"fw": 288,
+"fh": 160,
+"n": 6,
+"fps": 8,
+"feet": 1,
+"run": {
+"src": "sprites/demon-run.png",
+"n": 12
+},
+"act": [
+{
+"src": "sprites/demon-cleave.png",
+"n": 15
+}
+]
+},
+"demon-noir": {
+"name": "Demon",
+"src": "sprites/demon-idle.png",
+"fw": 288,
+"fh": 160,
+"n": 6,
+"fps": 8,
+"feet": 1,
+"run": {
+"src": "sprites/demon-run.png",
+"n": 12
+},
+"act": [
+{
+"src": "sprites/demon-cleave.png",
+"n": 15
+}
+]
+},
+"portail": {
+"name": "Portail",
+"src": "sprites/portail.png",
+"fw": 112,
+"fh": 128,
+"n": 6,
+"fps": 8,
+"feet": 1
 }
 }

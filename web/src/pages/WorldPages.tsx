@@ -779,7 +779,9 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
 
   // Le joueur ne recrute/bâtit que dans sa couleur (les autres couleurs sont des rivaux).
   const hasFactions = cat === 'soldats' || cat === 'batiments';
-  const items = SHOP.filter((i) => i.category === cat && !i.hidden && (!hasFactions || i.faction === faction));
+  // `!i.faction` : le Portail n'appartient à aucun royaume — sans cette exception il disparaissait
+  // de la grille, filtré comme un bâtiment d'une autre couleur.
+  const items = SHOP.filter((i) => i.category === cat && !i.hidden && (!hasFactions || !i.faction || i.faction === faction));
   const info = CATEGORIES.find((c) => c.id === cat)!;
 
   return (
@@ -890,6 +892,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
           const count = ownedOf(item);
           const maxed = count >= item.max;
           const person = item.category === 'soldats' || item.category === 'animaux';
+          const isDemon = /^demon/.test(item.id);
           const needBld = item.needs && !ownsBuilding(placedItems, item.needs);
           const popFull = (item.pop ?? 0) > 0 && popUsed + (item.pop ?? 0) > popMax;
           const afford = state.coins >= item.price && wood >= (item.wood ?? 0) && food >= (item.food ?? 0);
@@ -900,7 +903,13 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
             <Card key={item.id}>
               <CardContent className="flex flex-col items-center gap-1.5 p-2 text-center">
                 <div className="grid h-28 w-full place-items-end justify-center overflow-hidden">
-                  <Sprite k={item.id} height={item.category === 'batiments' ? 108 : person ? 100 : 84} crop={person ? (item.id.startsWith('lancier') ? 0.3 : 0.26) : 0} />
+                  {/* Le Démon vient d'un autre pack : sa planche fait 288×160 (large et basse) là où
+                      Tiny Swords est en 192×192. Le rognage des soldats le décapitait. */}
+                  <Sprite
+                    k={item.id}
+                    height={item.category === 'batiments' ? 108 : isDemon ? 96 : person ? 100 : 84}
+                    crop={isDemon ? 0.05 : person ? (item.id.startsWith('lancier') ? 0.3 : 0.26) : 0}
+                  />
                 </div>
                 <div className="font-display leading-tight">{item.name}</div>
                 {item.blurb && <div className="text-[11px] text-[hsl(var(--accent))]">{item.blurb}</div>}

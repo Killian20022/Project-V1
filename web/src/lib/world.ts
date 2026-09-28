@@ -46,6 +46,9 @@ const COMBAT: Record<string, CombatDef> = {
   moine: { hp: 90, dmg: 18, range: 3.0, atk: 1.6, heal: true },
   villageois: { hp: 60, dmg: 0, range: 0, atk: 1 },
   tour: { hp: 500, dmg: 13, range: 5.5, atk: 0.9, ranged: true },
+  // Le Démon : hors de prix au marché, mais il encaisse comme un château et fauche une escouade.
+  // 900 PV = 7 guerriers ; 75 de dégâts = un guerrier tué en deux coups, un archer d'un seul.
+  demon: { hp: 900, dmg: 75, range: 1.8, atk: 1.3 },
 };
 const AGGRO_TILES = 7; // distance à laquelle une unité repère un ennemi
 const SIEGE_TILES = 10; // distance à laquelle elle se rabat sur un bâtiment ennemi (faute d'unité à combattre)
@@ -55,7 +58,7 @@ const IMPACT_FRAC = 0.45;
 // `(?![a-z])` : sinon « archerie » (le bâtiment) serait lu comme « archer » (l'unité) et hériterait
 // de ses 70 PV. La clé doit s'arrêter là ou continuer par un tiret de couleur (« archer-rouge »).
 const combatBase = (key: string): string | null =>
-  /^(guerrier|lancier|archer|moine|villageois|tour)(?![a-z])/.exec(key)?.[1] ?? null;
+  /^(guerrier|lancier|archer|moine|villageois|tour|demon)(?![a-z])/.exec(key)?.[1] ?? null;
 
 // ---------- Siège (Phase 4) ----------
 // Les bâtiments ont des PV et peuvent être rasés : c'est ce qui permet de conquérir une île.
@@ -452,6 +455,8 @@ type Ent = {
   ruin?: { k: string; id: string };
   // Expédition vers une autre île : l'unité gagne d'abord la côte, puis se met à l'eau.
   cross?: { isl: number; march?: { x: number; y: number } };
+  // Route par les portails : l'unité marche jusqu'au portail de son île, puis ressort à l'autre bout.
+  warp?: { x: number; y: number; isl: number; march?: { x: number; y: number } };
   // En pleine traversée : on interpole la position d'une rive à l'autre pour qu'on la VOIE passer.
   // Elle reste hors de portée (ni cible, ni combat, ni case occupée) le temps de la nage.
   sailing?: { x0: number; y0: number; x1: number; y1: number; t0: number; dur: number; isl: number; march?: { x: number; y: number } };
@@ -794,8 +799,8 @@ export function createWorld(
     }
   }
   const isWorker = (e: Ent) => /^villageois/.test(e.key);
-  const isSoldier = (e: Ent) => /^(guerrier|lancier|archer|moine)/.test(e.key);
-  const isMelee = (e: Ent) => /^(guerrier|lancier)/.test(e.key);
+  const isSoldier = (e: Ent) => /^(guerrier|lancier|archer|moine|demon)/.test(e.key);
+  const isMelee = (e: Ent) => /^(guerrier|lancier|demon)/.test(e.key);
   const factionOf = (key: string) => {
     // La couleur peut être au masculin (`chateau-violet`), au féminin (`archerie-violette`) et suivie
     // d'un numéro de variante (`maison-violette-1`). Deux pièges déjà tombés dedans :
@@ -1368,6 +1373,7 @@ export function createWorld(
     const dx = e.order.x - e.x;
     const dy = e.order.y - e.y;
     if (Math.hypot(dx, dy) < TS * 0.6) {
+      if (e.warp) return teleport(e); // arrivé au portail : on ressort à l'autre bout
       if (e.cross) return embark(e); // arrivé à la côte : on prend la mer
       e.order = undefined; // arrivé : l'unité tient la position
       e.wait = 0.3;
@@ -1438,9 +1444,10 @@ export function createWorld(
           // souvent un point de passage. Effacer l'ordre ici faisait abandonner la troupe au pied de
           // la rampe. On ne le lève que si on est vraiment arrivé ; sinon on enchaîne sans attendre.
           if (Math.hypot(e.order.x - e.x, e.order.y - e.y) < TS * 0.6) {
-            // Arrivé au quai : on embarque au lieu de « tenir la position ». Sans ce test, la troupe
-            // atteignait la côte puis repartait se promener, l'expédition oubliée.
-            if (e.cross) embark(e);
+            // Arrivé au quai (ou au portail) : on part, au lieu de « tenir la position ». Sans ce
+            // test, la troupe atteignait la côte puis repartait se promener, l'expédition oubliée.
+            if (e.warp) teleport(e);
+            else if (e.cross) embark(e);
             else {
               e.order = undefined;
               e.wait = 0.3;
@@ -1944,6 +1951,72 @@ export function createWorld(
     effects.push({ x: e.x, y: e.y, t0: t, kind: 'dust', s: 1.2 }, { x: e.x, y: e.y, t0: t, kind: 'ring' });
     return true;
   }
+  // ---------- Portails ----------
+  // Un portail est un bâtiment neutre qu'on achète et qu'on pose. Deux portails sur deux îles
+  // différentes ouvrent une route : les troupes marchent jusqu'au plus proche et ressortent à
+  // l'autre bout, au lieu de faire le tour par la mer.
+  const isPortal = (e: Ent) => e.key === 'portail';
+  const portals = () => placed.filter((e) => isPortal(e) && !e.dead);
+  /** Portail de l'île `isl` le plus proche de (x, y), s'il y en a un. */
+  function portalOn(isl: number, x: number, y: number): Ent | null {
+    let best: Ent | null = null;
+    let bd = Infinity;
+    for (const p of portals()) {
+      if (islandAt(Math.floor(p.x / TS), Math.floor(p.y / TS)) !== isl) continue;
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d < bd) {
+        bd = d;
+        best = p;
+      }
+    }
+    return best;
+  }
+  /** Case libre au pied d'un portail : c'est là qu'on entre et qu'on ressort. */
+  function portalStep(p: Ent): [number, number] | null {
+    const px = Math.floor(p.x / TS);
+    const py = Math.floor(p.y / TS);
+    const occ = getOcc();
+    for (const [dx, dy] of [
+      [0, 1],
+      [-1, 1],
+      [1, 1],
+      [-1, 0],
+      [1, 0],
+      [0, 2],
+    ] as const) {
+      const cx = px + dx;
+      const cy = py + dy;
+      if (!groundAt(cx, cy) || occ.has(`${cx},${cy}`)) continue;
+      return [cx, cy];
+    }
+    return null;
+  }
+  /** L'unité est au pied du portail : elle disparaît dans le vortex et ressort à l'autre. */
+  function teleport(e: Ent) {
+    const w = e.warp!;
+    e.warp = undefined;
+    effects.push({ x: e.x, y: e.y - 20, t0: t, kind: 'ring', s: 1.6 }, { x: e.x, y: e.y, t0: t, kind: 'dust', s: 1.4 });
+    e.x = w.x;
+    e.y = w.y;
+    e.home = { isl: w.isl, lvl: levelAt(Math.floor(w.x / TS), Math.floor(w.y / TS)) };
+    e.origin = { x: e.x, y: e.y };
+    e.order = w.march ? { ...w.march } : undefined;
+    e.orderTarget = undefined;
+    e.target = undefined;
+    e.task = undefined;
+    e.moving = false;
+    e.acting = -1;
+    e.wait = 0;
+    if (e.placed) {
+      e.placed.x = Math.round(e.x);
+      e.placed.y = Math.round(e.y);
+      e.orig = { x: e.x, y: e.y };
+      opts.onMove?.(e.placed.k, e.placed.x, e.placed.y);
+    } else if (e.id && /^\d+$/.test(e.id)) opts.onDecorMove?.(e.id, Math.round(e.x), Math.round(e.y));
+    occDirty();
+    effects.push({ x: e.x, y: e.y - 20, t0: t, kind: 'ring', s: 1.6 }, { x: e.x, y: e.y - 18, t0: t, kind: 'hit', s: 1.3 });
+  }
+
   /** L'unité a atteint la côte : elle se met à l'eau, et on la VOIT traverser. */
   function embark(e: Ent) {
     const to = e.cross!.isl;
@@ -2936,24 +3009,38 @@ export function createWorld(
     );
     const abroad = corps.filter((e) => (e.home?.isl ?? -1) !== isl && (e.home?.isl ?? -1) >= 0);
     if (abroad.length && !corps.some((e) => e.home?.isl === isl)) {
+      // Un portail de chaque côté ? On passe par là : c'est tout l'intérêt de les avoir bâtis.
+      const exit = portalOn(isl, w.x, w.y);
+      const exitStep = exit ? portalStep(exit) : null;
       let boarded = 0;
+      let warped = 0;
       for (const e of abroad) {
-        const quay = departureSpot(e, isl);
-        if (!quay) continue;
-        e.cross = { isl, march: dest };
-        e.order = { x: quay[0] * TS + TS / 2, y: quay[1] * TS + TS * 0.75 };
+        const entry = exitStep ? portalOn(e.home!.isl, e.x, e.y) : null;
+        const entryStep = entry ? portalStep(entry) : null;
+        if (entryStep && exitStep) {
+          e.warp = { x: exitStep[0] * TS + TS / 2, y: exitStep[1] * TS + TS * 0.75, isl, march: dest };
+          e.cross = undefined;
+          e.order = { x: entryStep[0] * TS + TS / 2, y: entryStep[1] * TS + TS * 0.75 };
+          warped++;
+        } else {
+          const quay = departureSpot(e, isl);
+          if (!quay) continue;
+          e.cross = { isl, march: dest };
+          e.warp = undefined;
+          e.order = { x: quay[0] * TS + TS / 2, y: quay[1] * TS + TS * 0.75 };
+          boarded++;
+        }
         e.orderTarget = undefined;
         e.task = undefined;
         e.moving = false;
         e.acting = -1;
         e.wait = 0;
-        boarded++;
       }
-      if (boarded) {
+      const n = boarded + warped;
+      if (n) {
         effects.push({ x: w.x, y: w.y, t0: t, kind: 'rally' });
-        opts.onNotice?.(
-          `${boarded} soldat${boarded > 1 ? 's' : ''} en route pour « ${WORLD.islands[isl]?.name ?? 'l’île'} » — ils gagnent la côte et embarquent.`,
-        );
+        const how = warped ? (boarded ? 'par le portail et à la nage' : 'par le portail') : 'ils gagnent la côte et embarquent';
+        opts.onNotice?.(`${n} soldat${n > 1 ? 's' : ''} en route pour « ${WORLD.islands[isl]?.name ?? 'l’île'} » — ${how}.`);
       } else flashBad = t;
       endOrder();
       return;
