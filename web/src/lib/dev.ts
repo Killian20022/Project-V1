@@ -5,7 +5,7 @@ import { useUser } from '@clerk/clerk-react';
 // jamais modifiée — on lève seulement les verrous d'affichage et de coût.
 //
 // Pour t'ajouter une autre adresse (deuxième compte Google, alias…), ajoute-la simplement ici.
-export const DEV_EMAILS = ['killianlopez20@gmail.com'];
+export const DEV_EMAILS = ['killianlopez20@gmail.com', 'damien.trot34@gmail.com', 'thomasmauran@yahoo.com'];
 
 const norm = (s?: string | null) => s?.trim().toLowerCase() ?? '';
 const DEV_SET = new Set(DEV_EMAILS.map(norm));
