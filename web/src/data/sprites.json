@@ -105,7 +105,7 @@
 "fh": 256,
 "n": 8,
 "fps": 7,
-"feet": 20
+"feet": 15
 },
 "sapin-2": {
 "name": "Sapin 2",
@@ -114,7 +114,7 @@
 "fh": 256,
 "n": 8,
 "fps": 7,
-"feet": 20
+"feet": 7
 },
 "arbre-jaune": {
 "name": "Arbre jaune",
@@ -123,7 +123,7 @@
 "fh": 192,
 "n": 8,
 "fps": 7,
-"feet": 20
+"feet": 22
 },
 "arbre-orange": {
 "name": "Arbre orange",
@@ -132,7 +132,7 @@
 "fh": 192,
 "n": 8,
 "fps": 7,
-"feet": 20
+"feet": 24
 },
 "souche-1": {
 "name": "Souche 1",
@@ -141,7 +141,7 @@
 "fh": 256,
 "n": 1,
 "fps": 0,
-"feet": 0
+"feet": 16
 },
 "souche-2": {
 "name": "Souche 2",
@@ -150,7 +150,7 @@
 "fh": 256,
 "n": 1,
 "fps": 0,
-"feet": 0
+"feet": 11
 },
 "buisson-1": {
 "name": "Buisson 1",
@@ -159,7 +159,7 @@
 "fh": 128,
 "n": 8,
 "fps": 7,
-"feet": 0
+"feet": 49
 },
 "buisson-2": {
 "name": "Buisson 2",
@@ -168,7 +168,7 @@
 "fh": 128,
 "n": 8,
 "fps": 7,
-"feet": 0
+"feet": 52
 },
 "buisson-3": {
 "name": "Buisson 3",
@@ -177,7 +177,7 @@
 "fh": 128,
 "n": 8,
 "fps": 7,
-"feet": 0
+"feet": 44
 },
 "buisson-4": {
 "name": "Buisson 4",
@@ -186,7 +186,7 @@
 "fh": 128,
 "n": 8,
 "fps": 7,
-"feet": 0
+"feet": 49
 },
 "rocher-1": {
 "name": "Rocher 1",
@@ -195,7 +195,7 @@
 "fh": 64,
 "n": 1,
 "fps": 0,
-"feet": 0
+"feet": 13
 },
 "rocher-2": {
 "name": "Rocher 2",
@@ -204,7 +204,7 @@
 "fh": 64,
 "n": 1,
 "fps": 0,
-"feet": 0
+"feet": 11
 },
 "rocher-3": {
 "name": "Rocher 3",
@@ -213,7 +213,7 @@
 "fh": 64,
 "n": 1,
 "fps": 0,
-"feet": 0
+"feet": 12
 },
 "rocher-4": {
 "name": "Rocher 4",
@@ -222,7 +222,7 @@
 "fh": 64,
 "n": 1,
 "fps": 0,
-"feet": 0
+"feet": 8
 },
 "rocher-eau-1": {
 "name": "Rocher eau 1",
@@ -231,7 +231,7 @@
 "fh": 64,
 "n": 16,
 "fps": 8,
-"feet": 0
+"feet": 16
 },
 "rocher-eau-2": {
 "name": "Rocher eau 2",
@@ -240,7 +240,7 @@
 "fh": 64,
 "n": 16,
 "fps": 8,
-"feet": 0
+"feet": 14
 },
 "rocher-eau-3": {
 "name": "Rocher eau 3",
@@ -249,7 +249,7 @@
 "fh": 64,
 "n": 16,
 "fps": 8,
-"feet": 0
+"feet": 16
 },
 "rocher-eau-4": {
 "name": "Rocher eau 4",
@@ -258,7 +258,7 @@
 "fh": 64,
 "n": 16,
 "fps": 8,
-"feet": 0
+"feet": 12
 },
 "mouton": {
 "name": "Mouton",
@@ -267,7 +267,7 @@
 "fh": 128,
 "n": 6,
 "fps": 10,
-"feet": 22,
+"feet": 44,
 "run": {
 "src": "sprites/terrain-resources-meat-sheep-sheep-move.png",
 "n": 4
@@ -286,7 +286,7 @@
 "fh": 128,
 "n": 12,
 "fps": 10,
-"feet": 22
+"feet": 44
 },
 "or-petit": {
 "name": "Or petit",
@@ -295,7 +295,7 @@
 "fh": 128,
 "n": 1,
 "fps": 0,
-"feet": 0
+"feet": 49
 },
 "or": {
 "name": "Or",
@@ -304,7 +304,7 @@
 "fh": 128,
 "n": 1,
 "fps": 0,
-"feet": 0
+"feet": 40
 },
 "or-gros": {
 "name": "Or gros",
@@ -313,7 +313,7 @@
 "fh": 128,
 "n": 1,
 "fps": 0,
-"feet": 0
+"feet": 28
 },
 "bois": {
 "name": "Bois",
@@ -322,7 +322,7 @@
 "fh": 64,
 "n": 1,
 "fps": 0,
-"feet": 0
+"feet": 18
 },
 "canard": {
 "name": "Canard",
@@ -331,7 +331,7 @@
 "fh": 32,
 "n": 3,
 "fps": 10,
-"feet": 0
+"feet": 4
 },
 "villageois": {
 "name": "Villageois",
@@ -340,7 +340,7 @@
 "fh": 192,
 "n": 8,
 "fps": 10,
-"feet": 58,
+"feet": 57,
 "run": {
 "src": "sprites/units-blue-units-pawn-pawn-run.png",
 "n": 6
@@ -403,7 +403,7 @@
 "fh": 192,
 "n": 8,
 "fps": 10,
-"feet": 58,
+"feet": 55,
 "run": {
 "src": "sprites/units-blue-units-warrior-warrior-run.png",
 "n": 6
@@ -441,7 +441,7 @@
 "fh": 192,
 "n": 6,
 "fps": 10,
-"feet": 58,
+"feet": 56,
 "run": {
 "src": "sprites/units-blue-units-archer-archer-run.png",
 "n": 4
@@ -551,7 +551,7 @@
 "fh": 192,
 "n": 8,
 "fps": 10,
-"feet": 58,
+"feet": 55,
 "run": {
 "src": "sprites/units-black-units-warrior-warrior-run.png",
 "n": 6
@@ -589,7 +589,7 @@
 "fh": 192,
 "n": 6,
 "fps": 10,
-"feet": 58,
+"feet": 56,
 "run": {
 "src": "sprites/units-black-units-archer-archer-run.png",
 "n": 4
@@ -627,7 +627,7 @@
 "fh": 192,
 "n": 8,
 "fps": 10,
-"feet": 58,
+"feet": 57,
 "run": {
 "src": "sprites/units-black-units-pawn-pawn-run.png",
 "n": 6
@@ -762,7 +762,7 @@
 "fh": 192,
 "n": 8,
 "fps": 10,
-"feet": 58,
+"feet": 55,
 "run": {
 "src": "sprites/units-red-units-warrior-warrior-run.png",
 "n": 6
@@ -800,7 +800,7 @@
 "fh": 192,
 "n": 6,
 "fps": 10,
-"feet": 58,
+"feet": 56,
 "run": {
 "src": "sprites/units-red-units-archer-archer-run.png",
 "n": 4
@@ -838,7 +838,7 @@
 "fh": 192,
 "n": 8,
 "fps": 10,
-"feet": 58,
+"feet": 57,
 "run": {
 "src": "sprites/units-red-units-pawn-pawn-run.png",
 "n": 6
@@ -946,7 +946,7 @@
 "fh": 192,
 "n": 8,
 "fps": 10,
-"feet": 58,
+"feet": 55,
 "run": {
 "src": "sprites/units-purple-units-warrior-warrior-run.png",
 "n": 6
@@ -984,7 +984,7 @@
 "fh": 192,
 "n": 6,
 "fps": 10,
-"feet": 58,
+"feet": 56,
 "run": {
 "src": "sprites/units-purple-units-archer-archer-run.png",
 "n": 4
@@ -1022,7 +1022,7 @@
 "fh": 192,
 "n": 8,
 "fps": 10,
-"feet": 58,
+"feet": 57,
 "run": {
 "src": "sprites/units-purple-units-pawn-pawn-run.png",
 "n": 6
@@ -1157,7 +1157,7 @@
 "fh": 192,
 "n": 8,
 "fps": 10,
-"feet": 58,
+"feet": 55,
 "run": {
 "src": "sprites/units-yellow-units-warrior-warrior-run.png",
 "n": 6
@@ -1195,7 +1195,7 @@
 "fh": 192,
 "n": 6,
 "fps": 10,
-"feet": 58,
+"feet": 56,
 "run": {
 "src": "sprites/units-yellow-units-archer-archer-run.png",
 "n": 4
@@ -1233,7 +1233,7 @@
 "fh": 192,
 "n": 8,
 "fps": 10,
-"feet": 58,
+"feet": 57,
 "run": {
 "src": "sprites/units-yellow-units-pawn-pawn-run.png",
 "n": 6

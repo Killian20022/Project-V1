@@ -456,10 +456,13 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
 
       {/* Réserves : récoltées en temps réel par les villageois (x / capacité de stockage) */}
       <div className="pointer-events-none absolute left-1/2 top-3 flex -translate-x-1/2 gap-2 md:top-5">
+        {/* Mêmes icônes qu'au Marché (pièce, bûche, pièce de viande) : les deux barres de réserves du
+            jeu se lisent pareil. Le mouton n'avait rien à faire ici — c'est la BÊTE, pas la
+            ressource ; ce que le villageois rapporte et qu'on stocke, c'est de la viande. */}
         {([
-          { k: 'or', v: state.coins, cap: caps.gold },
-          { k: 'bois', v: state.resources?.wood ?? 0, cap: caps.wood },
-          { k: 'mouton', v: state.resources?.food ?? 0, cap: caps.food },
+          { k: 'gold', v: state.coins, cap: caps.gold },
+          { k: 'wood', v: state.resources?.wood ?? 0, cap: caps.wood },
+          { k: 'food', v: state.resources?.food ?? 0, cap: caps.food },
         ] as const).map(({ k, v, cap }) => {
           const full = v >= cap;
           return (
@@ -470,7 +473,8 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
                 full ? 'text-[#ff9a8a]' : 'text-[#ffe7a6]'
               }`}
             >
-              <Sprite k={k} still height={22} crop={0.15} /> {v}
+              {k === 'gold' ? <img src={uiUrl('icon_03.png')} alt="or" title="or" className="pixel inline-block h-5 w-5 align-[-4px]" /> : <Res kind={k} />}{' '}
+              {v}
               <span className="text-[10px] font-semibold opacity-70">/ {cap}</span>
             </span>
           );

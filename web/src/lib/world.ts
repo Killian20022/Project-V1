@@ -293,6 +293,22 @@ export function footprint(key: string): Footprint | null {
   return { w: 1, h: 1, blocks: true, unit: false };
 }
 /**
+ * Un objet qui ARRÊTE une unité en marche. Seuls les bâtiments en sont : on ne traverse pas un mur.
+ *
+ * Arbres, buissons, rochers et filons bloquent la CONSTRUCTION (`footprint().blocks`) mais jamais la
+ * marche. C'est volontaire et c'est la correction d'un vrai blocage : le chemin (A*) ne raisonne que
+ * sur le terrain, il traçait donc tout droit à travers un bosquet, puis le pas était refusé case par
+ * case — l'unité se collait au buisson et attendait. Sur une carte de 480 arbres, ça arrivait sans
+ * arrêt. Les décors se traversent maintenant ; le tri en profondeur fait passer l'unité derrière.
+ */
+export function blocksWalk(key: string): boolean {
+  return !!SPRITES[key]?.src.includes('buildings');
+}
+/** Case d'ancrage d'un objet déjà posé — MÊME calcul que `cellsOf`, une seule vérité. */
+export function cellAt(x: number, y: number): [number, number] {
+  return [Math.floor(x / TS), Math.floor((y - 8) / TS)];
+}
+/**
  * Décalage de centrage pour les décors 1×1 plus hauts qu'une case (or : 128px, arbres : 256px).
  * Leur visuel est recentré sur la case occupée. IMPORTANT : `snapTo` DOIT recalculer la case avec
  * ce même décalage (voir plus bas), sinon un déplacement fait dériver l'objet d'une case.
@@ -593,8 +609,22 @@ export function createWorld(
       // Les unités en mer, elles, ne bloquent plus la case qu'elles viennent de quitter.
       [...placed, ...decor, ...ruins].filter((e) => !e.sailing).map((e) => ({ id: keyOf(e), key: e.key, x: e.x, y: e.y })),
     ));
+  /**
+   * Les cases qu'une unité ne peut PAS traverser : les bâtiments, rien d'autre (cf. `blocksWalk`).
+   * Le pas (`tryStep`) ET le chemin (`findPath`, `lineOfWalk`) lisent le même index — c'est ce qui
+   * garantit qu'on ne trace jamais un itinéraire qu'on refusera ensuite d'emprunter.
+   */
+  let wallCache: Set<number> | null = null;
+  const wallKey = (cx: number, cy: number) => cy * WORLD.w + cx;
+  const getWalls = () =>
+    (wallCache ??= new Set(
+      [...placed, ...decor, ...ruins]
+        .filter((e) => !e.sailing && !e.dead && blocksWalk(e.key))
+        .flatMap((e) => cellsOf(e.key, e.x, e.y).map(([cx, cy]) => wallKey(cx, cy))),
+    ));
   const occDirty = () => {
     occCache = null;
+    wallCache = null;
   };
   const movable = (e: Ent) => !!footprint(e.key);
   const findByKey = (k: string) => [...placed, ...decor, ...ruins].find((e) => (e.placed || e.id) && keyOf(e) === k);
@@ -629,8 +659,7 @@ export function createWorld(
     else {
       const e: Ent = { key, def, x, y: y - def.feet, ph: Math.random() * 10 };
       if (def.run || def.act) {
-        const cx = Math.floor(x / TS);
-        const cy = Math.floor((y - def.feet) / TS);
+        const [cx, cy] = cellAt(e.x, e.y);
         e.agent = true;
         e.walks = !!def.run && walkableCell(cx, cy);
         e.home = { isl: islandAt(cx, cy), lvl: levelAt(cx, cy) };
@@ -648,8 +677,7 @@ export function createWorld(
       } else if (maxHpOf(key) !== undefined) {
         // Bâtiment (ou tour) du décor : assiégeable. Il lui faut une île d'attache comme aux unités,
         // sinon les coups programmés sur lui sont annulés (contrôle « même île » au moment de l'impact).
-        const cx = Math.floor(x / TS);
-        const cy = Math.floor((y - def.feet) / TS);
+        const [cx, cy] = cellAt(e.x, e.y);
         e.home = { isl: islandAt(cx, cy), lvl: levelAt(cx, cy) };
         e.maxHp = maxHpOf(key);
         e.hp = Math.max(1, Math.min(e.maxHp!, savedDamage[`decor:${index}`] ?? e.maxHp!));
@@ -728,7 +756,7 @@ export function createWorld(
   // mais ne sont ni attaquables ni comptées comme bâtiments — seulement sélectionnables.
   let ruins: Ent[] = [];
   function setRuins(list: { k: string; id: string; x: number; y: number }[]) {
-    occCache = null;
+    occDirty();
     ruins = list
       .filter((r) => SPRITES[r.id])
       // `id` préfixé : `keyOf` en tire une clé unique, et le filtre `/^\d+$/` du décor d'origine ne
@@ -739,7 +767,7 @@ export function createWorld(
   // Objets achetés
   let placed: Ent[] = [];
   function setPlaced(list: Placed[]) {
-    occCache = null;
+    occDirty();
     const prev = new Map(placed.map((e) => [e.placed!.k, e]));
     placed = list
       .filter((p) => SPRITES[p.id])
@@ -748,8 +776,7 @@ export function createWorld(
         const def = SPRITES[p.id];
         const walks = !!SHOP_MAP[p.id]?.walks;
         if (old && old.orig!.x === p.x && old.orig!.y === p.y) return old;
-        const cx = Math.floor(p.x / TS);
-        const cy = Math.floor(p.y / TS);
+        const [cx, cy] = cellAt(p.x, p.y);
         return {
           key: p.id,
           def,
@@ -862,7 +889,10 @@ export function createWorld(
   // Tous les villageois récoltent (vie du monde) ; seul le bleu du joueur, sur île débloquée, crédite tes réserves.
   const canHarvest = (e: Ent) => /^villageois/.test(e.key);
   const harvestCredits = (e: Ent) => isFriendly(e) && unlocked.has(e.home?.isl ?? -1);
-  const nodeCell = (n: Ent) => [Math.floor(n.x / TS), Math.floor((n.y - n.def.feet) / TS)] as const;
+  // `e.y` EST déjà le pied de l'objet (`y` de l'image moins `feet`) : retrancher `feet` une seconde
+  // fois remontait la case d'un cran sur les sprites à grand vide (buissons, filons), et le
+  // villageois allait taper à côté de l'arbre. `cellAt` est le seul calcul de case du moteur.
+  const nodeCell = (n: Ent) => cellAt(n.x, n.y);
   // Parcourt tous les nœuds récoltables : décor + graines + ressources achetées au marché.
   const eachNode = (fn: (n: Ent) => void) => {
     for (const n of nodes) fn(n);
@@ -1003,8 +1033,7 @@ export function createWorld(
     let bd = Infinity;
     for (const o of [...placed, ...decor]) {
       if (!isDepot(o)) continue;
-      const cx = Math.floor(o.x / TS);
-      const cy = Math.floor((o.y - o.def.feet) / TS);
+      const [cx, cy] = cellAt(o.x, o.y);
       if (islandAt(cx, cy) !== e.home?.isl) continue;
       const d = Math.hypot(o.x - e.x, o.y - e.y);
       if (d < bd) {
@@ -1310,14 +1339,18 @@ export function createWorld(
    * la cible est hors d'atteinte : à l'appelant d'abandonner plutôt que de rester planté contre le mur.
    */
   /**
-   * Chemin case par case entre deux cases, en contournant falaises et rochers (A*, 8 directions).
+   * Chemin case par case entre deux cases, en contournant falaises ET bâtiments (A*, 8 directions).
    * Les diagonales n'ont le droit de passer que si les deux cases orthogonales le permettent, sinon
    * l'unité couperait le coin d'une falaise. Borné à `MAX_NODES` : sur une île de quelques centaines
    * de cases, l'exploration s'arrête bien avant.
+   *
+   * Les murs sont écartés ici comme dans `tryStep` : un chemin qui traverse une caserne se solderait
+   * par une unité collée au mur. La case d'arrivée fait exception — on assiège bien un bâtiment.
    */
   const MAX_NODES = 3000;
   function findPath(sx: number, sy: number, gx: number, gy: number): [number, number][] | null {
     if (sx === gx && sy === gy) return [];
+    const walls = getWalls();
     const key = (x: number, y: number) => y * WORLD.w + x;
     const open: { x: number; y: number; f: number }[] = [{ x: sx, y: sy, f: 0 }];
     const came = new Map<number, number>();
@@ -1347,6 +1380,7 @@ export function createWorld(
           const nx = cur.x + dx;
           const ny = cur.y + dy;
           if (!canStep(cur.x, cur.y, nx, ny)) continue;
+          if (walls.has(key(nx, ny)) && !(nx === gx && ny === gy)) continue;
           // Diagonale : interdite si elle rase un angle (les deux côtés doivent être franchissables).
           if (dx && dy && (!canStep(cur.x, cur.y, nx, cur.y) || !canStep(cur.x, cur.y, cur.x, ny))) continue;
           const g = g0 + (dx && dy ? 1.414 : 1);
@@ -1390,6 +1424,7 @@ export function createWorld(
   }
   /** Peut-on aller tout droit de (sx,sy) à (gx,gy) ? Tracé de Bresenham sur les cases. */
   function lineOfWalk(sx: number, sy: number, gx: number, gy: number): boolean {
+    const walls = getWalls();
     let x = sx;
     let y = sy;
     const dx = Math.abs(gx - sx);
@@ -1403,6 +1438,8 @@ export function createWorld(
       const nx = e2 > -dy ? x + stepX : x;
       const ny = e2 < dx ? y + stepY : y;
       if (!canStep(x, y, nx, ny)) return false;
+      // Un mur sur la trajectoire : on repasse par l'A*. Sauf s'il EST la destination (siège).
+      if (walls.has(wallKey(nx, ny)) && !(nx === gx && ny === gy)) return false;
       if (e2 > -dy) err -= dy;
       if (e2 < dx) err += dx;
       x = nx;
@@ -1696,11 +1733,11 @@ export function createWorld(
     // reste sur le sien, sinon les villageois descendraient des plateaux au hasard en promenade.
     const ok = e.order ? walkableAcross(cx, cy, ncx, ncy, e.home!.isl) : walkable(ncx, ncy, e.home!);
     if (!ok) return false;
-    // On compare l'OCCUPANT, pas un « suis-je dedans ? » approximatif : l'ancienne heuristique
-    // comparait deux calculs de case différents (`floor(y/TS)` contre celui de `cellsOf`, décalé de
-    // 8 px), si bien qu'une unité se bloquait parfois sur sa propre case.
-    const who = getOcc().get(`${ncx},${ncy}`);
-    if (who !== undefined && who !== keyOf(e)) return false;
+    // Seuls les MURS arrêtent (`getWalls`). Un buisson, un arbre, un rocher ou un filon se traverse :
+    // ils gênaient la marche sans que le chemin en tienne compte, et l'unité restait plantée devant.
+    // L'index des murs est calé sur `cellsOf` : on l'interroge donc avec `cellAt`, pas avec la case
+    // de terrain ci-dessus — les deux conventions diffèrent de 8 px.
+    if (getWalls().has(wallKey(...cellAt(nx, ny)))) return false;
     e.x = nx;
     e.y = ny;
     return true;
@@ -1899,7 +1936,7 @@ export function createWorld(
       if (!base) continue;
       const fac = factionOf(b.key);
       if (fac === playerFaction) continue; // le joueur recrute lui-même au marché
-      const isl = islandAt(Math.floor(b.x / TS), Math.floor((b.y - b.def.feet) / TS));
+      const isl = islandAt(...cellAt(b.x, b.y));
       if (isl < 0) continue;
       const g = gar.get(garKey(fac, isl));
       if ((g?.all.length ?? 0) >= 6) continue; // garnison pleine sur cette île (plafond réduit pour désencombrer la carte)
@@ -2312,7 +2349,7 @@ export function createWorld(
         const isl = e.home?.isl ?? -1;
         if (isl >= 0 && isFighter(e)) touch(isl, factionOf(e.key)).fighters++;
       } else if (isBuilding(e)) {
-        const isl = islandAt(Math.floor(e.x / TS), Math.floor((e.y - e.def.feet) / TS));
+        const isl = islandAt(...cellAt(e.x, e.y));
         if (isl < 0) continue;
         const h = touch(isl, factionOf(e.key));
         h.buildings++;
@@ -3025,13 +3062,11 @@ export function createWorld(
     let n = 0;
     for (const e of [...placed, ...decor]) {
       if (!alive(e) || !isBuilding(e) || !isFriendly(e)) continue;
-      const bx = Math.floor(e.x / TS);
-      const by = Math.floor((e.y - e.def.feet) / TS);
-      if (islandAt(bx, by) === isl && ++n >= CONTROL_MIN) return true;
+      if (islandAt(...cellAt(e.x, e.y)) === isl && ++n >= CONTROL_MIN) return true;
     }
     return false;
   }
-  const islandOf = (e: Ent) => e.home?.isl ?? islandAt(Math.floor(e.x / TS), Math.floor((e.y - e.def.feet) / TS));
+  const islandOf = (e: Ent) => e.home?.isl ?? islandAt(...cellAt(e.x, e.y));
   /** Peut-on saisir cet objet à la main ? Les unités exigent une île tenue ; le décor et les bâtiments non. */
   function canHandle(e: Ent): boolean {
     if (!e.agent || e.maxHp === undefined) return true;
