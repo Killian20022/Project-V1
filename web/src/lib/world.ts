@@ -450,9 +450,11 @@ type Ent = {
   strike?: { at: number; foe: Ent; dmg: number; ranged: boolean; heal?: boolean; oy: number };
   // Ruine d'un bâtiment rasé : dessinée en gris sur place, relevable à moitié prix.
   ruin?: { k: string; id: string };
-  // Expédition vers une autre île : l'unité gagne d'abord la côte, puis embarque.
+  // Expédition vers une autre île : l'unité gagne d'abord la côte, puis se met à l'eau.
   cross?: { isl: number; march?: { x: number; y: number } };
-  sailing?: number; // en mer : instant (s) du débarquement. Invisible et intouchable d'ici là.
+  // En pleine traversée : on interpole la position d'une rive à l'autre pour qu'on la VOIE passer.
+  // Elle reste hors de portée (ni cible, ni combat, ni case occupée) le temps de la nage.
+  sailing?: { x0: number; y0: number; x1: number; y1: number; t0: number; dur: number; isl: number; march?: { x: number; y: number } };
   // Pose depuis l'inventaire : objet fantôme pas encore ajouté à la carte (ni placed ni decor).
   fresh?: boolean;
   freshKey?: string; // clé d'inventaire de l'objet en cours de pose
@@ -1849,7 +1851,27 @@ export function createWorld(
   // d'abord sa propre côte, embarque, traverse, puis débarque — au lieu de se téléporter.
   // Contrairement aux expéditions de l'IA, on DÉPLACE l'unité au lieu de la détruire et d'en recréer
   // une : celles du joueur sont achetées et persistées, les perdre en route serait inacceptable.
-  const CROSS_MIN = 2.5; // durée plancher d'une traversée (s)
+  const SWIM_SPEED = 34; // px/s dans l'eau : plus lent que la marche, et surtout bien visible
+
+  // Vrai littoral d'une île : toute case de sol bordée d'eau. `shoreSpots` n'échantillonne que huit
+  // points sur des anneaux autour du centre — assez pour poser un débarquement au hasard, beaucoup
+  // trop grossier pour choisir un embarcadère : un soldat déjà au bon endroit devait rebrousser
+  // chemin sur la moitié de l'île. Calculé une fois par île, puis mémorisé.
+  const coastCache = new Map<number, [number, number][]>();
+  function coastCells(isl: number): [number, number][] {
+    const hit = coastCache.get(isl);
+    if (hit) return hit;
+    const out: [number, number][] = [];
+    for (let y = 0; y < WORLD.h; y++)
+      for (let x = 0; x < WORLD.w; x++) {
+        if (islandAt(x, y) !== isl || !groundAt(x, y)) continue;
+        const water =
+          levelAt(x + 1, y) <= 0 || levelAt(x - 1, y) <= 0 || levelAt(x, y + 1) <= 0 || levelAt(x, y - 1) <= 0;
+        if (water) out.push([x, y]);
+      }
+    coastCache.set(isl, out);
+    return out;
+  }
 
   /**
    * Où s'embarquer : une case de bord de l'île de `e`, joignable par lui, et tournée vers l'île
@@ -1862,13 +1884,32 @@ export function createWorld(
     const from = e.home?.isl ?? -1;
     if (!dest || from < 0) return null;
     const here = regionAt(Math.floor(e.x / TS), Math.floor(e.y / TS));
+    // On vise la côte tournée vers la destination : le point le plus proche de l'île visée, pondéré
+    // par la marche à faire pour l'atteindre.
     let best: [number, number] | null = null;
     let bd = Infinity;
-    for (const [cx, cy] of shoreSpots(from)) {
-      if (passageRoute(here, regionAt(cx, cy)) === null) continue; // côte inatteignable pour lui
-      const walk = Math.hypot(cx * TS - e.x, cy * TS - e.y);
+    for (const [cx, cy] of coastCells(from)) {
       const sail = Math.hypot(cx * TS - dest.cx, cy * TS - dest.cy);
-      const d = walk + sail;
+      const walk = Math.hypot(cx * TS - e.x, cy * TS - e.y);
+      const d = sail * 1.5 + walk; // la traversée coûte plus cher que la marche : on raccourcit la mer
+      if (d >= bd) continue;
+      if (passageRoute(here, regionAt(cx, cy)) === null) continue; // côte inatteignable pour lui
+      bd = d;
+      best = [cx, cy];
+    }
+    return best;
+  }
+  /** Case de bord libre de `isl` la plus proche du point (x, y) : là où l'on touchera terre. */
+  // Points d'arrivée déjà promis à un nageur : l'occupation ne les connaît pas encore (personne n'y
+  // est), et sans cette réserve toute une troupe partie en même temps débarquait sur la même case.
+  const bookedLandings = new Set<string>();
+  function landingSpot(isl: number, x: number, y: number): [number, number] | null {
+    const occ = getOcc();
+    let best: [number, number] | null = null;
+    let bd = Infinity;
+    for (const [cx, cy] of coastCells(isl)) {
+      if (occ.has(`${cx},${cy}`) || bookedLandings.has(`${cx},${cy}`)) continue;
+      const d = Math.hypot(cx * TS - x, cy * TS - y);
       if (d < bd) {
         bd = d;
         best = [cx, cy];
@@ -1876,11 +1917,9 @@ export function createWorld(
     }
     return best;
   }
-  /** Repose une unité EXISTANTE sur une case de bord de `isl` et lui donne son ordre de marche. */
-  function landExisting(e: Ent, isl: number, march?: { x: number; y: number }): boolean {
-    const spots = shoreSpots(isl).filter(([cx, cy]) => !getOcc().has(`${cx},${cy}`));
-    if (!spots.length) return false;
-    const [cx, cy] = spots[Math.floor(Math.random() * spots.length)];
+  /** Repose une unité EXISTANTE sur une case précise de `isl` et lui donne son ordre de marche. */
+  function landExisting(e: Ent, isl: number, at: [number, number], march?: { x: number; y: number }): boolean {
+    const [cx, cy] = at;
     e.x = cx * TS + TS / 2;
     e.y = cy * TS + TS * 0.75;
     e.home = { isl, lvl: levelAt(cx, cy) };
@@ -1905,31 +1944,44 @@ export function createWorld(
     effects.push({ x: e.x, y: e.y, t0: t, kind: 'dust', s: 1.2 }, { x: e.x, y: e.y, t0: t, kind: 'ring' });
     return true;
   }
-  /** L'unité a atteint la côte : elle prend la mer. */
+  /** L'unité a atteint la côte : elle se met à l'eau, et on la VOIT traverser. */
   function embark(e: Ent) {
     const to = e.cross!.isl;
-    const from = e.home?.isl ?? -1;
-    const a = WORLD.islands[from];
-    const b = WORLD.islands[to];
-    const d = a && b ? Math.hypot(a.cx - b.cx, a.cy - b.cy) : 1000;
-    e.sailing = t + Math.min(9, CROSS_MIN + d / 700);
+    const at = landingSpot(to, e.x, e.y);
+    if (!at) {
+      // Rivage d'en face saturé : on réessaiera, plutôt que de la laisser plantée sur le sable.
+      e.wait = 1;
+      return;
+    }
+    bookedLandings.add(`${at[0]},${at[1]}`);
+    const x1 = at[0] * TS + TS / 2;
+    const y1 = at[1] * TS + TS * 0.75;
+    const d = Math.hypot(x1 - e.x, y1 - e.y);
+    e.sailing = { x0: e.x, y0: e.y, x1, y1, t0: t, dur: Math.max(1.2, d / SWIM_SPEED), isl: to, march: e.cross!.march };
     e.order = undefined;
-    e.moving = false;
+    e.moving = true; // animation de course pendant la nage
     e.acting = -1;
-    effects.push({ x: e.x, y: e.y, t0: t, kind: 'dust', s: 1.3 }, { x: e.x, y: e.y, t0: t, kind: 'ring', s: 1.2 });
+    e.face = x1 < e.x ? -1 : 1;
+    effects.push({ x: e.x, y: e.y, t0: t, kind: 'ring', s: 1.2 });
     occDirty();
   }
-  /** Fait débarquer celles dont la traversée est finie (appelé à chaque image, liste presque toujours vide). */
+  /** Fait avancer les nageurs et les dépose sur l'autre rive. */
   function stepCrossings() {
     for (const e of [...placed, ...decor]) {
-      if (!e.sailing || t < e.sailing || e.dead) continue;
-      const to = e.cross?.isl ?? -1;
-      // Île devenue injoignable (aucune place libre) : on retente à l'image suivante plutôt que de
-      // perdre l'unité en mer pour toujours.
-      if (to < 0) {
+      const s = e.sailing;
+      if (!s || e.dead) continue;
+      const k = (t - s.t0) / s.dur;
+      if (k >= 1) {
+        const at: [number, number] = [Math.floor(s.x1 / TS), Math.floor(s.y1 / TS)];
         e.sailing = undefined;
-        e.cross = undefined;
-      } else if (!landExisting(e, to, e.cross?.march)) e.sailing = t + 1;
+        bookedLandings.delete(`${at[0]},${at[1]}`);
+        landExisting(e, s.isl, at, s.march);
+        continue;
+      }
+      e.x = s.x0 + (s.x1 - s.x0) * k;
+      e.y = s.y0 + (s.y1 - s.y0) * k;
+      // Sillage : une ondulation de loin en loin, pour que la traversée se lise comme une nage.
+      if (Math.floor((t - s.t0) * 2) !== Math.floor((t - s.t0 - 0.02) * 2)) effects.push({ x: e.x, y: e.y + 6, t0: t, kind: 'ring', s: 0.55 });
     }
   }
 
@@ -2367,8 +2419,10 @@ export function createWorld(
     }
     // sprites triés par profondeur (les ruines se mêlent au tri : un soldat passe devant l'une,
     // derrière l'autre, selon sa position)
+    // Les nageurs RESTENT dessinés : c'est tout l'intérêt, on les voit traverser. Ils sont seulement
+    // hors-jeu par ailleurs (`alive()` les exclut du combat et de l'occupation des cases).
     const all = [...decor, ...placed, ...ruins].filter((e) => {
-      if (e.dead || e.sailing) return false;
+      if (e.dead) return false;
       const b = e.y + e.def.feet;
       return e.x + e.def.fw / 2 > vx0 && e.x - e.def.fw / 2 < vx1 && b > vy0 && b - e.def.fh < vy1;
     });
@@ -2721,20 +2775,18 @@ export function createWorld(
     if (moveEnt) ghost = snapGhost(p.x, p.y);
     if (ent) {
       select(ent);
-      // Prise en main réservée aux îles tenues : ailleurs on sélectionne, mais on ne déplace pas
-      // l'unité au doigt — on l'envoie au clic droit et elle y va à pied.
-      if (!canHandle(ent)) {
-        flashBad = t;
-        opts.onNotice?.('Île non tenue : il faut 3 de tes bâtiments pour y porter des soldats. Clic droit pour les y envoyer.');
-        startDrag(touch ? 'pan' : 'band');
-        return;
-      }
-      ent.moving = false;
-      ent.acting = -1;
-      startDrag('ent', ent);
-      return;
+      // Un clic sur un de tes combattants le prend comme troupe d'UN homme : le clic droit suivant
+      // n'engage que lui. Sans ça, désigner une unité puis ordonner faisait partir toute l'île.
+      if (alive(ent) && ent.agent && isFriendly(ent) && isFighter(ent)) {
+        troop = new Set([keyOf(ent)]);
+        opts.onTroop?.(1);
+      } else clearTroop();
     }
-    // Terrain nu : au doigt on fait glisser la carte (indispensable au tactile), à la souris on lasso.
+    // Le glissement gauche trace TOUJOURS le lasso, même s'il part d'un personnage : les boîtes de
+    // sélection sont larges et la carte est peuplée, si bien qu'on attrapait un passant au lieu
+    // d'encadrer sa troupe. Pour déplacer un objet à la main, on passe par « Déplacer » dans le
+    // panneau — qui vérifie au passage que l'île est tenue.
+    // Au doigt, le glissement reste le déplacement de la carte : indispensable au tactile.
     startDrag(touch ? 'pan' : 'band');
   }
   function select(ent: Ent | null) {
@@ -2871,8 +2923,16 @@ export function createWorld(
 
     // Cible sur une AUTRE île : la troupe monte une expédition (côte → mer → débarquement) au lieu
     // de refuser l'ordre. C'est le pendant joueur des invasions que les royaumes rivaux lancent déjà.
+    // SEULE la troupe désignée marche — à l'unité près. Le repli « toute l'île part » de la première
+    // version envoyait des soldats qu'on n'avait pas choisis ; sans sélection, on ne bouge personne.
+    if (!troop.size) {
+      flashBad = t;
+      opts.onNotice?.('Choisis d’abord tes soldats : clique l’un d’eux, ou encadre-en plusieurs au clic gauche glissé.');
+      endOrder();
+      return;
+    }
     const corps = [...placed, ...decor].filter(
-      (e) => alive(e) && e.agent && isFriendly(e) && isFighter(e) && e !== drag?.ent && e !== moveEnt && (!troop.size || troop.has(keyOf(e))),
+      (e) => alive(e) && e.agent && isFriendly(e) && isFighter(e) && e !== drag?.ent && e !== moveEnt && troop.has(keyOf(e)),
     );
     const abroad = corps.filter((e) => (e.home?.isl ?? -1) !== isl && (e.home?.isl ?? -1) >= 0);
     if (abroad.length && !corps.some((e) => e.home?.isl === isl)) {
@@ -2899,12 +2959,10 @@ export function createWorld(
       return;
     }
 
+    // Marche sur place (même île) : là encore, uniquement les soldats retenus.
     let sent = 0;
-    for (const e of [...placed, ...decor]) {
-      if (!e.agent || e.dead || !isFriendly(e) || !isFighter(e)) continue;
+    for (const e of corps) {
       if (e.home?.isl !== isl) continue;
-      if (troop.size && !troop.has(keyOf(e))) continue;
-      if (e === drag?.ent || e === moveEnt) continue;
       e.order = { x: dest.x, y: dest.y };
       e.orderTarget = foe ?? undefined;
       e.task = undefined;
