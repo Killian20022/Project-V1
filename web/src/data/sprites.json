@@ -1243,7 +1243,8 @@
 "src": "sprites/demon-cleave.png",
 "n": 15
 }
-]
+],
+"scale": 1.7
 },
 "demon-rouge": {
 "name": "Demon",
@@ -1262,7 +1263,8 @@
 "src": "sprites/demon-cleave.png",
 "n": 15
 }
-]
+],
+"scale": 1.7
 },
 "demon-jaune": {
 "name": "Demon",
@@ -1281,7 +1283,8 @@
 "src": "sprites/demon-cleave.png",
 "n": 15
 }
-]
+],
+"scale": 1.7
 },
 "demon-violet": {
 "name": "Demon",
@@ -1300,7 +1303,8 @@
 "src": "sprites/demon-cleave.png",
 "n": 15
 }
-]
+],
+"scale": 1.7
 },
 "demon-noir": {
 "name": "Demon",
@@ -1319,7 +1323,8 @@
 "src": "sprites/demon-cleave.png",
 "n": 15
 }
-]
+],
+"scale": 1.7
 },
 "portail": {
 "name": "Portail",

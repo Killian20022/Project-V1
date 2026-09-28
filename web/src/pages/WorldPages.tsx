@@ -626,7 +626,8 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
               <div className="min-w-0 flex-1">
                 <div className="font-display truncate text-[#ffe7a6]">{selName}</div>
                 <div className="text-[11px] text-[#e8dcc2]/80">
-                  {role ?? (isUnit ? 'Habitant de l’archipel' : 'Élément de l’archipel')} · glisse-le ou « Déplacer »
+                  {/* Le glissement trace le lasso : c'est « Déplacer » qui sert à repositionner. */}
+                  {role ?? (isUnit ? 'Habitant de l’archipel' : 'Élément de l’archipel')} · « Déplacer » pour le repositionner
                 </div>
               </div>
               <button className="grid h-8 w-8 shrink-0 place-items-center text-[#ffeccc]" onClick={closePanel} aria-label="Fermer">

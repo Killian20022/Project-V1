@@ -2307,9 +2307,14 @@ export function createWorld(
       ctx.fill();
     }
     const bob = lift ? Math.sin(t * 8) * 3 : 0;
-    const bottom = e.y + def.feet + lift + bob;
-    const dx = e.x - def.fw / 2;
-    const dy = bottom - def.fh;
+    // `scale` : le sprite est agrandi AUTOUR DE SES PIEDS, pas de son cadre — sinon un colosse
+    // agrandi flotterait au-dessus du sol ou s'y enfoncerait.
+    const sc = def.scale ?? 1;
+    const dw = def.fw * sc;
+    const dh = def.fh * sc;
+    const bottom = e.y + def.feet * sc + lift + bob;
+    const dx = e.x - dw / 2;
+    const dy = bottom - dh;
     // rebond à l'atterrissage
     const ba = e.bounceT0 !== undefined ? t - e.bounceT0 : 9;
     if (ba < 0.45) {
@@ -2350,7 +2355,7 @@ export function createWorld(
       tintCtx.fillRect(0, 0, def.fw, def.fh);
       tintCtx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = flash * alpha;
-      ctx.drawImage(tintCv, dx, dy, def.fw, def.fh);
+      ctx.drawImage(tintCv, dx, dy, dw, dh); // même échelle que le sprite, sinon le flash se décale
       ctx.globalAlpha = 1;
     }
     function drawFrame() {
@@ -2360,11 +2365,11 @@ export function createWorld(
         ctx.save();
         ctx.translate(e.x * 2, 0);
         ctx.scale(-1, 1);
-        ctx.drawImage(im, f * def.fw, 0, def.fw, def.fh, dx, dy, def.fw, def.fh);
+        ctx.drawImage(im, f * def.fw, 0, def.fw, def.fh, dx, dy, dw, dh);
         if (flash > 0) drawTint();
         ctx.restore();
       } else {
-        ctx.drawImage(im, f * def.fw, 0, def.fw, def.fh, dx, dy, def.fw, def.fh);
+        ctx.drawImage(im, f * def.fw, 0, def.fw, def.fh, dx, dy, dw, dh);
         if (flash > 0) drawTint();
       }
       ctx.restore();
@@ -2393,16 +2398,17 @@ export function createWorld(
 
   function hitBox(e: Ent) {
     const def = e.def;
+    const sc = def.scale ?? 1; // un colosse agrandi doit se cliquer et se toucher sur toute sa taille
     const unit = !!def.run || !!def.act; // vrai personnage / animal (pas un arbre ni un bâtiment)
     if (unit) {
-      const w = Math.min(def.fw * 0.42, 70);
-      const h = Math.min((def.fh - def.feet) * 0.55, 90);
+      const w = Math.min(def.fw * 0.42, 70) * sc;
+      const h = Math.min((def.fh - def.feet) * 0.55, 90) * sc;
       return { x0: e.x - w / 2, x1: e.x + w / 2, y0: e.y - h, y1: e.y + 8 };
     }
     // décor / bâtiment : boîte calée sur le bas réellement dessiné (e.y + feet), couvrant l'image
-    const bottom = e.y + def.feet;
-    const w = def.fw * 0.7;
-    const h = def.fh * 0.82;
+    const bottom = e.y + def.feet * sc;
+    const w = def.fw * 0.7 * sc;
+    const h = def.fh * 0.82 * sc;
     return { x0: e.x - w / 2, x1: e.x + w / 2, y0: bottom - h, y1: bottom + 6 };
   }
 
@@ -2781,7 +2787,19 @@ export function createWorld(
   // `mode` dit ce que fait le glissement en cours : déplacer la carte, tracer un lasso, ou porter un
   // objet. Avant, tout glissement déplaçait la carte ; le clic gauche sert désormais à sélectionner.
   let drag:
-    | { ent?: Ent; ox: number; oy: number; sx: number; sy: number; moved: boolean; start: { x: number; y: number }; gx: number; gy: number; mode: 'pan' | 'band' | 'ent' }
+    | {
+        ent?: Ent;
+        ox: number;
+        oy: number;
+        sx: number;
+        sy: number;
+        moved: boolean;
+        start: { x: number; y: number };
+        gx: number;
+        gy: number;
+        mode: 'pan' | 'band' | 'ent';
+        hit?: boolean; // l'appui a touché un objet : le relâché ne doit PAS tout désélectionner
+      }
     | null = null;
   let pinch: { d: number; z: number } | null = null;
   let edge: { x: number; y: number } | null = null; // défilement quand la souris colle à un bord
@@ -2861,6 +2879,7 @@ export function createWorld(
     // panneau — qui vérifie au passage que l'île est tenue.
     // Au doigt, le glissement reste le déplacement de la carte : indispensable au tactile.
     startDrag(touch ? 'pan' : 'band');
+    if (ent && drag) drag.hit = true; // on a bien cliqué QUELQUE CHOSE : à ne pas désélectionner au relâché
   }
   function select(ent: Ent | null) {
     selected = ent ? keyOf(ent) : null;
@@ -3138,8 +3157,9 @@ export function createWorld(
         d.ent.x = d.start.x;
         d.ent.y = d.start.y;
       }
-    } else if (!d.moved && !moveEnt && !orderMode) {
-      // Clic dans le vide : on relâche et l'objet inspecté, et la troupe.
+    } else if (!d.moved && !moveEnt && !orderMode && !d.hit) {
+      // Clic dans le VIDE seulement : on relâche l'objet inspecté et la troupe. Sans le test `hit`,
+      // un simple clic sur une unité la sélectionnait à l'appui puis la désélectionnait aussitôt.
       select(null);
       clearTroop();
     }
