@@ -14,12 +14,15 @@ import {
   needsLabel,
   applyFaction,
   rebuildCost,
-  storageCaps,
+  RANK_MAX,
+  TRAININGS,
+  trainedRank,
+  upgradeCost,
   type Faction,
   type ShopCategory,
 } from '@/data/shop';
 import { TROPHIES, type Trophy } from '@/lib/trophies';
-import { createWorld, findSpot, nextUnlock, repairCost, unlockedIslands, WORLD, type ResKind } from '@/lib/world';
+import { capsWith, createWorld, findSpot, nextUnlock, repairCost, unlockedIslands, WORLD, type ResKind } from '@/lib/world';
 import { breakYoke, levyTribute, ransomLeft } from '@/lib/vassal';
 import { BAN_UNITS, banAvailable, levy } from '@/lib/ban';
 import { LEVELS, lessonCount } from '@/lib/content';
@@ -68,6 +71,8 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
     hp?: number;
     maxHp?: number;
     mine?: boolean;
+    rank?: number; // grade du soldat (1 → 3) ; absent pour tout ce qui ne se bat pas
+    xp?: number; // ennemis abattus par cette unité
     ruin?: string;
   } | null>(null);
   const [moving, setMoving] = useState(false);
@@ -119,7 +124,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
   const openBig = WORLD.islands.filter((isl, i) => isl.size > 12 && unlocked.has(i)).length;
   const next = nextUnlock(done);
   const levies = banAvailable(state, done); // soldats que l'anglais déjà fait te permet de lever
-  const caps = useMemo(() => storageCaps(state.placed ?? []), [state.placed]);
+  const caps = useMemo(() => capsWith(state.placed ?? [], state.decorRemoved), [state.placed, state.decorRemoved]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -170,6 +175,14 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
           }
           return { ...current, damage: next };
         }),
+      upgrades: state.upgrades ?? {},
+      // Vétérance gagnée au combat, batchée ~1/s : elle voyage sur l'entrée `placed` du soldat, qui
+      // disparaît avec lui (`onUnitLost`) — pas d'état orphelin à nettoyer.
+      onXp: (batch) =>
+        setState((current) => ({
+          ...current,
+          placed: (current.placed ?? []).map((p) => (batch[p.k] !== undefined ? { ...p, xp: batch[p.k] } : p)),
+        })),
       onDecorMove: (id, x, y) =>
         setState((current) => ({ ...current, decorPos: { ...(current.decorPos ?? {}), [id]: [x, y] } })),
       onUnitLost: (k) =>
@@ -271,6 +284,12 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
   useEffect(() => {
     engineRef.current?.setStock({ gold: state.coins, wood: state.resources?.wood ?? 0, food: state.resources?.food ?? 0 });
   }, [state.coins, state.resources]);
+
+  // Nouvel entraînement payé au Marché : les soldats déjà sur la carte montent en grade sur-le-champ,
+  // sans recréer le moteur (ce qui ferait repartir tout le monde de sa position d'origine).
+  useEffect(() => {
+    engineRef.current?.setUpgrades(state.upgrades ?? {});
+  }, [state.upgrades]);
 
   // Filet de sécurité : à la fermeture de l'onglet, on reverse le dernier lot récolté avant que la page parte.
   useEffect(() => {
@@ -643,6 +662,13 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
                   {/* Le glissement trace le lasso : c'est « Déplacer » qui sert à repositionner. */}
                   {role ?? (isUnit ? 'Habitant de l’archipel' : 'Élément de l’archipel')} · « Déplacer » pour le repositionner
                 </div>
+                {/* Grade du soldat : entraînement payé + vétérance gagnée au combat. */}
+                {!!selInfo.rank && selInfo.rank > 1 && (
+                  <div className="text-[11px] font-semibold" style={{ color: selInfo.rank >= RANK_MAX ? '#ffd35c' : '#e6e6dc' }}>
+                    {'⌃'.repeat(selInfo.rank - 1)} Niveau {selInfo.rank}
+                    {!!selInfo.xp && <span className="ml-1 font-normal text-[#e8dcc2]/70">· {selInfo.xp} ennemi{selInfo.xp > 1 ? 's' : ''} abattu{selInfo.xp > 1 ? 's' : ''}</span>}
+                  </div>
+                )}
               </div>
               <button className="grid h-8 w-8 shrink-0 place-items-center text-[#ffeccc]" onClick={closePanel} aria-label="Fermer">
                 <X className="size-4" />
@@ -730,7 +756,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
   const inv = state.inventory ?? [];
   const wood = state.resources?.wood ?? 0;
   const food = state.resources?.food ?? 0;
-  const caps = storageCaps(placedItems);
+  const caps = capsWith(placedItems, state.decorRemoved);
   const popMax = popMaxOf(placedItems);
   // La population « utilisée » compte aussi les soldats en attente dans l'inventaire (pas encore posés).
   const invPop = inv.filter((it) => SHOP_MAP[it.id]?.category === 'soldats').length;
@@ -776,6 +802,25 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
     }));
     setBought(id);
     window.setTimeout(() => setBought((b) => (b === id ? null : b)), 1400);
+  }
+
+  // ---- L'Entraînement : un palier payé une fois, valable pour TOUT un corps de troupe.
+  function train(base: string) {
+    const to = trainedRank(state.upgrades, base) + 1;
+    const cost = upgradeCost(base, to);
+    if (!cost) return;
+    if (!isDev && (state.coins < cost.gold || wood < cost.wood)) return;
+    setState((current) => ({
+      ...current,
+      coins: isDev ? current.coins : current.coins - cost.gold,
+      resources: isDev
+        ? current.resources ?? { wood: 0, food: 0 }
+        : { wood: (current.resources?.wood ?? 0) - cost.wood, food: current.resources?.food ?? 0 },
+      upgrades: { ...(current.upgrades ?? {}), [base]: to },
+      stats: { ...current.stats, trained: (current.stats.trained ?? 0) + 1 },
+    }));
+    setBought(base);
+    window.setTimeout(() => setBought((b) => (b === base ? null : b)), 1400);
   }
 
   // ---- Le Ban royal : une quête d'anglais = une levée, une levée = un soldat sans or ni caserne.
@@ -902,6 +947,64 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
 
       <p className="text-sm text-muted-foreground">{info.hint}</p>
 
+      {/* Entraînement : une carte par corps de troupe, pas un article à poser sur la carte. */}
+      {cat === 'entrainement' && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {TRAININGS.map((tr) => {
+            const id = applyFaction(tr.base, faction);
+            const rank = trainedRank(state.upgrades, tr.base);
+            const maxed = rank >= RANK_MAX;
+            const next = rank + 1;
+            const cost = upgradeCost(tr.base, next);
+            const needBld = tr.needs && !ownsBuilding(placedItems, tr.needs);
+            const afford = !!cost && state.coins >= cost.gold && wood >= cost.wood;
+            const canBuy = !maxed && (isDev || (afford && !needBld));
+            return (
+              <Card key={tr.base}>
+                <CardContent className="flex flex-col items-center gap-1.5 p-2 text-center">
+                  <div className="grid h-28 w-full place-items-end justify-center overflow-hidden">
+                    <Sprite k={id} height={100} crop={tr.base === 'lancier' ? 0.3 : 0.26} />
+                  </div>
+                  <div className="font-display leading-tight">{tr.name}</div>
+                  <div className="text-[11px] text-[hsl(var(--accent))]">{tr.blurb}</div>
+                  {/* Chevrons : autant que de niveaux acquis au-delà du premier. */}
+                  <div className="text-sm font-bold tracking-widest" style={{ color: maxed ? '#ffd35c' : '#e6e6dc' }}>
+                    {'★'.repeat(rank)}
+                    <span className="opacity-30">{'★'.repeat(RANK_MAX - rank)}</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">Niveau {rank} — +35 % PV et +30 % dégâts par palier</div>
+                  {cost && !maxed && (
+                    <div className="flex flex-wrap items-center justify-center gap-x-2 text-[11px] font-semibold">
+                      <span className={state.coins >= cost.gold ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}><Res kind="gold" /> {cost.gold}</span>
+                      <span className={wood >= cost.wood ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}><Res kind="wood" /> {cost.wood}</span>
+                    </div>
+                  )}
+                  {maxed ? (
+                    <div className="flex items-center gap-1 text-sm font-bold text-[hsl(var(--primary))]">
+                      <Check className="size-4" /> Élite
+                    </div>
+                  ) : (
+                    <Button size="sm" className="w-full" disabled={!canBuy} onClick={() => train(tr.base)}>
+                      {bought === tr.base ? (
+                        <>
+                          <Check /> Entraîné !
+                        </>
+                      ) : canBuy ? (
+                        `Entraîner — niveau ${next}`
+                      ) : (
+                        <>
+                          <Lock /> {needBld ? `Nécessite ${needsLabel(tr.needs!)}` : 'Ressources'}
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((item) => {
           const count = ownedOf(item);
@@ -923,7 +1026,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
                 {item.blurb && <div className="text-[11px] text-[hsl(var(--accent))]">{item.blurb}</div>}
                 {/* Coûts : or + bois + nourriture (rouge si insuffisant) */}
                 <div className="flex flex-wrap items-center justify-center gap-x-2 text-[11px] font-semibold">
-                  <span className={state.coins >= item.price ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}>💰 {item.price}</span>
+                  <span className={state.coins >= item.price ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}><Res kind="gold" /> {item.price}</span>
                   {!!item.wood && (<span className={wood >= item.wood ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}><Res kind="wood" /> {item.wood}</span>)}
                   {!!item.food && (<span className={food >= item.food ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}><Res kind="food" /> {item.food}</span>)}
                   {!!item.pop && (<span className="text-muted-foreground"><img src={uiUrl('icon_01.png')} alt="population" className="pixel inline-block h-4 w-4 align-[-3px]" /> {item.pop}</span>)}

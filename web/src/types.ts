@@ -109,6 +109,9 @@ export interface GameState {
     atQuests: number; // quêtes terminées au moment de la chute (point de départ de la rançon)
     tribute: { gold: number; wood: number; food: number }; // prélevé, rendu d'un coup à la libération
   } | null;
+  // Entraînement acheté au marché : palier (2 ou 3) par type de soldat, pour TOUTE la couleur du
+  // joueur — présents et futurs. Absent = palier 1. Se cumule avec la vétérance de chaque unité.
+  upgrades?: Record<string, number>;
   island: string[];
   placed: PlacedItem[];
   inventory?: { k: string; id: string }[]; // achats en attente de pose (case blanche transparente)
@@ -138,6 +141,7 @@ export interface PlacedItem {
   x: number;
   y: number;
   rot?: number; // rotation en degrés (0, 90, 180, 270) — molette sur un objet sélectionné
+  xp?: number; // ennemis abattus par CE soldat : sa vétérance, qui monte son niveau
 }
 
 export interface SavedWord {

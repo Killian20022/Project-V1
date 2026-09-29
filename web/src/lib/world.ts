@@ -8,7 +8,7 @@ import WORLD_JSON from '../data/world.json';
 import RAMPS_JSON from '../data/ramps.json';
 import { createOcean } from './ocean';
 import { SPRITES, spriteUrl, uiUrl, type SpriteDef } from './sprites';
-import { SHOP_MAP, houseVariants, storageCaps } from '../data/shop';
+import { RANK_MAX, SHOP_MAP, houseVariants, storageCaps, trainedRank } from '../data/shop';
 
 export interface WorldData {
   w: number;
@@ -47,6 +47,16 @@ const COMBAT: Record<string, CombatDef> = {
   villageois: { hp: 60, dmg: 0, range: 0, atk: 1 },
   tour: { hp: 500, dmg: 13, range: 5.5, atk: 0.9, ranged: true },
 };
+// ---------- Grades (niveaux 1 → 3) ----------
+// Un soldat gagne en PV et en dégâts, jamais en cadence ni en portée : sinon un vétéran distancerait
+// tellement la troupe de base que le nombre ne voudrait plus rien dire.
+// Indexé par niveau − 1.
+const RANK_HP = [1, 1.35, 1.8];
+const RANK_DMG = [1, 1.3, 1.65];
+// Vétérance : ennemis abattus qu'il faut pour gagner un grade au mérite (sans rien acheter).
+const VET_STEPS = [3, 8];
+const vetBonus = (xp = 0) => (xp >= VET_STEPS[1] ? 2 : xp >= VET_STEPS[0] ? 1 : 0);
+
 const AGGRO_TILES = 7; // distance à laquelle une unité repère un ennemi
 const SIEGE_TILES = 10; // distance à laquelle elle se rabat sur un bâtiment ennemi (faute d'unité à combattre)
 // Fraction de l'animation d'attaque (à 10 img/s) au bout de laquelle l'arme « touche » :
@@ -56,6 +66,26 @@ const IMPACT_FRAC = 0.45;
 // de ses 70 PV. La clé doit s'arrêter là ou continuer par un tiret de couleur (« archer-rouge »).
 const combatBase = (key: string): string | null =>
   /^(guerrier|lancier|archer|moine|villageois|tour)(?![a-z])/.exec(key)?.[1] ?? null;
+
+/**
+ * Couleur du royaume à qui appartient une entité, lue dans sa clé de sprite. Pure : elle ne dépend
+ * que de la clé, d'où sa place au niveau module (la construction du monde en a besoin avant que la
+ * closure de `createWorld` ne soit prête).
+ *
+ * ⚠️ C'EST LE POINT FRAGILE DU MOTEUR. Il a déjà mordu deux fois :
+ *  - `violette?` signifie « violett » + « e » optionnel : `-violet` n'était pas reconnu ;
+ *  - sans `(?:-\d+)?`, les 12 maisons numérotées retombaient sur « bleu » par défaut, donc alliées
+ *    du joueur et ennemies de leur propre royaume (un lancier violet rasait sa maison).
+ * Le motif est ancré à la fin : ne JAMAIS ajouter de suffixe à une clé de sprite (un grade, un
+ * numéro d'escouade…) sans rouvrir cette expression — sinon l'entité redevient « bleu », c'est-à-dire
+ * un ennemi qui passe allié.
+ */
+const factionOf = (key: string): string => {
+  const m = /-(bleue?|rouge|jaune|violet(?:te)?|noire?)(?:-\d+)?$/.exec(key);
+  if (!m) return 'bleu';
+  const c = m[1];
+  return c.startsWith('viol') ? 'violet' : c.startsWith('noir') ? 'noir' : c.startsWith('bleu') ? 'bleu' : c;
+};
 
 // ---------- Siège (Phase 4) ----------
 // Les bâtiments ont des PV et peuvent être rasés : c'est ce qui permet de conquérir une île.
@@ -80,7 +110,12 @@ export function repairCost(key: string, hp: number, maxHp: number): number {
   return Math.max(1, Math.ceil(((maxHp - hp) / maxHp) * base));
 }
 // PV de départ d'une clé, unité comme bâtiment (undefined = objet indestructible : arbre, or, rocher…).
-const maxHpOf = (key: string): number | undefined => COMBAT[combatBase(key) ?? '']?.hp ?? SIEGE[siegeBase(key) ?? ''];
+// `rank` ne concerne que les soldats : un bâtiment n'a pas de grade, son total ne bouge pas.
+const maxHpOf = (key: string, rank = 1): number | undefined => {
+  const unit = COMBAT[combatBase(key) ?? '']?.hp;
+  if (unit !== undefined) return Math.round(unit * RANK_HP[Math.min(RANK_MAX, Math.max(1, rank)) - 1]);
+  return SIEGE[siegeBase(key) ?? ''];
+};
 
 // ---------- Récolte (Phase 1) ----------
 // Nœuds récoltables de la carte : un villageois s'en approche et joue l'animation d'action
@@ -112,6 +147,7 @@ export interface Placed {
   id: string;
   x: number; // position des pieds (px monde)
   y: number;
+  xp?: number; // ennemis abattus par ce soldat : sa vétérance, conservée d'une session à l'autre
 }
 
 // ---------- Aides pures (utilisables hors canvas : marché, sauvegarde) ----------
@@ -255,6 +291,37 @@ export const reachable = (ax: number, ay: number, bx: number, by: number): boole
 
 export function unlockedIslands(missionsDone: number): Set<number> {
   return new Set(WORLD.islands.map((isl, i) => (missionsDone >= isl.unlock ? i : -1)).filter((i) => i >= 0));
+}
+
+// L'île natale, celle qu'on possède sans rien débloquer.
+export const HOME_ISL = WORLD.islands.findIndex((i) => i.unlock === 0);
+// Bâtiments que la carte pose d'emblée sur l'île natale (château, tour, maisons, monastère).
+// `WORLD.decor` ne bouge jamais, on ne parcourt donc ce tableau de 845 entrées qu'une seule fois.
+// Ils appartiennent tous au joueur par construction : `recolorKey` recolore TOUT le décor natal à
+// sa couleur — d'où l'absence de test de faction ici.
+const HOME_BUILDINGS: [string, string][] = WORLD.decor
+  .map(([key, x, y, cloud], index) => {
+    if (cloud || islandAt(Math.floor(x / TS), Math.floor(y / TS)) !== HOME_ISL) return null;
+    if (!siegeBase(key) && !/^tour/.test(key)) return null;
+    return [String(index), key] as [string, string];
+  })
+  .filter((e): e is [string, string] => e !== null);
+
+/**
+ * Clés des bâtiments de décor de l'île natale encore debout. Ils comptent dans le plafond de
+ * stockage au même titre que ceux qu'on construit : sinon on démarre avec un château sous les yeux
+ * et un plafond de départ qui l'ignore. Un bâtiment rasé au siège sort de la liste (et le plafond
+ * redescend, c'est voulu).
+ */
+export function homeBuildings(decorRemoved?: string[]): string[] {
+  if (!decorRemoved?.length) return HOME_BUILDINGS.map(([, key]) => key);
+  const gone = new Set(decorRemoved);
+  return HOME_BUILDINGS.filter(([id]) => !gone.has(id)).map(([, key]) => key);
+}
+
+/** Plafond de stockage réel : ce qu'on a construit + le bâti d'origine de l'île natale. */
+export function capsWith(placed: { id: string }[], decorRemoved?: string[]) {
+  return storageCaps([...placed, ...homeBuildings(decorRemoved).map((id) => ({ id }))]);
 }
 
 export function nextUnlock(missionsDone: number): { name: string; remaining: number } | null {
@@ -466,6 +533,11 @@ type Ent = {
   // Ordres du joueur (RTS)
   order?: { x: number; y: number }; // point de marche désigné (attaque-déplacement)
   orderTarget?: Ent; // ennemi précis à pourchasser (au-delà de l'aggro auto)
+  // Grade (1 → 3) : entraînement acheté + vétérance gagnée au combat, plafonné à 3. Jamais dans la
+  // clé du sprite — `factionOf` lit la fin de la clé, un suffixe de grade en ferait un allié.
+  rank?: number;
+  xp?: number; // ennemis abattus par CETTE unité
+  slide?: number; // côté par lequel on longe l'obstacle en cours (+1 / -1), pour ne pas vibrer sur place
   recoilT?: number; // instant du dernier recul (knockback visuel)
   recoilX?: number; // direction du recul
   recoilY?: number;
@@ -498,7 +570,7 @@ export function createWorld(
     // mais on ne répare évidemment pas le château qu'on assiège.
     onSelect?: (
       k: string | null,
-      info?: { id: string; bought: boolean; hp?: number; maxHp?: number; mine?: boolean; ruin?: string },
+      info?: { id: string; bought: boolean; hp?: number; maxHp?: number; mine?: boolean; rank?: number; xp?: number; ruin?: string },
     ) => void;
     onMoveMode?: (active: boolean) => void;
     onOrderMode?: (active: boolean) => void; // mode « envoyer les troupes » actif ?
@@ -516,6 +588,8 @@ export function createWorld(
     onUnitLost?: (k: string) => void; // une unité achetée est morte au combat
     damage?: Record<string, number>; // PV restants mémorisés (bâtiments/unités abîmés) au dernier passage
     onDamage?: (batch: Record<string, number>) => void; // PV à mémoriser (batché ~1/s ; 0 = à oublier)
+    upgrades?: Record<string, number>; // entraînements achetés (palier par type de soldat)
+    onXp?: (batch: Record<string, number>) => void; // vétérance de tes soldats (batché ~1/s)
     onInvasion?: (faction: string, island: string, n: number) => void; // un royaume rival débarque
     onWar?: (attacker: string, defender: string, island: string, n: number) => void; // deux rivaux se font la guerre
     // Un château est tombé. 'perdu' : l'un des tiens, il t'en reste. 'soumis' : c'était le dernier,
@@ -572,11 +646,37 @@ export function createWorld(
   let unlocked = opts.unlocked;
   let missionsDone = opts.missionsDone;
   const playerFaction = opts.playerFaction ?? 'bleu';
+  // Entraînements payés au Marché, par type de soldat. Mis à jour sans recréer la carte (`setUpgrades`).
+  let upgrades: Record<string, number> = opts.upgrades ?? {};
+  // Les royaumes rivaux montent en grade au fil de ton avancement : sans ça, tes vétérans
+  // transformeraient la seconde moitié de la partie en promenade.
+  const aiRank = () => (unlocked.size >= 16 ? 3 : unlocked.size >= 8 ? 2 : 1);
+  /** Grade d'une unité à partir de sa seule clé : sert à la construire, avant qu'elle n'existe. */
+  function rankFor(key: string, xp?: number): number {
+    const base = combatBase(key);
+    if (!base || !COMBAT[base] || COMBAT[base].dmg === 0) return 1; // villageois, tour, bâtiment
+    const trained = factionOf(key) === playerFaction ? trainedRank(upgrades, base) : aiRank();
+    return Math.min(RANK_MAX, trained + vetBonus(xp));
+  }
+  /** PV de départ : le total du grade, rogné par les dégâts éventuellement mémorisés. */
+  function hpFor(key: string, rank: number, saved?: number): number | undefined {
+    const max = maxHpOf(key, rank);
+    if (max === undefined) return undefined;
+    return Math.max(1, Math.min(max, saved ?? max));
+  }
   // PV mémorisés au dernier passage, et lot de PV à remémoriser (0 = l'entité a disparu, on oublie
   // la clé). Déclarés ici : le décor et les objets placés sont construits juste en dessous.
   const savedDamage = opts.damage ?? {};
   const pendingDamage: Record<string, number> = {};
-  const homeIsl = WORLD.islands.findIndex((i) => i.unlock === 0);
+  // Vétérance à remonter au React, batchée comme les PV (~1×/s) : un kill par-ci par-là ne vaut pas
+  // un rendu complet de la page.
+  const pendingXp: Record<string, number> = {};
+  const homeIsl = HOME_ISL;
+  // Index du décor rasé (persisté + ce qui tombe pendant la partie) : sert à faire redescendre le
+  // plafond de stockage quand un bâtiment de l'île natale est détruit.
+  const razedHome = new Set(opts.decorRemoved ?? []);
+  // Déclaré ici et pas avec `caps` plus bas : `setPlaced` le lève dès la construction du monde.
+  let capsDirty = true;
   let W = 300;
   let H = 300;
   let DPR = 1;
@@ -594,7 +694,7 @@ export function createWorld(
     x: number;
     y: number;
     t0: number;
-    kind: 'dust' | 'ring' | 'hit' | 'slash' | 'sand' | 'dmg' | 'rally';
+    kind: 'dust' | 'ring' | 'wake' | 'hit' | 'slash' | 'sand' | 'dmg' | 'rally';
     s?: number; // échelle
     vx?: number; // vitesse (particules de sable)
     vy?: number;
@@ -686,10 +786,12 @@ export function createWorld(
         e.acting = -1;
         // l'armée noire (à l'est) regarde vers l'ouest, les autres au hasard
         e.face = x > 44 * TS ? -1 : Math.random() < 0.5 ? -1 : 1;
-        const cst = COMBAT[combatBase(key) ?? ''];
-        if (cst) {
-          e.maxHp = cst.hp;
-          e.hp = Math.max(1, Math.min(cst.hp, savedDamage[`decor:${index}`] ?? cst.hp));
+        if (COMBAT[combatBase(key) ?? '']) {
+          // Grade d'abord, PV ensuite : les soldats du décor ont eux aussi un rang (le tien sur
+          // l'île natale, celui de leur royaume ailleurs).
+          e.rank = rankFor(key);
+          e.maxHp = maxHpOf(key, e.rank);
+          e.hp = hpFor(key, e.rank, savedDamage[`decor:${index}`]);
         }
       } else if (maxHpOf(key) !== undefined) {
         // Bâtiment (ou tour) du décor : assiégeable. Il lui faut une île d'attache comme aux unités,
@@ -785,6 +887,7 @@ export function createWorld(
   let placed: Ent[] = [];
   function setPlaced(list: Placed[]) {
     occDirty();
+    capsDirty = true;
     const prev = new Map(placed.map((e) => [e.placed!.k, e]));
     placed = list
       .filter((p) => SPRITES[p.id])
@@ -811,9 +914,12 @@ export function createWorld(
           home: { isl: islandAt(cx, cy), lvl: levelAt(cx, cy) },
           origKey: HARVEST[p.id] ? p.id : undefined,
           nodeStock: HARVEST[p.id] ? HARVEST[p.id].cycles : undefined,
+          // Grade AVANT les PV : un vétéran blessé serait sinon plafonné aux PV d'une recrue.
+          rank: rankFor(p.id, p.xp),
+          xp: p.xp,
           // PV repris là où on les avait laissés à la session précédente.
-          hp: maxHpOf(p.id) === undefined ? undefined : Math.max(1, Math.min(maxHpOf(p.id)!, savedDamage[p.k] ?? maxHpOf(p.id)!)),
-          maxHp: maxHpOf(p.id),
+          hp: hpFor(p.id, rankFor(p.id, p.xp), savedDamage[p.k]),
+          maxHp: maxHpOf(p.id, rankFor(p.id, p.xp)),
         } as Ent;
       });
   }
@@ -824,7 +930,17 @@ export function createWorld(
   const pending: Record<ResKind, number> = { wood: 0, gold: 0, food: 0 };
   // Réserves actuelles (miroir du state React) : servent à savoir quand le stockage est plein.
   let stock = { gold: opts.stock?.gold ?? 0, wood: opts.stock?.wood ?? 0, food: opts.stock?.food ?? 0 };
-  const capNow = () => storageCaps(placed.map((e) => ({ id: e.key })));
+  // Plafond = bâtiments achetés + bâti d'origine de l'île natale encore debout. Mémoïsé : chaque
+  // villageois interroge `resourceFull` à chaque frame pour choisir sa cible, on ne va pas
+  // reconstruire la liste des bâtiments 60 fois par seconde.
+  let caps = capsWith([], []);
+  const capNow = () => {
+    if (capsDirty) {
+      capsDirty = false;
+      caps = capsWith(placed.map((e) => ({ id: e.key })), [...razedHome]);
+    }
+    return caps;
+  };
   // Place restante pour une ressource (réserve + en attente vs plafond des bâtiments).
   const roomFor = (k: ResKind) => Math.max(0, capNow()[k] - (stock[k] + pending[k]));
   const resourceFull = (k: ResKind) => roomFor(k) <= 0;
@@ -850,27 +966,52 @@ export function createWorld(
       }
       opts.onDamage?.(batch);
     }
+    const xpKeys = Object.keys(pendingXp);
+    if (xpKeys.length) {
+      const batch: Record<string, number> = {};
+      for (const k of xpKeys) {
+        batch[k] = pendingXp[k];
+        delete pendingXp[k];
+      }
+      opts.onXp?.(batch);
+    }
   }
   const isWorker = (e: Ent) => /^villageois/.test(e.key);
   const isSoldier = (e: Ent) => /^(guerrier|lancier|archer|moine)/.test(e.key);
   const isMelee = (e: Ent) => /^(guerrier|lancier)/.test(e.key);
-  const factionOf = (key: string) => {
-    // La couleur peut être au masculin (`chateau-violet`), au féminin (`archerie-violette`) et suivie
-    // d'un numéro de variante (`maison-violette-1`). Deux pièges déjà tombés dedans :
-    //  - `violette?` signifie « violett » + « e » optionnel : `-violet` n'était pas reconnu ;
-    //  - sans `(?:-\d+)?`, les 12 maisons numérotées retombaient sur « bleu » par défaut, donc
-    //    alliées du joueur et ennemies de leur propre royaume (un lancier violet rasait sa maison).
-    const m = /-(bleue?|rouge|jaune|violet(?:te)?|noire?)(?:-\d+)?$/.exec(key);
-    if (!m) return 'bleu';
-    const c = m[1];
-    return c.startsWith('viol') ? 'violet' : c.startsWith('noir') ? 'noir' : c.startsWith('bleu') ? 'bleu' : c;
-  };
   const unitKey = (base: string, fac: string) => base + (fac === 'bleu' ? '' : `-${fac}`);
   // Allégeance par couleur : même couleur = alliés, couleurs différentes = ennemis.
   // Le joueur dirige le royaume de sa couleur (playerFaction) ; les autres couleurs sont des rivaux.
   const isFriendly = (e: Ent) => factionOf(e.key) === playerFaction;
   const hostile = (a: Ent, b: Ent) => factionOf(a.key) !== factionOf(b.key);
-  const statsFor = (e: Ent): CombatDef | null => COMBAT[combatBase(e.key) ?? ''] ?? null;
+  // Grade d'une unité : l'entraînement payé pour son type (le tien au Marché, celui des rivaux
+  // dérivé de l'avancement de la partie) plus sa vétérance personnelle, le tout plafonné à 3.
+  const rankOf = (e: Ent): number => rankFor(e.key, e.xp);
+  /**
+   * Recale le grade d'une unité et ses PV. Les PV max suivent le grade, et les PV courants sont mis
+   * à l'échelle : sans ça, un guerrier en pleine forme promu passerait de 120/120 à 120/162, donc
+   * « blessé », barre de vie à l'appui, juste pour avoir gagné un grade.
+   */
+  function applyRank(e: Ent): boolean {
+    const r = rankOf(e);
+    if (r === (e.rank ?? 1)) return false;
+    const oldMax = e.maxHp;
+    e.rank = r;
+    const nm = maxHpOf(e.key, r);
+    if (nm !== undefined) {
+      e.hp = oldMax && oldMax > 0 ? Math.max(1, Math.min(nm, Math.round(((e.hp ?? oldMax) / oldMax) * nm))) : nm;
+      e.maxHp = nm;
+    }
+    return true;
+  }
+  // Stats effectives : LE point de lecture unique du combat. Tout ce qui frappe passe par ici, donc
+  // c'est le seul endroit où le grade doit peser sur les dégâts.
+  const statsFor = (e: Ent): CombatDef | null => {
+    const def = COMBAT[combatBase(e.key) ?? ''] ?? null;
+    if (!def || def.dmg === 0) return def;
+    const r = e.rank ?? 1;
+    return r > 1 ? { ...def, dmg: Math.round(def.dmg * RANK_DMG[Math.min(RANK_MAX, r) - 1]) } : def;
+  };
   const isFighter = (e: Ent) => {
     const s = statsFor(e);
     return !!s && (s.dmg > 0 || s.heal === true);
@@ -898,6 +1039,27 @@ export function createWorld(
     const intact = e.dead || (e.hp ?? 0) >= (e.maxHp ?? 0);
     pendingDamage[k] = intact ? 0 : Math.max(0, Math.round(e.hp ?? 0));
   };
+  /**
+   * Le tombeur d'une unité ennemie gagne un point de vétérance, et parfois un grade. Seules les
+   * UNITÉS comptent : si les bâtiments donnaient de l'expérience, un archer se ferait vétéran tout
+   * seul en tirant sur une maison vide.
+   */
+  function gainXp(by: Ent | undefined, victim: Ent) {
+    if (!by || by.dead || !victim.agent || victim.maxHp === undefined) return;
+    if (!isFighter(by) || !hostile(by, victim)) return;
+    by.xp = (by.xp ?? 0) + 1;
+    noteXp(by);
+    if (applyRank(by) && isFriendly(by))
+      opts.onNotice?.(`${unitName(by.key)} promu — niveau ${by.rank} sur le champ de bataille.`);
+  }
+  const noteXp = (e: Ent) => {
+    const k = stableKey(e);
+    // Les unités de l'IA n'ont pas de clé stable : leur vétérance vit le temps de la session, comme
+    // elles. On ne persiste que tes soldats à toi.
+    if (k && e.placed) pendingXp[k] = e.xp ?? 0;
+  };
+  const unitName = (key: string) =>
+    ({ guerrier: 'Guerrier', lancier: 'Lancier', archer: 'Archer', moine: 'Moine' })[combatBase(key) ?? ''] ?? 'Soldat';
   const distTo = (e: Ent, o: Ent) => {
     const a = aimAt(o);
     const slack = isBuilding(o) ? ((footprint(o.key)?.w ?? 2) * TS) / 2 : 0;
@@ -940,6 +1102,9 @@ export function createWorld(
   function walkableAcross(fromX: number, fromY: number, cx: number, cy: number, isl: number) {
     return islandAt(cx, cy) === isl && canStep(fromX, fromY, cx, cy);
   }
+  // « En expédition » : l'unité poursuit un but (ordre du joueur, ennemi, blessé à soigner, récolte).
+  // Tant qu'elle en a un, elle peut franchir les rampes et changer de palier ; au repos, non.
+  const onErrand = (e: Ent) => !!(e.order || e.orderTarget || e.target || e.task);
   // L'unité vient de changer de palier : son niveau de rattachement suit, sinon toute sa vie autonome
   // (promenade, récolte) resterait calée sur l'ancien plateau.
   function syncLevel(e: Ent) {
@@ -1157,16 +1322,15 @@ export function createWorld(
     occDirty();
   }
 
-  // ---------- Soldats : entraînement à deux (au lieu de frapper dans le vide) ----------
-  function nearestSoldier(e: Ent, maxDist: number, needIdle: boolean, meleeOnly: boolean): Ent | null {
+  // ---------- Soldats : se regrouper entre camarades ----------
+  /** Camarade de mêlée le plus proche, même île et même couleur : celui vers qui on se regroupe. */
+  function nearestSoldier(e: Ent, maxDist: number): Ent | null {
     const fac = factionOf(e.key);
     let best: Ent | null = null;
     let bd = maxDist;
     for (const o of [...placed, ...decor]) {
-      if (o === e || !o.agent || !isSoldier(o)) continue;
-      if (meleeOnly && !isMelee(o)) continue;
+      if (o === e || !o.agent || !isMelee(o)) continue;
       if (o.home?.isl !== e.home?.isl || factionOf(o.key) !== fac) continue;
-      if (needIdle && (o.acting! >= 0 || o.moving)) continue;
       const d = Math.hypot(o.x - e.x, o.y - e.y);
       if (d < bd) {
         bd = d;
@@ -1174,23 +1338,6 @@ export function createWorld(
       }
     }
     return best;
-  }
-  function swingAt(u: Ent, other: Ent) {
-    const n = u.def.act?.[0]?.n ?? 6;
-    u.face = other.x < u.x ? -1 : 1;
-    u.acting = 0;
-    u.actT0 = t;
-    u.actEnd = t + (3 * n) / 10;
-    u.moving = false;
-  }
-  // Deux soldats de mêlée côte à côte s'entraînent : ils se font face et échangent des coups.
-  function trySpar(e: Ent): boolean {
-    if (!isMelee(e)) return false;
-    const p = nearestSoldier(e, TS * 1.7, true, true);
-    if (!p) return false;
-    swingAt(e, p);
-    if (p.acting! < 0 && !p.moving && !p.task) swingAt(p, e); // le partenaire réplique s'il est libre
-    return true;
   }
   function walkToward(e: Ent, ally: Ent) {
     const tx = ally.x + (ally.x > e.x ? -TS * 0.9 : TS * 0.9);
@@ -1293,10 +1440,16 @@ export function createWorld(
     if (u.hp <= 0) {
       u.dead = true;
       noteDamage(u); // 0 : plus la peine de retenir ses PV, elle ne reviendra pas
+      gainXp(by, u); // le tombeur gagne du galon (joueur comme rival)
       // Tout élément du décor D'ORIGINE qui meurt est mémorisé comme retiré : au retour sur la carte,
       // ni les soldats tombés ni les bâtiments rasés ne réapparaissent. (Les unités créées au vol par
       // l'IA ou par un débarquement ont un id non numérique : elles, on les laisse repartir de zéro.)
-      if (!u.placed && u.id && /^\d+$/.test(u.id)) opts.onDecorRemove?.(u.id);
+      if (!u.placed && u.id && /^\d+$/.test(u.id)) {
+        opts.onDecorRemove?.(u.id);
+        // Une grange rasée, c'est du stockage en moins : le plafond redescend séance tenante.
+        razedHome.add(u.id);
+        capsDirty = true;
+      }
       if (isBuilding(u)) {
         // Il en reste une ruine : la pierre ne s'évapore pas, et on pourra la relever à moitié prix.
         opts.onRuin?.(u.key, u.x, u.y);
@@ -1464,20 +1617,24 @@ export function createWorld(
     }
     return true;
   }
-  function combatMove(e: Ent, tx: number, ty: number, dt: number) {
-    if (!e.home) return; // sécurité : pas de déplacement sans île d'attache (évite un crash)
+  /** Renvoie false si l'unité n'a AUCUN moyen d'avancer vers sa cible : à l'appelant de l'abandonner. */
+  function combatMove(e: Ent, tx: number, ty: number, dt: number): boolean {
+    if (!e.home) return false; // sécurité : pas de déplacement sans île d'attache (évite un crash)
     const aim = steerPoint(e, tx, ty);
-    if (!aim) return; // inatteignable : `combatStep` a déjà écarté ces cibles, ceci n'est qu'un filet
+    // Aucun chemin. `canEngage` raisonne sur le graphe des régions, qui ignore les bâtiments : une
+    // cible « joignable » peut donc être murée derrière un château. Sans ce renoncement, l'unité
+    // gardait sa cible, `combatStep` renvoyait true, et elle restait plantée là pour toujours.
+    if (!aim) return false;
     const dx = aim.x - e.x;
     const dy = aim.y - e.y;
     const d = Math.hypot(dx, dy);
-    if (d < 2) return;
+    if (d < 2) return true;
     const step = Math.min(d, 48 * dt);
     const nx = e.x + (dx / d) * step;
     const ny = e.y + (dy / d) * step;
     // Même contournement qu'en marche libre : sans lui, un rocher entre l'unité et sa cible la fige
     // à mi-chemin, l'arme au clair.
-    if (tryStep(e, nx, ny) || tryStep(e, nx, e.y) || tryStep(e, e.x, ny)) {
+    if (tryStep(e, nx, ny) || tryStep(e, nx, e.y) || tryStep(e, e.x, ny) || slideAlong(e, dx, dy, step)) {
       e.moving = true;
       // On garde tx/ty cohérents avec la position RÉELLEMENT atteinte : sinon, dès que la cible
       // meurt, l'unité retombe dans la marche normale avec un tx incohérent → NaN → elle se fige
@@ -1487,7 +1644,11 @@ export function createWorld(
       e.acting = -1;
       syncLevel(e); // un palier de franchi : le niveau de rattachement suit
       if (Math.abs(dx) > 1) e.face = dx < 0 ? -1 : 1;
+      return true;
     }
+    // Bloquée de tous les côtés : le chemin en cache est caduc, on le refait à la prochaine image.
+    repath(e);
+    return false;
   }
   function swing(e: Ent, foe: Ent, st: CombatDef) {
     e.moving = false;
@@ -1534,7 +1695,10 @@ export function createWorld(
           // Le soin s'applique au moment fort de l'animation, comme un coup.
           e.strike = { at: t + (IMPACT_FRAC * n) / 10, foe: ally, dmg: st.dmg, ranged: false, heal: true, oy: 0 };
         }
-      } else combatMove(e, ally.x, ally.y, dt);
+      } else if (!combatMove(e, ally.x, ally.y, dt)) {
+        e.target = undefined; // blessé injoignable : le moine retourne à sa vie plutôt que de piétiner
+        return false;
+      }
       return true;
     }
     // Priorité aux unités ; à défaut, on prend d'assaut les bâtiments ennemis de l'île (siège).
@@ -1553,7 +1717,13 @@ export function createWorld(
     e.target = foe;
     const aim = aimAt(foe);
     if (distTo(e, foe) <= st.range * TS) swing(e, foe, st);
-    else combatMove(e, aim.x, aim.y, dt);
+    else if (!combatMove(e, aim.x, aim.y, dt)) {
+      // Cible murée ou hors d'atteinte : on la lâche pour de bon, sinon l'unité reste figée dessus
+      // image après image, l'arme au clair, sans jamais avancer ni chercher quelqu'un d'autre.
+      e.target = undefined;
+      e.orderTarget = undefined;
+      return false;
+    }
     return true;
   }
 
@@ -1566,22 +1736,18 @@ export function createWorld(
       else e.wait = 1.5 + Math.random() * 3;
       return;
     }
-    // Soldats : s'entraîner à deux, sinon se regrouper vers un allié, sinon patrouiller.
+    // Soldats : se regrouper vers un allié, sinon patrouiller. JAMAIS d'animation d'attaque.
+    // Un soldat ne dégaine que pour un vrai combat (`combatStep`) : il n'y a plus ni tir dans le
+    // vide pour les archers, ni soin sur personne pour les moines, ni entraînement à deux. Les
+    // deux tentatives précédentes (l'exercice solo et le sparring) donnaient la même impression de
+    // gens qui frappent l'air, et rendaient illisible le seul signal qui compte : on se bat ici.
     if (isSoldier(e)) {
-      if (trySpar(e)) return;
       if (isMelee(e)) {
-        const ally = nearestSoldier(e, 12 * TS, false, true);
+        const ally = nearestSoldier(e, 12 * TS);
         if (ally && e.walks && Math.random() < 0.75) {
           walkToward(e, ally);
           return;
         }
-      } else if (e.def.act?.length && Math.random() < 0.5) {
-        // Archers (tir) & moines (soin) : ils s'exercent → leurs belles animations sont visibles hors combat.
-        const n = e.def.act[0].n;
-        e.acting = 0;
-        e.actT0 = t;
-        e.actEnd = t + (2 * n) / 10;
-        return;
       }
       if (e.walks && Math.random() < 0.6) pickTarget(e);
       else e.wait = 1.5 + Math.random() * 3;
@@ -1716,11 +1882,12 @@ export function createWorld(
         // Un simple rocher sur la trajectoire suffisait à figer l'unité : le pas diagonal était
         // refusé et elle attendait indéfiniment. On glisse désormais le long de l'obstacle en
         // retombant sur un pas purement horizontal, puis purement vertical.
-        if (!tryStep(e, nx, ny) && !tryStep(e, nx, e.y) && !tryStep(e, e.x, ny)) {
+        if (!tryStep(e, nx, ny) && !tryStep(e, nx, e.y) && !tryStep(e, e.x, ny) && !slideAlong(e, dx, dy, step)) {
           e.moving = false;
           e.wait = 0.5;
+          repath(e); // coincée : le chemin en cache ne vaut plus rien, on le refait sans attendre
         } else {
-          if (e.order) syncLevel(e);
+          if (onErrand(e)) syncLevel(e);
           if (Math.abs(dx) > 1) e.face = dx < 0 ? -1 : 1;
         }
       }
@@ -1731,6 +1898,37 @@ export function createWorld(
       if (e.order) issueMarch(e); // priorité à l'ordre du joueur sur la vie autonome
       else nextActivity(e);
     }
+  }
+  /**
+   * Un pas vient d'être refusé : le chemin en cache ne vaut plus rien, on avance sa péremption.
+   * On ne l'annule PAS d'un coup — une unité coincée redemanderait alors un A* à chaque image, et
+   * une mêlée de vingt hommes bloqués mettrait la carte à genoux. Quatre recalculs par seconde
+   * suffisent largement à se dégager, contre un seul par seconde en temps normal.
+   */
+  function repath(e: Ent) {
+    e.pathAt = Math.min(e.pathAt ?? Infinity, t + 0.25);
+  }
+  /**
+   * Dernier recours quand même les pas horizontal et vertical sont refusés : on longe l'obstacle
+   * perpendiculairement à la direction voulue. Sans ça, une unité coincée dans un angle (un mur de
+   * bâtiment, un goulet entre deux maisons) s'y écrase et attend — c'est le « collé au mur ».
+   * On garde le même côté d'une image à l'autre (`e.slide`) : alterner ferait vibrer l'unité sur
+   * place au lieu de la faire contourner.
+   */
+  function slideAlong(e: Ent, dx: number, dy: number, step: number): boolean {
+    const d = Math.hypot(dx, dy);
+    if (!d || !Number.isFinite(d)) return false;
+    const px = -dy / d;
+    const py = dx / d;
+    const first = e.slide ?? (Math.random() < 0.5 ? 1 : -1);
+    for (const s of [first, -first]) {
+      if (tryStep(e, e.x + px * s * step, e.y + py * s * step)) {
+        e.slide = s;
+        return true;
+      }
+    }
+    e.slide = undefined;
+    return false;
   }
   /**
    * Tente de poser l'unité en (nx, ny). Renvoie false si la case est interdite (terrain ou objet
@@ -1746,9 +1944,13 @@ export function createWorld(
       e.y = ny;
       return true; // on reste dans la même case : rien à vérifier
     }
-    // Sous un ordre du joueur, l'unité a le droit de changer de palier (rampe) ; en vie autonome elle
-    // reste sur le sien, sinon les villageois descendraient des plateaux au hasard en promenade.
-    const ok = e.order ? walkableAcross(cx, cy, ncx, ncy, e.home!.isl) : walkable(ncx, ncy, e.home!);
+    // Une unité QUI VA QUELQUE PART a le droit de changer de palier par une rampe ; en promenade
+    // elle reste sur le sien, sinon les villageois descendraient des plateaux au hasard.
+    // Ce droit était jadis réservé aux ordres du joueur (`e.order`) — or le chemin (`findPath`) et la
+    // ligne droite (`lineOfWalk`), eux, ont TOUJOURS accepté les rampes. Un soldat en chasse ou un
+    // villageois en récolte traçait donc une route par l'escalier, puis se voyait refuser le pas au
+    // pied de la marche : il restait collé à la falaise. C'est le « ils buggent sur les escaliers ».
+    const ok = onErrand(e) ? walkableAcross(cx, cy, ncx, ncy, e.home!.isl) : walkable(ncx, ncy, e.home!);
     if (!ok) return false;
     // Seuls les MURS arrêtent (`getWalls`). Un buisson, un arbre, un rocher ou un filon se traverse :
     // ils gênaient la marche sans que le chemin en tienne compte, et l'unité restait plantée devant.
@@ -1916,8 +2118,10 @@ export function createWorld(
           face: 1,
           home: { isl, lvl: levelAt(cx, cy) },
           origin: { x, y },
-          hp: cst.hp,
-          maxHp: cst.hp,
+          // Recrue fraîche : pas de vétérance, mais le grade d'entraînement de son royaume.
+          rank: rankFor(key),
+          hp: maxHpOf(key, rankFor(key)),
+          maxHp: maxHpOf(key, rankFor(key)),
           id: `ai:${Math.random().toString(36).slice(2, 7)}`,
         } as Ent);
         return true;
@@ -2064,8 +2268,10 @@ export function createWorld(
       face: -1,
       home: { isl, lvl: levelAt(cx, cy) },
       origin: { x, y },
-      hp: cst.hp,
-      maxHp: cst.hp,
+      // Les envahisseurs débarquent au grade de leur royaume : une invasion tardive fait mal.
+      rank: rankFor(key),
+      hp: maxHpOf(key, rankFor(key)),
+      maxHp: maxHpOf(key, rankFor(key)),
       raider: true,
       order: march ? { ...march } : undefined,
       id: `raider:${Math.random().toString(36).slice(2, 7)}`,
@@ -2227,6 +2433,19 @@ export function createWorld(
   function planCrossing(e: Ent, final: number, march?: { x: number; y: number }): boolean {
     const from = e.home?.isl ?? -1;
     if (from < 0 || from === final) return false;
+    // On ne se met JAMAIS à l'eau si les pieds suffisent. Le seul critère était « autre index d'île »,
+    // or deux terres voisines peuvent très bien communiquer par une rampe ou une langue de sol : le
+    // soldat partait nager le long d'une côte qu'il n'avait qu'à longer. Le graphe des régions (qui
+    // relie les paliers par les escaliers) tranche, et il ne coûte rien — il est calculé une fois.
+    if (
+      march &&
+      reachable(Math.floor(e.x / TS), Math.floor(e.y / TS), Math.floor(march.x / TS), Math.floor(march.y / TS))
+    ) {
+      e.cross = undefined;
+      e.warp = undefined;
+      e.order = { x: march.x, y: march.y };
+      return true;
+    }
     let to = nextHop(from, final);
     let quay = departureSpot(e, to);
     // Escale impraticable (côte hors d'atteinte depuis ce palier) : on vise directement le but.
@@ -2366,7 +2585,7 @@ export function createWorld(
     e.moving = true; // animation de course pendant la nage
     e.acting = -1;
     e.face = x1 < e.x ? -1 : 1;
-    effects.push({ x: e.x, y: e.y, t0: t, kind: 'ring', s: 1.2 });
+    effects.push({ x: e.x, y: e.y, t0: t, kind: 'wake', s: 1.4 }); // gerbe d'entrée dans l'eau
     occDirty();
   }
   /** Fait avancer les nageurs et les dépose sur l'autre rive. */
@@ -2387,7 +2606,7 @@ export function createWorld(
       e.x = s.x0 + (s.x1 - s.x0) * k;
       e.y = s.y0 + (s.y1 - s.y0) * k;
       // Sillage : une ondulation de loin en loin, pour que la traversée se lise comme une nage.
-      if (Math.floor((t - s.t0) * 2) !== Math.floor((t - s.t0 - 0.02) * 2)) effects.push({ x: e.x, y: e.y + 6, t0: t, kind: 'ring', s: 0.55 });
+      if (Math.floor((t - s.t0) * 2) !== Math.floor((t - s.t0 - 0.02) * 2)) effects.push({ x: e.x, y: e.y - 14, t0: t, kind: 'wake', s: 0.8 });
     }
   }
 
@@ -2704,10 +2923,27 @@ export function createWorld(
       drawFrame();
       ctx.restore();
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = 'rgba(235, 248, 255, 0.75)';
-      ctx.lineWidth = 1.5;
+      // Sillage : deux traits d'écume derrière le nageur. Avant, c'était un anneau complet autour de
+      // lui — sur la mer turquoise il tirait au vert et donnait l'impression d'un cerceau posé sous
+      // ses pieds plutôt que d'un remous.
+      // Taillé à l'échelle de la barre de vie (44 px de monde), pas à celle du sprite : la carte se
+      // joue très dézoomée, un trait de 1,5 px de monde ne couvre même pas un pixel d'écran.
+      ctx.strokeStyle = 'rgba(240, 250, 255, 0.8)';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      const back = e.face === -1 ? 1 : -1; // l'écume traîne derrière, du côté d'où l'on vient
+      const wob = Math.sin(t * 6 + e.ph) * 2;
+      for (const oy of [-5, 5]) {
+        ctx.beginPath();
+        ctx.moveTo(e.x + back * 9, water + oy * 0.4);
+        ctx.lineTo(e.x + back * 30, water + oy + wob);
+        ctx.stroke();
+      }
+      // Remous à la taille : un arc ouvert vers l'avant, jamais un anneau fermé.
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.ellipse(e.x, water, 14, 4, 0, 0, Math.PI * 2);
+      const a0 = back < 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
+      ctx.ellipse(e.x, water + 1, 11, 4, 0, a0, a0 + Math.PI);
       ctx.stroke();
       return;
     }
@@ -2775,6 +3011,62 @@ export function createWorld(
       ctx.fillStyle = isFriendly(e) ? 'rgba(95,210,95,0.95)' : 'rgba(225,70,70,0.95)';
       ctx.fillRect(x0, top, w * frac, 5);
     }
+    // Liseré de grade autour de la jauge d'un vétéran : on voit d'un coup d'œil à qui on a affaire,
+    // y compris en face.
+    const r = e.rank ?? 1;
+    if (r > 1 && !big) {
+      ctx.strokeStyle = r >= RANK_MAX ? 'rgba(255, 211, 92, 0.9)' : 'rgba(226, 226, 214, 0.8)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x0 - 1.5, top + BAR.fillTop * s - 2, w + 3, Math.max(2, BAR.fillTall * s) + 4);
+    }
+    ctx.restore();
+  }
+
+  /**
+   * Grade : des chevrons au-dessus de la tête (argent au niveau 2, or au niveau 3), et un cerne doré
+   * au sol pour les vétérans confirmés.
+   * Passe à part, JAMAIS dans `drawSprite` : celui-ci retourne le contexte à l'horizontale pour les
+   * unités qui regardent à gauche, et les chevrons partiraient à l'envers avec.
+   * La hauteur est calculée indépendamment de la barre de vie : celle-ci n'apparaît que si l'unité
+   * est blessée ou sélectionnée, un chevron calé dessus sauterait au premier coup reçu.
+   */
+  function drawRank(e: Ent) {
+    const r = e.rank ?? 1;
+    if (r < 2 || !e.agent || e.sailing) return;
+    const gold = r >= RANK_MAX;
+    // Taillé sur la barre de vie (44 px de monde) : la carte se joue dézoomée, un chevron de 7 px
+    // ne faisait que deux pixels à l'écran — dessiné, mais invisible.
+    const w = 20;
+    const h = 10;
+    // Même ancrage que `drawHealth`, remonté juste au-dessus de son emplacement. Les cadres des
+    // sprites ont beaucoup de vide au-dessus de la tête, d'où le facteur 0.5 repris tel quel.
+    const base = e.y - (e.def.fh - e.def.feet) * 0.5 - 20;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (let i = 0; i < r - 1; i++) {
+      const y = base - i * 9;
+      ctx.beginPath();
+      ctx.moveTo(e.x - w / 2, y);
+      ctx.lineTo(e.x, y - h);
+      ctx.lineTo(e.x + w / 2, y);
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)'; // cerne noir : lisible sur l'herbe comme sur la pierre
+      ctx.lineWidth = 7;
+      ctx.stroke();
+      ctx.strokeStyle = gold ? '#ffd35c' : '#e9e9df';
+      ctx.lineWidth = 3.5;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  /** Cerne doré au sol du vétéran confirmé. Dessiné AVANT les sprites : sinon il barre ses pieds. */
+  function drawVetRing(e: Ent) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y + 2, 24, 9, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255, 211, 92, 0.55)';
+    ctx.lineWidth = 4;
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -2916,6 +3208,8 @@ export function createWorld(
     });
     all.sort((a, b) => a.y - b.y);
     const lifted = drag?.ent && drag.moved ? drag.ent : null;
+    // cernes de vétéran : au sol, donc sous les unités
+    for (const e of all) if (e.agent && (e.rank ?? 1) >= RANK_MAX && !e.sailing && e !== lifted) drawVetRing(e);
     for (const e of all) {
       if (e === moveEnt) drawSprite(e, 0.35);
       else if (e !== lifted) drawSprite(e);
@@ -2929,6 +3223,8 @@ export function createWorld(
       if (!wounded && keyOf(e) !== selected) continue;
       drawHealth(e);
     }
+    // chevrons de grade : au-dessus de tout le reste
+    for (const e of all) if (e !== lifted) drawRank(e);
     // flèches
     for (const p of projectiles) {
       ctx.save();
@@ -2977,6 +3273,24 @@ export function createWorld(
         ctx.beginPath();
         const rs = fx.s ?? 1;
         ctx.ellipse(fx.x, fx.y, (20 + 50 * k) * rs, (8 + 18 * k) * Math.max(1, rs * 0.7), 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      } else if (fx.kind === 'wake') {
+        // Remous d'écume : le même anneau qui s'ouvre, mais blanc. Le `ring` vert est réservé aux
+        // effets « magiques » (portail, atterrissage) — sur la mer turquoise il tirait au vert vif et
+        // donnait l'impression d'un cerceau lumineux sous les pieds du nageur.
+        const dur = 0.9;
+        if (age > dur) {
+          effects.splice(i, 1);
+          continue;
+        }
+        const k = age / dur;
+        ctx.save();
+        ctx.strokeStyle = `rgba(245, 252, 255, ${0.7 * (1 - k)})`;
+        ctx.lineWidth = 3 * (1 - k) + 1;
+        ctx.beginPath();
+        const rs = fx.s ?? 1;
+        ctx.ellipse(fx.x, fx.y, (10 + 26 * k) * rs, (4 + 9 * k) * rs, 0, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       } else if (fx.kind === 'hit') {
@@ -3204,6 +3518,8 @@ export function createWorld(
     arrow: `url(${uiUrl('cursor_01.png')}) 6 4, auto`,
     hand: `url(${uiUrl('cursor_02.png')}) 20 8, pointer`,
     no: `url(${uiUrl('cursor_03.png')}) 24 24, not-allowed`,
+    // Épées croisées : une troupe est retenue et le curseur est sur un ennemi — le clic droit attaque.
+    sword: `url(${uiUrl('icon_05.png')}) 32 32, crosshair`,
   };
 
   // ---------- Entrées (souris, tactile, molette) ----------
@@ -3338,6 +3654,8 @@ export function createWorld(
             hp: ent.hp,
             maxHp: ent.maxHp,
             mine: isFriendly(ent),
+            rank: ent.agent && isFighter(ent) ? (ent.rank ?? 1) : undefined,
+            xp: ent.xp,
             ruin: ent.ruin?.k, // clé de la ruine : le panneau propose alors de la relever
           }
         : undefined,
@@ -3425,14 +3743,18 @@ export function createWorld(
     opts.onTroop?.(troop.size);
   }
   // Ennemi vivant sous (ou tout près de) le point monde (x, y), même île de préférence.
+  // Les BÂTIMENTS ennemis comptent aussi : désigner un château, c'est ordonner le siège. Ils ne sont
+  // retenus qu'en plein dessus (pas d'aimant de proximité) — ils sont larges, et on viserait sans
+  // arrêt un mur au lieu du soldat qui passe devant.
   function enemyAt(x: number, y: number, isl: number): Ent | null {
     let near: Ent | null = null;
     let nd = TS * 1.4;
     for (const o of [...decor, ...placed]) {
-      if (!o.agent || !alive(o) || o.maxHp === undefined || isFriendly(o)) continue;
+      if (!alive(o) || o.maxHp === undefined || isFriendly(o)) continue;
+      if (!o.agent && !isBuilding(o)) continue;
       const b = hitBox(o);
       if (x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1) return o;
-      if (o.home?.isl === isl) {
+      if (o.agent && o.home?.isl === isl) {
         const d = Math.hypot(o.x - x, o.y - y);
         if (d < nd) {
           nd = d;
@@ -3536,13 +3858,17 @@ export function createWorld(
         ghost = snapGhost(p.x, p.y);
         // Pose en cours : main si l'endroit convient, sens interdit sinon — on sait avant de lâcher.
         canvas.style.cursor = ghost && checkFit(moveEnt.key, ghost.x, ghost.y, unlocked, getOcc(), keyOf(moveEnt)).ok ? CUR.hand : CUR.no;
-      } else if (orderMode) {
-        canvas.style.cursor = CUR.hand;
       } else {
-        const over = pick(p.x, p.y);
         const w = s2w(p.x, p.y);
         const isl = islandAt(Math.floor(w.x / TS), Math.floor(w.y / TS));
-        canvas.style.cursor = over ? CUR.hand : isl >= 0 && !unlocked.has(isl) ? CUR.no : CUR.arrow;
+        // Une troupe est retenue et on survole un ennemi : épées croisées. Le curseur annonce ce que
+        // fera le clic droit — charger CETTE cible — au lieu de laisser deviner.
+        if (troop.size && enemyAt(w.x, w.y, isl)) canvas.style.cursor = CUR.sword;
+        else if (orderMode) canvas.style.cursor = CUR.hand;
+        else {
+          const over = pick(p.x, p.y);
+          canvas.style.cursor = over ? CUR.hand : isl >= 0 && !unlocked.has(isl) ? CUR.no : CUR.arrow;
+        }
       }
       return;
     }
@@ -3761,7 +4087,7 @@ export function createWorld(
       if (moveEnt) endMove();
       select(null);
       const g = snapTo(id, cam.x, cam.y);
-      const cst = COMBAT[combatBase(id) ?? ''];
+      const rank = rankFor(id);
       moveEnt = {
         key: id,
         def,
@@ -3773,8 +4099,10 @@ export function createWorld(
         acting: -1,
         walks: !!def.run,
         agent: !!(def.run || def.act),
-        hp: cst?.hp,
-        maxHp: cst?.hp,
+        rank,
+        // La recrue arrive déjà entraînée : elle profite des paliers payés au Marché.
+        hp: maxHpOf(id, rank),
+        maxHp: maxHpOf(id, rank),
       } as Ent;
       ghost = g;
       opts.onMoveMode?.(true);
@@ -3812,6 +4140,14 @@ export function createWorld(
     /** Met à jour le miroir des réserves (pour savoir quand le stockage est plein). */
     setStock(s: { gold: number; wood: number; food: number }) {
       stock = { gold: s.gold, wood: s.wood, food: s.food };
+    },
+    /**
+     * Nouvel entraînement acheté au Marché : tous les soldats de ce type montent en grade sur place,
+     * les vivants comme ceux à venir — sans recréer la carte.
+     */
+    setUpgrades(u: Record<string, number>) {
+      upgrades = u;
+      for (const e of [...placed, ...decor]) if (alive(e) && e.agent) applyRank(e);
     },
     /** Reverse immédiatement les ressources en attente (ex. avant de quitter le site). */
     flush() {

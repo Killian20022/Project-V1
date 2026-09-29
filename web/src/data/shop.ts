@@ -1,7 +1,7 @@
 // Marché de « Scriptoria » — tout ce qu'on peut acheter puis poser sur la carte du royaume.
 // Chaque article pointe vers un sprite Tiny Swords (voir src/data/sprites.json).
 
-export type ShopCategory = 'soldats' | 'batiments' | 'nature' | 'ressources' | 'animaux';
+export type ShopCategory = 'soldats' | 'entrainement' | 'batiments' | 'nature' | 'ressources' | 'animaux';
 export type Faction = 'bleu' | 'rouge' | 'jaune' | 'violet' | 'noir';
 
 export interface ShopItem {
@@ -24,6 +24,7 @@ export interface ShopItem {
 
 export const CATEGORIES: { id: ShopCategory; label: string; hint: string }[] = [
   { id: 'soldats', label: 'Soldats', hint: 'Ils patrouillent tout seuls sur tes îles' },
+  { id: 'entrainement', label: 'Entraînement', hint: 'Monte tout un corps de troupe en grade — les soldats déjà sur la carte comme ceux à venir' },
   { id: 'batiments', label: 'Bâtiments', hint: 'Bâtis ton village, ton château, ta forteresse' },
   { id: 'nature', label: 'Arbres & buissons', hint: 'Pour une île verdoyante' },
   { id: 'ressources', label: 'Rochers & trésors', hint: 'Pierres, or et bois' },
@@ -281,3 +282,41 @@ const BASE_LABEL: Record<string, string> = {
   chateau: 'un Château',
 };
 export const needsLabel = (base: string) => BASE_LABEL[base] ?? 'un bâtiment spécial';
+
+// ---------- Entraînement : les niveaux de soldats (1 → 3) ----------
+// Deux façons de monter en grade, qui se cumulent :
+//  - l'ENTRAÎNEMENT, acheté ici, vaut pour tout un type d'unité (tous tes guerriers, d'un coup) ;
+//  - la VÉTÉRANCE, gagnée au combat, appartient à un soldat en particulier (voir `world.ts`).
+// Le total est plafonné à 3. Les rivaux progressent aussi, sans quoi ta montée en puissance
+// transformerait la fin de partie en promenade.
+export const RANK_MAX = 3;
+
+/** Soldats qui peuvent progresser. Le villageois ne se bat pas : il reste à son niveau. */
+export interface Training {
+  base: string;
+  name: string;
+  needs?: string;
+  blurb: string;
+}
+export const TRAININGS: Training[] = UNITS.filter((u) => u.key !== 'villageois').map((u) => ({
+  base: u.key,
+  name: u.name,
+  needs: u.needs,
+  blurb: u.blurb,
+}));
+
+/** Palier acheté pour un type de soldat (1 = aucun entraînement). */
+export const trainedRank = (upgrades: Record<string, number> | undefined, base: string): number =>
+  Math.min(RANK_MAX, Math.max(1, upgrades?.[base] ?? 1));
+
+/**
+ * Prix pour faire passer TOUT un type de soldat au palier `to`. Dérivé du prix de l'unité : un
+ * lancier coûte plus cher qu'un guerrier, son entraînement aussi, sans table à maintenir à part.
+ * `null` si le palier n'existe pas.
+ */
+export function upgradeCost(base: string, to: number): { gold: number; wood: number } | null {
+  const unit = UNITS.find((u) => u.key === base);
+  if (!unit || to < 2 || to > RANK_MAX) return null;
+  const [g, w] = to === 2 ? [5, 1.5] : [11, 3.5];
+  return { gold: Math.round((unit.price * g) / 10) * 10, wood: Math.round((unit.price * w) / 5) * 5 };
+}
