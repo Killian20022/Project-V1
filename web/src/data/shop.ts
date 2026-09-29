@@ -55,9 +55,30 @@ const LABEL: Record<Faction, { m: string; f: string }> = {
   noir: { m: 'noir', f: 'noire' },
 };
 
+/**
+ * Les trois métiers du village. Un villageois ne fait plus tout : il abat, il creuse ou il chasse.
+ * `tool` est l'indice dans `act[]` du sprite pion (0 hache, 1 pioche, 2 marteau, 3 couteau) — c'est
+ * la planche que la carte du Marché affiche, pour qu'on reconnaisse le métier à l'outil avant même
+ * de lire le nom. Sur la carte, le moteur joue déjà cette planche pendant la récolte.
+ */
+export interface WorkerJob {
+  base: string;
+  name: string;
+  res: 'wood' | 'gold' | 'food';
+  tool: number;
+  blurb: string;
+}
+export const WORKER_JOBS: WorkerJob[] = [
+  { base: 'bucheron', name: 'Bûcheron', res: 'wood', tool: 0, blurb: 'Hache — n’abat que les arbres' },
+  { base: 'mineur', name: 'Mineur', res: 'gold', tool: 1, blurb: 'Pioche — ne creuse que les filons d’or' },
+  { base: 'chasseur', name: 'Chasseur', res: 'food', tool: 3, blurb: 'Couteau — ne chasse que les moutons' },
+];
+/** Métier d'une clé d'unité (toute faction), ou `undefined` si ce n'en est pas un. */
+export const jobOf = (id: string): WorkerJob | undefined => WORKER_JOBS.find((j) => id.startsWith(j.base));
+
 // Recruter coûte de l'or + des ressources récoltées ; les soldats exigent le bâtiment adéquat.
-const UNITS: { key: string; name: string; price: number; wood?: number; food?: number; needs?: string; max?: number; blurb: string }[] = [
-  { key: 'villageois', name: 'Villageois', price: 50, blurb: 'Récolte le bois, l’or et la nourriture' },
+const UNITS: { key: string; name: string; price: number; wood?: number; food?: number; needs?: string; max?: number; blurb: string; job?: WorkerJob }[] = [
+  ...WORKER_JOBS.map((j) => ({ key: j.base, name: j.name, price: 50, blurb: j.blurb, job: j })),
   { key: 'moine', name: 'Moine', price: 120, food: 20, needs: 'monastere', blurb: 'Soigne les blessés' },
   { key: 'archer', name: 'Archer', price: 90, wood: 40, food: 20, needs: 'archerie', blurb: 'Vise juste de loin' },
   { key: 'guerrier', name: 'Guerrier', price: 80, wood: 20, food: 30, needs: 'caserne', blurb: 'Épée et bouclier' },
@@ -188,7 +209,24 @@ const animals: ShopItem[] = [
   { id: 'mouton-qui-broute', name: 'Mouton gourmand', price: 55, category: 'animaux', max: 30, blurb: 'Il broute sans s’arrêter' },
 ];
 
-export const SHOP: ShopItem[] = [...soldiers, ...buildings, ...portals, ...nature, ...resources, ...animals];
+// Le villageois polyvalent ne se recrute plus (il est devenu bûcheron, mineur ou chasseur), mais sa
+// clé RESTE au catalogue, masquée : `migrateState` supprime et rembourse tout objet posé absent de
+// `SHOP_MAP`. Sans ces entrées, un seul chargement effacerait les villageois d'une vieille partie —
+// et ceux que l'IA produit encore.
+const legacyWorkers: ShopItem[] = FACTIONS.map(({ id: f }) => ({
+  id: 'villageois' + SUFFIX[f].m,
+  name: `Villageois ${LABEL[f].m}`,
+  price: 50,
+  pop: 1,
+  category: 'soldats' as const,
+  faction: f,
+  max: 25,
+  walks: true,
+  hidden: true,
+  blurb: 'Ancien villageois polyvalent',
+}));
+
+export const SHOP: ShopItem[] = [...soldiers, ...legacyWorkers, ...buildings, ...portals, ...nature, ...resources, ...animals];
 export const SHOP_MAP: Record<string, ShopItem> = Object.fromEntries(SHOP.map((item) => [item.id, item]));
 
 // ---------- Population & bâtiments (phase 2) ----------
@@ -225,7 +263,12 @@ const STORE_PER: Record<string, Stock> = {
   tour: { gold: 100, wood: 60, food: 0 },
 };
 
-/** Plafond de stockage (or/bois/nourriture) = base + apport de chaque bâtiment possédé. */
+/**
+ * Plafond de stockage (or/bois/nourriture) = base + apport de chaque bâtiment possédé.
+ * ⚠️ Le volet OR n'est plus appliqué : le trésor est aussi alimenté par les leçons, le plafonner
+ * arrêtait les mineurs pour de bon (cf. `roomFor` dans world.ts). On garde le champ pour ne pas
+ * casser le type `Stock`, mais ni le moteur ni le HUD ne s'en servent.
+ */
 export function storageCaps(placed: { id: string }[]): Stock {
   const cap: Stock = { ...STORE_BASE };
   for (const p of placed) {
@@ -253,7 +296,7 @@ export function ownsBuilding(placed: { id: string }[], base: string): boolean {
 export function applyFaction(id: string, fac: Faction): string {
   const fem = { bleu: 'bleue', rouge: 'rouge', jaune: 'jaune', violet: 'violette', noir: 'noire' }[fac];
   let m: RegExpExecArray | null;
-  if ((m = /^(villageois|guerrier|lancier|archer|moine)(?:-(?:rouge|jaune|violet|noir))?$/.exec(id)))
+  if ((m = /^(villageois|bucheron|mineur|chasseur|guerrier|lancier|archer|moine)(?:-(?:rouge|jaune|violet|noir))?$/.exec(id)))
     return m[1] + (fac === 'bleu' ? '' : `-${fac}`);
   if ((m = /^maison-(?:bleue|rouge|jaune|violette|noire)-(\d)$/.exec(id))) return `maison-${fem}-${m[1]}`;
   if ((m = /^(tour|caserne|archerie)(?:-(?:rouge|jaune|violette|noire))?$/.exec(id)))
@@ -291,14 +334,14 @@ export const needsLabel = (base: string) => BASE_LABEL[base] ?? 'un bâtiment sp
 // transformerait la fin de partie en promenade.
 export const RANK_MAX = 3;
 
-/** Soldats qui peuvent progresser. Le villageois ne se bat pas : il reste à son niveau. */
+/** Soldats qui peuvent progresser. Les gens de métier ne se battent pas : pas de grade pour eux. */
 export interface Training {
   base: string;
   name: string;
   needs?: string;
   blurb: string;
 }
-export const TRAININGS: Training[] = UNITS.filter((u) => u.key !== 'villageois').map((u) => ({
+export const TRAININGS: Training[] = UNITS.filter((u) => !u.job).map((u) => ({
   base: u.key,
   name: u.name,
   needs: u.needs,

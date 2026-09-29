@@ -8,7 +8,20 @@ import WORLD_JSON from '../data/world.json';
 import RAMPS_JSON from '../data/ramps.json';
 import { createOcean } from './ocean';
 import { SPRITES, spriteUrl, uiUrl, type SpriteDef } from './sprites';
-import { RANK_MAX, SHOP_MAP, houseVariants, storageCaps, trainedRank } from '../data/shop';
+import { RANK_MAX, SHOP_MAP, WORKER_JOBS, houseVariants, jobOf, storageCaps, trainedRank } from '../data/shop';
+
+// Gens de métier : les trois spécialistes plus le « villageois » polyvalent d'avant la scission,
+// qu'on croise encore dans le décor de la carte et dans les rangs des rivaux.
+const WORKER_RE = new RegExp(`^(villageois|${WORKER_JOBS.map((j) => j.base).join('|')})`);
+/**
+ * Donne un métier à un villageois du décor. La répartition est tirée sur l'INDICE du décor, pas au
+ * hasard : le décor est reconstruit depuis `world.json` à chaque chargement, et un vrai tirage ferait
+ * changer de métier au même bonhomme d'une session à l'autre. La couleur est préservée telle quelle.
+ */
+function splitWorker(key: string, seed: number): string {
+  const m = /^villageois(-(?:rouge|jaune|violet|noir))?$/.exec(key);
+  return m ? WORKER_JOBS[seed % WORKER_JOBS.length].base + (m[1] ?? '') : key;
+}
 
 export interface WorldData {
   w: number;
@@ -45,6 +58,10 @@ const COMBAT: Record<string, CombatDef> = {
   archer: { hp: 70, dmg: 14, range: 4.5, atk: 1.3, ranged: true },
   moine: { hp: 90, dmg: 18, range: 3.0, atk: 1.6, heal: true },
   villageois: { hp: 60, dmg: 0, range: 0, atk: 1 },
+  // Les trois métiers ont la constitution du villageois dont ils sont issus : ils ne se battent pas.
+  bucheron: { hp: 60, dmg: 0, range: 0, atk: 1 },
+  mineur: { hp: 60, dmg: 0, range: 0, atk: 1 },
+  chasseur: { hp: 60, dmg: 0, range: 0, atk: 1 },
   tour: { hp: 500, dmg: 13, range: 5.5, atk: 0.9, ranged: true },
 };
 // ---------- Grades (niveaux 1 → 3) ----------
@@ -65,7 +82,7 @@ const IMPACT_FRAC = 0.45;
 // `(?![a-z])` : sinon « archerie » (le bâtiment) serait lu comme « archer » (l'unité) et hériterait
 // de ses 70 PV. La clé doit s'arrêter là ou continuer par un tiret de couleur (« archer-rouge »).
 const combatBase = (key: string): string | null =>
-  /^(guerrier|lancier|archer|moine|villageois|tour)(?![a-z])/.exec(key)?.[1] ?? null;
+  /^(guerrier|lancier|archer|moine|villageois|bucheron|mineur|chasseur|tour)(?![a-z])/.exec(key)?.[1] ?? null;
 
 /**
  * Couleur du royaume à qui appartient une entité, lue dans sa clé de sprite. Pure : elle ne dépend
@@ -135,9 +152,12 @@ const HARVEST: Record<string, HarvestDef> = {
   'sapin-2': { resource: 'wood', actIndex: 0, yield: 1, cycles: 3, regrowMs: 20000, depletedKey: 'souche-2' },
   'arbre-jaune': { resource: 'wood', actIndex: 0, yield: 1, cycles: 3, regrowMs: 20000, depletedKey: 'souche-1' },
   'arbre-orange': { resource: 'wood', actIndex: 0, yield: 1, cycles: 3, regrowMs: 20000, depletedKey: 'souche-2' },
-  or: { resource: 'gold', actIndex: 1, yield: 2, cycles: 3, regrowMs: 30000 },
-  'or-petit': { resource: 'gold', actIndex: 1, yield: 1, cycles: 2, regrowMs: 30000 },
-  'or-gros': { resource: 'gold', actIndex: 1, yield: 3, cycles: 4, regrowMs: 30000 },
+  // Un filon rapportait 6 pièces puis dormait 30 s : avec deux filons sur l'île natale, six mineurs
+  // se relayaient pour ~10 pièces la minute et passaient leur vie à attendre. On l'a rendu digne d'un
+  // métier à plein temps, sans toucher au bois ni à la viande (eux ne manquent pas de nœuds).
+  or: { resource: 'gold', actIndex: 1, yield: 3, cycles: 4, regrowMs: 22000 },
+  'or-petit': { resource: 'gold', actIndex: 1, yield: 2, cycles: 3, regrowMs: 22000 },
+  'or-gros': { resource: 'gold', actIndex: 1, yield: 5, cycles: 5, regrowMs: 22000 },
   // Le mouton se dépèce au COUTEAU (act[3]) : jusqu'ici on l'abattait à la hache à bois.
   mouton: { resource: 'food', actIndex: 3, yield: 1, cycles: 2, regrowMs: 25000 },
 };
@@ -394,7 +414,7 @@ function recolorKey(key: string, fac: string): string {
   const mh = /^maison-bleue-(\d)$/.exec(key);
   if (mh) return `maison-${FEM[fac]}-${mh[1]}`;
   if (/^(tour|caserne|archerie)$/.test(key)) return `${key}-${FEM[fac]}`;
-  if (/^(chateau|monastere|guerrier|lancier|archer|moine|villageois)$/.test(key)) return `${key}-${fac}`;
+  if (/^(chateau|monastere|guerrier|lancier|archer|moine|villageois|bucheron|mineur|chasseur)$/.test(key)) return `${key}-${fac}`;
   return key;
 }
 /** Case en bas à gauche de l'emprise d'un objet dont les pieds sont en (x, y). */
@@ -754,12 +774,15 @@ export function createWorld(
   const clouds: { key: string; def: SpriteDef; x: number; y: number; speed: number }[] = [];
   // La carte de base ne doit garder que très peu de personnages par île : le joueur
   // peuplera son royaume en achetant au marché. On plafonne les PNJ humains à l'init.
-  const HUMAN_RE = /^(villageois|guerrier|lancier|archer|moine)/;
+  const HUMAN_RE = /^(villageois|bucheron|mineur|chasseur|guerrier|lancier|archer|moine)/;
   const DECOR_UNIT_CAP = 2;
   const humanPerIsl = new Map<number, number>();
   WORLD.decor.forEach(([key0, x0, y0, cloud], index) => {
     // Le royaume de départ prend la couleur choisie par le joueur.
-    const key = !cloud && islandAt(Math.floor(x0 / TS), Math.floor(y0 / TS)) === homeIsl ? recolorKey(key0, playerFaction) : key0;
+    const key = splitWorker(
+      !cloud && islandAt(Math.floor(x0 / TS), Math.floor(y0 / TS)) === homeIsl ? recolorKey(key0, playerFaction) : key0,
+      index,
+    );
     const def = SPRITES[key];
     if (!def) return;
     if (opts.decorRemoved?.includes(String(index))) return;
@@ -941,8 +964,17 @@ export function createWorld(
     }
     return caps;
   };
-  // Place restante pour une ressource (réserve + en attente vs plafond des bâtiments).
-  const roomFor = (k: ResKind) => Math.max(0, capNow()[k] - (stock[k] + pending[k]));
+  /**
+   * Place restante pour une ressource (réserve + en attente vs plafond des bâtiments).
+   *
+   * L'or échappe au plafond : c'est le TRÉSOR du royaume, et il est aussi alimenté par les leçons
+   * d'anglais. Le soumettre à la capacité des bâtiments condamnait la mine — le trésor dépasse les
+   * 3100 de l'île natale au bout de quelques quêtes, `resourceFull('gold')` restait vrai pour de bon,
+   * et plus un seul mineur ne descendait au filon (mesuré : 5000 pièces en réserve → +0 en 90 s,
+   * six mineurs plantés à côté du gisement). Le bois et la nourriture, eux, ne viennent QUE de la
+   * récolte : le plafond y garde tout son sens.
+   */
+  const roomFor = (k: ResKind) => (k === 'gold' ? Infinity : Math.max(0, capNow()[k] - (stock[k] + pending[k])));
   const resourceFull = (k: ResKind) => roomFor(k) <= 0;
   // On ne récolte jamais au-delà du plafond : on n'ajoute que ce qui rentre (l'or des leçons n'est jamais détruit).
   const credit = (k: ResKind, a: number) => {
@@ -976,7 +1008,7 @@ export function createWorld(
       opts.onXp?.(batch);
     }
   }
-  const isWorker = (e: Ent) => /^villageois/.test(e.key);
+  const isWorker = (e: Ent) => WORKER_RE.test(e.key);
   const isSoldier = (e: Ent) => /^(guerrier|lancier|archer|moine)/.test(e.key);
   const isMelee = (e: Ent) => /^(guerrier|lancier)/.test(e.key);
   const unitKey = (base: string, fac: string) => base + (fac === 'bleu' ? '' : `-${fac}`);
@@ -1065,8 +1097,16 @@ export function createWorld(
     const slack = isBuilding(o) ? ((footprint(o.key)?.w ?? 2) * TS) / 2 : 0;
     return Math.max(0, Math.hypot(a.x - e.x, a.y - e.y) - slack);
   };
-  // Tous les villageois récoltent (vie du monde) ; seul le bleu du joueur, sur île débloquée, crédite tes réserves.
-  const canHarvest = (e: Ent) => /^villageois/.test(e.key);
+  // Tous les gens de métier récoltent (vie du monde) ; seul celui du joueur, sur île débloquée,
+  // crédite tes réserves.
+  const canHarvest = (e: Ent) => WORKER_RE.test(e.key);
+  /**
+   * Ressource qu'une unité accepte de récolter, ou `null` si elle les prend toutes.
+   * Un bûcheron n'abat que du bois, un mineur ne creuse que de l'or, un chasseur ne chasse que la
+   * viande : c'est tout l'intérêt de les avoir séparés. Le « villageois » d'avant la scission — celui
+   * du décor de la carte et celui que produisent encore les rivaux — reste polyvalent.
+   */
+  const jobRes = (e: Ent): ResKind | null => (jobOf(e.key)?.res as ResKind | undefined) ?? null;
   const harvestCredits = (e: Ent) => isFriendly(e) && unlocked.has(e.home?.isl ?? -1);
   // `e.y` EST déjà le pied de l'objet (`y` de l'image moins `feet`) : retrancher `feet` une seconde
   // fois remontait la case d'un cran sur les sprites à grand vide (buissons, filons), et le
@@ -1141,6 +1181,8 @@ export function createWorld(
     (n.nodeStock ?? 0) > 0 &&
     (!n.reservedBy || n.reservedBy === keyOf(e)) &&
     islandAt(...nodeCell(n)) === e.home!.isl &&
+    // Chacun son métier : un mineur posé sur une île sans or attend, il ne se rabat pas sur les arbres.
+    (jobRes(e) === null || n.origKey === undefined || HARVEST[n.origKey].resource === jobRes(e)) &&
     // Stockage plein : le villageois du joueur arrête de récolter cette ressource (plus de stacks infinis).
     !(harvestCredits(e) && n.origKey !== undefined && resourceFull(HARVEST[n.origKey].resource));
   function nearestNode(e: Ent): Ent | null {
@@ -1884,7 +1926,7 @@ export function createWorld(
         // retombant sur un pas purement horizontal, puis purement vertical.
         if (!tryStep(e, nx, ny) && !tryStep(e, nx, e.y) && !tryStep(e, e.x, ny) && !slideAlong(e, dx, dy, step)) {
           e.moving = false;
-          e.wait = 0.5;
+          e.wait = 0.25; // le temps que `repath` autorise un nouvel A* : inutile d'attendre plus
           repath(e); // coincée : le chemin en cache ne vaut plus rien, on le refait sans attendre
         } else {
           if (onErrand(e)) syncLevel(e);
@@ -1954,9 +1996,18 @@ export function createWorld(
     if (!ok) return false;
     // Seuls les MURS arrêtent (`getWalls`). Un buisson, un arbre, un rocher ou un filon se traverse :
     // ils gênaient la marche sans que le chemin en tienne compte, et l'unité restait plantée devant.
-    // L'index des murs est calé sur `cellsOf` : on l'interroge donc avec `cellAt`, pas avec la case
-    // de terrain ci-dessus — les deux conventions diffèrent de 8 px.
-    if (getWalls().has(wallKey(...cellAt(nx, ny)))) return false;
+    //
+    // On interroge l'index avec la case de TERRAIN, exactement comme `findPath` et `lineOfWalk`.
+    // C'était le « collé aux bâtiments » : l'index est bâti sur `cellsOf`, dont l'ancrage vertical est
+    // décalé de 8 px (`cellAt` retranche 8 pour que le sprite pose ses pieds sur la bonne case). Le pas
+    // lisait donc la grille décalée pendant que le chemin lisait la grille du terrain. Les deux
+    // s'accordent au CENTRE d'une case, mais pas sur les 8 px du haut : une unité qui y passait — cible
+    // libre, esquive, bousculade — se voyait refuser un pas que l'A* venait de lui tracer. Elle
+    // s'écrasait sur la façade, attendait, recalculait le même chemin, et recommençait indéfiniment.
+    const walls = getWalls();
+    // Déjà DANS un mur (bâtiment posé sur elle, débarquement, décor d'init) : on la laisse sortir,
+    // sinon chaque issue lui est refusée et elle est emmurée à vie.
+    if (!walls.has(wallKey(cx, cy)) && walls.has(wallKey(ncx, ncy))) return false;
     e.x = nx;
     e.y = ny;
     return true;

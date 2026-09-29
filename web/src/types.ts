@@ -99,6 +99,7 @@ export interface GameState {
   resources?: { wood: number; food: number }; // réserves récoltées sur la carte (l'or reste `coins`)
   faction?: 'bleu' | 'rouge' | 'jaune' | 'violet' | 'noir'; // couleur du royaume du joueur
   starters?: boolean; // ressources de départ (filons d'or) déjà déposées une fois
+  goldTopUp?: boolean; // filons de rattrapage ajoutés aux parties commencées avec seulement 2 filons
   // Ban royal : chaque quête d'anglais donne une levée, qui lève un soldat sans or ni caserne.
   // On mémorise les levées DÉPENSÉES ; les disponibles = quêtes terminées − `banUsed`.
   banUsed?: number;

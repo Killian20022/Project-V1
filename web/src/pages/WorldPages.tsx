@@ -16,6 +16,7 @@ import {
   rebuildCost,
   RANK_MAX,
   TRAININGS,
+  jobOf,
   trainedRank,
   upgradeCost,
   type Faction,
@@ -302,22 +303,28 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
     };
   }, []);
 
-  // Ressources de départ : dépose une fois 2 filons d'or sur l'île (elle n'en a pas), en objets
+  // Ressources de départ : dépose une fois 4 filons d'or sur l'île (elle n'en a pas), en objets
   // possédés — donc déplaçables, exploitables et sauvegardés. Re-déposés après une réinitialisation.
+  // Deux ne suffisaient pas : un filon ne se laisse exploiter que par UN mineur à la fois, si bien
+  // qu'au-delà de deux mineurs les autres n'avaient littéralement rien à faire.
+  // Les parties déjà commencées n'ont reçu que 2 filons : on les complète une seule fois (`goldTopUp`),
+  // sinon leurs mineurs resteraient deux fois moins occupés que ceux d'une partie neuve.
   useEffect(() => {
-    if (state.starters) return;
+    if (state.starters && state.goldTopUp) return;
     setState((c) => {
-      if (c.starters) return c;
+      if (c.starters && c.goldTopUp) return c;
       const placed = c.placed ?? [];
+      const have = c.starters ? placed.filter((p) => /^or(-|$)/.test(p.id)).length : 0;
       const add: GameState['placed'] = [];
-      for (const id of ['or', 'or']) {
+      for (let i = have; i < 4; i++) {
+        const id = 'or';
         const { x, y } = findSpot(unlocked, [...placed, ...add], id, c.decorPos ?? {}, c.decorRemoved ?? []);
         add.push({ k: `${id}-start-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, id, x: Math.round(x), y: Math.round(y) });
       }
-      return { ...c, starters: true, placed: [...placed, ...add] };
+      return { ...c, starters: true, goldTopUp: true, placed: [...placed, ...add] };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.starters]);
+  }, [state.starters, state.goldTopUp]);
 
   const sel = selected && selInfo?.bought ? (state.placed ?? []).find((p) => p.k === selected) : null;
   const selItem = selInfo ? SHOP_MAP[selInfo.id] : null;
@@ -328,8 +335,10 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
   const role = selInfo?.ruin
     ? 'Vestige · relève-le pour moitié prix'
     : selInfo
-    ? /^villageois/.test(selInfo.id)
-      ? 'Ouvrier · récolte le bois et l’or'
+    ? jobOf(selInfo.id)
+      ? `${jobOf(selInfo.id)!.name} · ${jobOf(selInfo.id)!.blurb}`
+      : /^villageois/.test(selInfo.id)
+      ? 'Ouvrier · récolte le bois, l’or et la nourriture'
       : /^(guerrier|lancier)/.test(selInfo.id)
         ? 'Soldat · s’entraîne avec ses compagnons'
         : /^archer/.test(selInfo.id)
@@ -452,7 +461,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
 
   // Réinitialise la carte : retire tout ce qui a été placé/récolté et restaure le décor d'origine.
   function resetMap() {
-    setState((current) => ({ ...current, coins: 0, placed: [], inventory: [], decorPos: {}, decorRemoved: [], damage: {}, resources: { wood: 0, food: 0 }, starters: false, vassal: null }));
+    setState((current) => ({ ...current, coins: 0, placed: [], inventory: [], decorPos: {}, decorRemoved: [], damage: {}, resources: { wood: 0, food: 0 }, starters: false, goldTopUp: false, vassal: null }));
     setSelected(null);
     setSelInfo(null);
     setConfirmReset(false);
@@ -478,12 +487,13 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         {/* Mêmes icônes qu'au Marché (pièce, bûche, pièce de viande) : les deux barres de réserves du
             jeu se lisent pareil. Le mouton n'avait rien à faire ici — c'est la BÊTE, pas la
             ressource ; ce que le villageois rapporte et qu'on stocke, c'est de la viande. */}
+        {/* L'or n'affiche pas de capacité : c'est le trésor, il n'est pas plafonné (cf. `roomFor`). */}
         {([
-          { k: 'gold', v: state.coins, cap: caps.gold },
+          { k: 'gold', v: state.coins, cap: null },
           { k: 'wood', v: state.resources?.wood ?? 0, cap: caps.wood },
           { k: 'food', v: state.resources?.food ?? 0, cap: caps.food },
         ] as const).map(({ k, v, cap }) => {
-          const full = v >= cap;
+          const full = cap !== null && v >= cap;
           return (
             <span
               key={k}
@@ -494,7 +504,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
             >
               {k === 'gold' ? <img src={uiUrl('icon_03.png')} alt="or" title="or" className="pixel inline-block h-5 w-5 align-[-4px]" /> : <Res kind={k} />}{' '}
               {v}
-              <span className="text-[10px] font-semibold opacity-70">/ {cap}</span>
+              {cap !== null && <span className="text-[10px] font-semibold opacity-70">/ {cap}</span>}
             </span>
           );
         })}
@@ -636,7 +646,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
                 title={`Poser ${SHOP_MAP[id]?.name ?? SPRITES[id]?.name ?? id}`}
                 className="grid h-14 w-14 place-items-center overflow-hidden rounded-lg border-2 border-white/50 bg-white/20 transition hover:border-[#ffe7a6] hover:bg-white/30"
               >
-                <Sprite k={id} height={46} crop={0.12} />
+                <Sprite k={id} act={jobOf(id)?.tool} height={46} crop={0.12} />
               </button>
               <button
                 onClick={() => cancelInv(k, id)}
@@ -655,7 +665,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         <div className="absolute bottom-20 left-1/2 z-10 w-[min(94vw,400px)] -translate-x-1/2 md:bottom-6">
           <div className="paper-dark p-1">
             <div className="flex items-center gap-3">
-              <Sprite k={selInfo.id} height={56} crop={isUnit ? 0.2 : 0} />
+              <Sprite k={selInfo.id} act={jobOf(selInfo.id)?.tool} height={56} crop={isUnit ? 0.2 : 0} />
               <div className="min-w-0 flex-1">
                 <div className="font-display truncate text-[#ffe7a6]">{selName}</div>
                 <div className="text-[11px] text-[#e8dcc2]/80">
@@ -855,9 +865,9 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-3 rounded-full bg-[#2b1a0d]/80 px-4 py-1.5 font-bold text-[#ffe7a6]">
-            <span className="flex items-center gap-1" title="Or / capacité de stockage">
+            {/* Le trésor n'a pas de capacité : seuls le bois et la nourriture se stockent. */}
+            <span className="flex items-center gap-1" title="Trésor du royaume">
               <img src={uiUrl('icon_03.png')} alt="" className="pixel h-5 w-5" /> {state.coins}
-              <span className="text-[11px] opacity-70">/ {caps.gold}</span>
             </span>
             <span className={`flex items-center gap-1 ${wood >= caps.wood ? 'text-[#ff9a8a]' : ''}`} title="Bois / capacité">
               <Res kind="wood" /> {wood}
@@ -1020,7 +1030,14 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
             <Card key={item.id}>
               <CardContent className="flex flex-col items-center gap-1.5 p-2 text-center">
                 <div className="grid h-28 w-full place-items-end justify-center overflow-hidden">
-                  <Sprite k={item.id} height={item.category === 'batiments' ? 108 : person ? 100 : 84} crop={person ? (item.id.startsWith('lancier') ? 0.3 : 0.26) : 0} />
+                  {/* Un homme de métier se montre outil en main : c'est ce qui distingue les trois
+                      cartes bien avant leur nom. */}
+                  <Sprite
+                    k={item.id}
+                    act={jobOf(item.id)?.tool}
+                    height={item.category === 'batiments' ? 108 : person ? 100 : 84}
+                    crop={person ? (item.id.startsWith('lancier') ? 0.3 : 0.26) : 0}
+                  />
                 </div>
                 <div className="font-display leading-tight">{item.name}</div>
                 {item.blurb && <div className="text-[11px] text-[hsl(var(--accent))]">{item.blurb}</div>}

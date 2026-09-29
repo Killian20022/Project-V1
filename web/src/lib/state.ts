@@ -1,5 +1,5 @@
 import type { GameState, Level, SavedWord } from '../types';
-import { SHOP_MAP } from '../data/shop';
+import { SHOP_MAP, WORKER_JOBS } from '../data/shop';
 
 // Anciens articles (thème précédent) : retirés de la carte et remboursés en pièces d'or.
 const OLD_PRICES: Record<string, number> = {
@@ -9,11 +9,29 @@ const OLD_PRICES: Record<string, number> = {
   nest: 20, chest: 50, bridge: 40, coop: 60,
 };
 
+/**
+ * Le villageois polyvalent s'est scindé en bûcheron, mineur et chasseur : on répartit ceux d'une
+ * partie en cours sur les trois métiers. Le tirage est calé sur la clé de l'objet (`p.k`), donc
+ * IDEMPOTENT — rejouer la migration ne rebat pas les cartes, et deux onglets ouverts sur la même
+ * sauvegarde tombent sur le même résultat. La couleur du royaume est conservée.
+ */
+const WORKER_SPLIT = /^villageois(-(?:rouge|jaune|violet|noir))?$/;
+function splitWorkers<T extends { k: string; id: string }>(placed: T[]): T[] {
+  return placed.map((p) => {
+    const m = WORKER_SPLIT.exec(p.id);
+    if (!m) return p;
+    let h = 0;
+    for (let i = 0; i < p.k.length; i++) h = (h * 31 + p.k.charCodeAt(i)) >>> 0;
+    return { ...p, id: WORKER_JOBS[h % WORKER_JOBS.length].base + (m[1] ?? '') };
+  });
+}
+
 /** Retire les objets qui n'existent plus au marché et rembourse leur prix. */
 export function migrateState(state: GameState): GameState {
   // Garantit un objet `resources` complet (répare aussi le spread superficiel de l'hydratation distante).
   const base = { ...state, resources: { wood: 0, food: 0, ...(state.resources ?? {}) } };
-  const placed = base.placed ?? [];
+  base.placed = splitWorkers(base.placed ?? []);
+  const placed = base.placed;
   const keep = placed.filter((p) => SHOP_MAP[p.id]);
   if (keep.length === placed.length && !(base.island ?? []).length) return base;
   const refund = placed
