@@ -75,6 +75,10 @@ const VET_STEPS = [3, 8];
 const vetBonus = (xp = 0) => (xp >= VET_STEPS[1] ? 2 : xp >= VET_STEPS[0] ? 1 : 0);
 
 const AGGRO_TILES = 7; // distance à laquelle une unité repère un ennemi
+// Distance à laquelle un ennemi est AU CONTACT : trop près pour qu'on le contourne poliment.
+// Un ordre de marche coupe l'aggro (sinon aucune retraite ne serait possible), mais pas à bout
+// portant — voir `foeAtContact`.
+const CONTACT_TILES = 2;
 const SIEGE_TILES = 10; // distance à laquelle elle se rabat sur un bâtiment ennemi (faute d'unité à combattre)
 // Fraction de l'animation d'attaque (à 10 img/s) au bout de laquelle l'arme « touche » :
 // c'est à cet instant précis que les dégâts s'appliquent / que la flèche part.
@@ -1804,6 +1808,21 @@ export function createWorld(
     return true;
   }
 
+  /**
+   * Ennemi qu'on ne peut décemment pas dépasser : il est à deux cases, on lui rentre dedans.
+   *
+   * Un ordre de marche coupe l'aggro, pour qu'on puisse toujours rappeler ses hommes. Mais il les
+   * rendait AVEUGLES : la troupe traversait la mêlée sans un coup, allait au point désigné — donc
+   * souvent derrière l'ennemi — et ne se retournait pour frapper qu'une fois arrivée. On garde
+   * donc la retraite (l'aggro à sept cases reste coupée) tout en rendant le contact inévitable.
+   * Le moine en est exclu : il n'a pas à s'arrêter en chemin pour soigner.
+   */
+  function foeAtContact(e: Ent): Ent | null {
+    const st = statsFor(e);
+    if (!st || !st.dmg || st.heal) return null;
+    return nearestFoe(e, CONTACT_TILES, false);
+  }
+
   // Choisit la prochaine activité selon le rôle — plus personne ne frappe dans le vide.
   function nextActivity(e: Ent) {
     // Ouvriers : récolter, sinon marcher / attendre (jamais d'animation d'outil à vide).
@@ -1882,11 +1901,14 @@ export function createWorld(
     // ignorait qu'on le rappelait tant qu'un ennemi restait à portée d'aggro — impossible de battre
     // en retraite. Un ordre d'ATTAQUE (clic droit sur un ennemi, `orderTarget`) continue de primer.
     const recall = !!e.order && !e.orderTarget;
-    if (recall) {
+    // … sauf au contact : l'ennemi qu'on a sous le nez, on le frappe (cf. `foeAtContact`).
+    const contact = recall && isFighter(e) ? foeAtContact(e) : null;
+    if (recall && !contact) {
       e.target = undefined;
       e.strike = undefined;
     }
-    if (!recall && isFighter(e) && combatStep(e, dt)) return; // sinon le combat prime
+    if (contact) e.target = contact;
+    if ((!recall || contact) && isFighter(e) && combatStep(e, dt)) return; // sinon le combat prime
     if (e.acting! >= 0) {
       if (t >= e.actEnd!) {
         e.acting = -1;
@@ -1909,7 +1931,9 @@ export function createWorld(
             } else startCycle(e); // encore un coup sur le même nœud
           }
         } else {
-          e.wait = 1 + Math.random() * 3;
+          // Un ordre en attente reprend tout de suite : après avoir abattu ce qui lui barrait la
+          // route, le soldat ne doit pas rester planté trois secondes avant de repartir.
+          e.wait = e.order ? 0.15 : 1 + Math.random() * 3;
         }
       }
       return;
@@ -3656,6 +3680,23 @@ export function createWorld(
     // Épées croisées : une troupe est retenue et le curseur est sur un ennemi — le clic droit attaque.
     sword: `url(${uiUrl('icon_05.png')}) 32 32, crosshair`,
   };
+  // Les épées sont une ICÔNE du pack, pas un curseur : elles remplissent 57 px de leur cadre de 64,
+  // quand la flèche et la main n'en dessinent que 30. En curseur, elles écrasaient le champ de
+  // bataille. On les redessine à la taille des autres — pas de fichier en plus, et si l'image
+  // tarde ou manque, on garde simplement la version d'origine.
+  {
+    const SW = 34;
+    const im = new Image();
+    im.src = uiUrl('icon_05.png');
+    im.onload = () => {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = SW;
+      const c = cv.getContext('2d')!;
+      c.imageSmoothingEnabled = false; // pixel art : pas de flou à la réduction
+      c.drawImage(im, 0, 0, SW, SW);
+      CUR.sword = `url(${cv.toDataURL()}) ${SW >> 1} ${SW >> 1}, crosshair`;
+    };
+  }
 
   // ---------- Entrées (souris, tactile, molette) ----------
   const pointers = new Map<number, { x: number; y: number }>();
