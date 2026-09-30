@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Moon, Sun, Flame, Volume2, Castle, Swords, BriefcaseBusiness, BookOpen, Map, ShoppingBag, Trophy, ScrollText, Menu, X, ChevronRight, Shield } from 'lucide-react';
+import { Moon, Sun, Flame, Volume2, Castle, Swords, BriefcaseBusiness, BookOpen, BookMarked, GraduationCap, Map, ShoppingBag, Trophy, ScrollText, Menu, X, ChevronRight, Shield } from 'lucide-react';
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser } from '@clerk/clerk-react';
 import { Button } from '@/components/ui/button';
 import { WelcomeArrival } from '@/components/WelcomeArrival';
@@ -7,12 +7,21 @@ import { VoiceSettings } from '@/components/VoiceSettings';
 import { uiUrl } from '@/lib/sprites';
 import { useIsDev } from '@/lib/dev';
 import type { GameState, Page } from '../types';
+// Six matières alignées à plat, ça ne se lit pas. On les range en trois intentions : suivre le
+// parcours, travailler une matière, viser un objectif — plus le royaume, qui est le jeu.
+// `group` ouvre une nouvelle section dès qu'il change : aucun index en dur à maintenir.
 const NAV = [
-  { label: 'Château', page: 'home', icon: Castle }, { label: 'Quêtes', page: 'learn', icon: Swords },
-  { label: 'Business', page: 'business', icon: BriefcaseBusiness }, { label: 'Grammaire', page: 'grammar', icon: BookOpen },
-  { label: 'Royaume', page: 'island', icon: Map }, { label: 'Marché', page: 'shop', icon: ShoppingBag },
-  { label: 'Hauts faits', page: 'trophies', icon: Trophy }, { label: 'Grimoire', page: 'dictionary', icon: ScrollText },
-] satisfies { label: string; page: Page; icon: typeof Castle }[];
+  { group: 'VOTRE AVENTURE', label: 'Château', page: 'home', icon: Castle },
+  { group: 'VOTRE AVENTURE', label: 'Quêtes', page: 'learn', icon: Swords },
+  { group: 'APPRENDRE', label: 'Vocabulaire', page: 'vocab', icon: BookMarked },
+  { group: 'APPRENDRE', label: 'Grammaire', page: 'grammar', icon: BookOpen },
+  { group: 'VOS OBJECTIFS', label: 'Formules', page: 'business', icon: BriefcaseBusiness },
+  { group: 'VOS OBJECTIFS', label: 'Examens', page: 'exam', icon: GraduationCap },
+  { group: 'LE ROYAUME', label: 'Royaume', page: 'island', icon: Map },
+  { group: 'LE ROYAUME', label: 'Marché', page: 'shop', icon: ShoppingBag },
+  { group: 'LE ROYAUME', label: 'Hauts faits', page: 'trophies', icon: Trophy },
+  { group: 'LE ROYAUME', label: 'Grimoire', page: 'dictionary', icon: ScrollText },
+] satisfies { group: string; label: string; page: Page; icon: typeof Castle }[];
 export function Layout({ page, onNavigate, state, children, onAddCoins, onToggleDark }: {
   page: Page; onNavigate: (page: Page) => void; state: GameState; children: ReactNode; onAddCoins?: () => void; onToggleDark: () => void;
 }) {
@@ -33,9 +42,8 @@ export function Layout({ page, onNavigate, state, children, onAddCoins, onToggle
         </button>
         <button className="mobile-menu-toggle" aria-expanded={menuOpen} aria-controls="quest-navigation" aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X /> : <Menu />}</button>
         <nav id="quest-navigation" className={`quest-navigation ${menuOpen ? 'is-open' : ''}`} aria-label="Navigation principale" onKeyDown={e => { if (e.key === 'Escape') setMenuOpen(false); }}>
-          <div className="nav-caption">VOTRE AVENTURE</div>
-          {NAV.map(({ label, page: target, icon: Icon }, i) => <div key={target}>
-            {i === 4 && <div className="nav-caption nav-divider">LE ROYAUME</div>}
+          {NAV.map(({ group, label, page: target, icon: Icon }, i) => <div key={target}>
+            {group !== NAV[i - 1]?.group && <div className={`nav-caption ${i ? 'nav-divider' : ''}`}>{group}</div>}
             <button className={`quest-nav-item ${page === target ? 'is-active' : ''}`} aria-current={page === target ? 'page' : undefined} onClick={() => go(target)}>
               <Icon size={18} strokeWidth={1.5} /><span>{label}</span>{page === target && <ChevronRight size={14} />}
             </button>
@@ -60,7 +68,10 @@ export function Layout({ page, onNavigate, state, children, onAddCoins, onToggle
         </header>
         <VoiceSettings open={voiceOpen} onClose={() => setVoiceOpen(false)} />
         <main id="main-content" tabIndex={-1} className={page === 'island' ? 'quest-world' : 'quest-content'}>{children}</main>
-        {page !== 'island' && <footer className="quest-footer"><span>SCRIPTORIA</span><span>Un mot après l’autre, l’aventure continue.</span><Swords size={16} /></footer>}
+        {/* Crédits : les phrases d'entraînement viennent de Tatoeba, sous licence CC BY 2.0 FR —
+            l'attribution est OBLIGATOIRE, elle manquait. La mention ETS accompagne la section
+            Examens, qui s'entraîne au format d'une marque qui ne nous appartient pas. */}
+        {page !== 'island' && <footer className="quest-footer"><span>SCRIPTORIA</span><span>Un mot après l’autre, l’aventure continue.<br />Phrases d’entraînement : <a href="https://tatoeba.org" target="_blank" rel="noreferrer noopener" className="underline">Tatoeba</a> (CC BY 2.0 FR). TOEIC® est une marque déposée d’ETS ; Scriptoria n’est ni affilié à ETS ni approuvé par ETS.</span><Swords size={16} /></footer>}
       </div>
     </div>
   );

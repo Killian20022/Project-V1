@@ -2,6 +2,7 @@ import { CURRICULUM } from '../data/curriculum';
 import { SENTENCES } from '../data/sentences';
 import { COMPREHENSION } from '../data/comprehension';
 import { BUSINESS_MODULES, BUSINESS_CATEGORIES } from '../data/business';
+import { GRAMMAR_FAMILY } from '../data/grammar-families';
 import type { BusinessModule, Lesson, Level, Sentence } from '../types';
 
 export const LEVELS: Level[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -115,12 +116,40 @@ export function categorizeGrammar(title: string): string {
   return 'structure';
 }
 
+/**
+ * Les fiches de grammaire, chacune rangée dans sa famille.
+ *
+ * La famille est DÉCLARÉE dans `data/grammar-families.ts` ; `categorizeGrammar` ne sert plus que
+ * de repli pour une fiche qu'on vient d'ajouter et qu'on n'a pas encore classée. Deviner par
+ * mots-clés marchait tant qu'on ne touchait à rien : toute fiche dont le titre ne contenait
+ * aucun mot-clé tombait en silence dans « structure », le fourre-tout.
+ */
 export function grammarEntries(): GrammarEntry[] {
   const entries: GrammarEntry[] = [];
   for (const level of LEVELS) {
     lessonsFor(level).forEach((lesson, index) => {
-      if (lesson.t === 'G') entries.push({ level, index, lesson, category: categorizeGrammar(lesson.title) });
+      if (lesson.t !== 'G') return;
+      const declared = GRAMMAR_FAMILY[`${level}:${index}`];
+      entries.push({ level, index, lesson, category: declared ?? categorizeGrammar(lesson.title) });
     });
   }
   return entries;
+}
+
+/**
+ * Fiches de grammaire dont la famille n'est pas déclarée, et familles déclarées qui n'existent
+ * pas. Sert de contrôle (`bun check-content.ts`) : une fiche ajoutée sans classement doit se
+ * voir, pas disparaître dans le fourre-tout.
+ */
+export function checkGrammarFamilies(): { undeclared: string[]; unknownCategory: string[] } {
+  const keys = new Set(GRAMMAR_CATEGORIES.map((c) => c.key));
+  const undeclared: string[] = [];
+  for (const level of LEVELS)
+    lessonsFor(level).forEach((lesson, index) => {
+      if (lesson.t === 'G' && !GRAMMAR_FAMILY[`${level}:${index}`]) undeclared.push(`${level}:${index} — ${lesson.title}`);
+    });
+  const unknownCategory = Object.entries(GRAMMAR_FAMILY)
+    .filter(([, v]) => !keys.has(v))
+    .map(([k, v]) => `${k} → « ${v} »`);
+  return { undeclared, unknownCategory };
 }

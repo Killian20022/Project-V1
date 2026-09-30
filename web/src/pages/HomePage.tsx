@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Swords, BookOpen, Brain, Play, ScrollText, Target, Map as MapIcon, ArrowRight, Compass, Lock, Check, Flag } from 'lucide-react';
+import { Swords, BookOpen, Brain, GraduationCap, Play, ScrollText, Target, Map as MapIcon, ArrowRight, Compass, Lock, Check, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sprite } from '@/components/Sprite';
@@ -62,6 +62,9 @@ export function HomePage({
   const dailyToday = state.dailyDate === new Date().toDateString() ? state.dailyXP : 0;
   const dailyPct = Math.min(100, Math.round((dailyToday / dailyGoal) * 100));
   const due = countDue(state.srs);
+  // Meilleur score estimé aux épreuves blanches : le repère que cherche quelqu'un qui prépare
+  // le TOEIC. Absent tant qu'il n'a pas passé d'épreuve — on ne montre pas un zéro.
+  const bestExam = (state.examAttempts ?? []).reduce((best, a) => Math.max(best, a.scaled), 0) || null;
   const pointsAnim = useCountUp(state.points);
   const coinsAnim = useCountUp(state.coins);
   const lessonsAnim = useCountUp(lessonsDone);
@@ -121,7 +124,10 @@ export function HomePage({
         </section>
         <section><div className="section-heading"><h2>Un peu, chaque jour.</h2><Target size={18} /></div>
           <Card className="daily-card"><CardContent className="daily-content"><div><span className="eyebrow">OBJECTIF DU JOUR</span><h3>{dailyPct >= 100 ? 'Objectif accompli !' : 'Gardez votre élan.'}</h3><p>{dailyToday} / {dailyGoal} XP aujourd’hui</p></div><div className="daily-ring" style={{'--daily-progress': dailyPct + '%', background: 'conic-gradient(#a8874f ' + dailyPct + '%, #e8e3d8 0)'} as React.CSSProperties}><span>{dailyPct}<small>%</small></span></div></CardContent></Card>
-          <div className="practice-links"><button disabled={due === 0} onClick={onReview}><Brain size={19}/><span><strong>Entraînement</strong><small>{due > 0 ? due + ' cartes à réviser' : 'Vos révisions après la première quête'}</small></span><ArrowRight size={16}/></button><button onClick={() => onStartBoss(bossLevel)}><Swords size={19}/><span><strong>Défier le chevalier noir</strong><small>Mettez votre anglais à l’épreuve</small></span><ArrowRight size={16}/></button></div>
+          {/* L'examen est le CAP : la plupart des gens viennent pour le TOEIC, pas pour le plaisir
+              de conjuguer. Il doit donc être visible dès l'accueil — avec un score quand il y en
+              a un, parce qu'un chiffre qui monte vaut toutes les promesses. */}
+          <div className="practice-links"><button disabled={due === 0} onClick={onReview}><Brain size={19}/><span><strong>Entraînement</strong><small>{due > 0 ? due + ' cartes à réviser' : 'Vos révisions après la première quête'}</small></span><ArrowRight size={16}/></button><button onClick={() => navigate('exam')}><GraduationCap size={19}/><span><strong>{bestExam ? 'Votre niveau : ' + bestExam + ' points' : 'Situez votre niveau'}</strong><small>{bestExam ? 'Repassez une épreuve pour progresser' : 'Une épreuve blanche au format TOEIC®'}</small></span><ArrowRight size={16}/></button><button onClick={() => onStartBoss(bossLevel)}><Swords size={19}/><span><strong>Défier le chevalier noir</strong><small>Mettez votre anglais à l’épreuve</small></span><ArrowRight size={16}/></button></div>
         </section>
       </div>
       <section className="campaign-section"><div className="section-heading"><div><span className="eyebrow">VOTRE CAMPAGNE</span><h2>De l’écuyer au roi.</h2></div><button className="text-link" onClick={() => navigate('learn')}>Toutes les quêtes <ArrowRight size={15}/></button></div>

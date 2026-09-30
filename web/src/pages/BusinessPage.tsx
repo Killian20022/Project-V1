@@ -3,15 +3,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { businessModules, businessCategories, businessDoneId } from '@/lib/content';
 import type { BusinessModule, GameState } from '../types';
 
-// Petite icône par catégorie (purement décoratif).
+// Petite icône par catégorie (purement décoratif). Les catégories sont passées de sept à trois :
+// avec huit modules, six d'entre elles n'en contenaient qu'un seul — un rangement qui ne rangeait
+// rien. On regroupe désormais par CANAL : ce qu'on écrit, ce qu'on dit, ce qu'on défend.
 const CATEGORY_ICON: Record<string, typeof Mail> = {
-  Relationnel: Users,
-  Écrit: Mail,
-  Réunions: Users,
-  Communication: Phone,
-  'Prise de parole': Presentation,
-  Négociation: Handshake,
-  Carrière: UserRound,
+  'À l’oral': Phone,
+  'À l’écrit': Mail,
+  'Négocier & convaincre': Handshake,
 };
 
 const MODULE_ICON: Record<string, typeof Mail> = {
@@ -42,12 +40,18 @@ export function BusinessPage({
         <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-[#5c3a1f] to-[#2b1a0d] text-white shadow-[0_0_14px_hsl(var(--brand-gold)/0.35)]">
           <Briefcase />
         </div>
+        {/* « Formules » et non « Business English » : ce que cette section contient, ce ne sont
+            ni des règles ni des mots, ce sont des TOURNURES toutes faites, propres à une
+            situation. C'est le troisième type de contenu du site, et le nom doit le dire. */}
         <div className="flex-1">
-          <h1 className="text-3xl text-[#ffe7a6]">Business English</h1>
-          <p className="text-muted-foreground">L’anglais du monde professionnel. Choisis le thème dont tu as besoin.</p>
+          <h1 className="text-3xl text-[#ffe7a6]">Formules & situations</h1>
+          <p className="text-muted-foreground">
+            Les tournures toutes faites de l’anglais professionnel : ce qu’on dit vraiment pour ouvrir un mail, couper
+            la parole poliment ou refuser un prix. Ni grammaire, ni vocabulaire — des phrases prêtes à servir.
+          </p>
         </div>
         <span className="rounded-full bg-secondary px-3 py-1 text-sm font-semibold">
-          {doneCount}/{modules.length} modules
+          {doneCount}/{modules.length} situations
         </span>
       </div>
 

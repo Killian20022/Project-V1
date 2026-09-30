@@ -16,5 +16,8 @@
     "paths": { "@/*": ["./src/*"] },
     "types": ["node"]
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "vite.config.ts"],
+  // Les brouillons de lexique ne sont pas du code source : ils ne sont importés nulle part
+  // et attendent une relecture. Les typer reviendrait à leur donner un statut qu'ils n'ont pas.
+  "exclude": ["src/**/*.draft.ts"]
 }

@@ -10,3 +10,9 @@ apps/api/prisma/dev.db
 # Pack Tiny Swords : archive et fichiers Mac inutiles
 Tiled/Tiny Swords (Free Pack).zip
 __MACOSX/
+
+# Lexique : brouillons non relus et cache des appels aux sources libres.
+# Un brouillon n'est PAS du contenu — il ne part en ligne qu'une fois relu et renommé
+# sans « .draft ». Le cache évite de re-solliciter des services gratuits à chaque exécution.
+web/src/data/lexicon/*.draft.ts
+web/.lexicon-cache/

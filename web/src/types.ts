@@ -1,5 +1,17 @@
 export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
-export type Page = 'home' | 'learn' | 'business' | 'grammar' | 'shop' | 'island' | 'trophies' | 'dictionary' | 'account';
+export type Page = 'home' | 'learn' | 'vocab' | 'business' | 'grammar' | 'exam' | 'shop' | 'island' | 'trophies' | 'dictionary' | 'account';
+
+// Une épreuve blanche rendue. On garde le détail des réponses : c'est ce qui permet de rouvrir
+// la correction plus tard, et de calculer les points faibles sans refaire passer le test.
+export interface ExamAttempt {
+  examId: string;
+  at: number; // horodatage de la remise
+  raw: number; // bonnes réponses
+  total: number;
+  scaled: number; // score ESTIMÉ sur l'échelle 5–495 (cf. lib/toeic.ts)
+  seconds: number;
+  answers: (number | null)[]; // null = laissée vide
+}
 
 export interface Sentence {
   en: string;
@@ -75,12 +87,17 @@ export interface Lesson {
   comprehension?: Comprehension;
 }
 
-// Carte de révision espacée : une par phrase déjà étudiée.
+// Carte de révision espacée. Historiquement une par PHRASE étudiée ; depuis le lexique, il en
+// existe aussi une par MOT (`kind: 'word'`). Même moteur de Leitner pour les deux : ce qui change,
+// c'est le type d'exercice qu'on en tire.
 export interface SrsCard {
-  id: string; // `${level}|${en}`
+  id: string; // phrase : `${level}|${en}` · mot : `w|${mot}`
   level: Level;
-  en: string;
-  fr: string;
+  en: string; // la phrase, ou le mot
+  fr: string; // la traduction, ou la glose
+  kind?: 'word'; // absent = phrase (toutes les cartes d'avant le lexique)
+  pos?: string; // nature du mot, pour choisir des distracteurs de même nature
+  theme?: string; // thème d'origine, même usage
   box: number; // boîte de Leitner (0..6)
   due: number; // timestamp (ms) de la prochaine révision
   lapses: number; // nombre d'oublis
@@ -132,6 +149,8 @@ export interface GameState {
   unlocks: string[];
   badges: string[];
   completed: string[];
+  // Épreuves blanches rendues, de la plus récente à la plus ancienne (bornée — voir completeExam).
+  examAttempts?: ExamAttempt[];
   srs: Record<string, SrsCard>;
   savedAt?: number; // horodatage de la dernière sauvegarde (pour ne jamais écraser une version plus récente)
 }

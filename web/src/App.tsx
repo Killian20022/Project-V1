@@ -3,10 +3,10 @@ import { useUser } from '@clerk/clerk-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { completeBusiness, completeLesson, completePractice, loadGameState, migrateState, saveGameState } from '@/lib/state';
+import { completeBusiness, completeExam, completeLesson, completePractice, loadGameState, migrateState, saveGameState } from '@/lib/state';
 import type { GrammarEntry } from '@/lib/content';
-import { addCards, applyReview, countDue, dueCards } from '@/lib/srs';
-import { buildReviewQuestion, shuffle } from '@/lib/exercises';
+import { addCards, addWordCards, applyReview, countDue, dueCards } from '@/lib/srs';
+import { buildReviewQuestion, buildWordSession, shuffle } from '@/lib/exercises';
 import type { Question } from '@/lib/exercises';
 import { loadRemoteProgress, saveRemoteProgress } from '@/lib/progressSync';
 import { HomePage } from '@/pages/HomePage';
@@ -18,7 +18,15 @@ import { DictionaryPage } from '@/pages/DictionaryPage';
 import { BusinessPage } from '@/pages/BusinessPage';
 import { GrammarPage } from '@/pages/GrammarPage';
 import { BossPage } from '@/pages/BossPage';
-import type { BusinessModule, GameState, Lesson, Level, Page, SrsCard } from './types';
+import { ExamHubPage } from '@/pages/ExamHubPage';
+import { ExamPage } from '@/pages/ExamPage';
+import { VocabularyPage } from '@/pages/VocabularyPage';
+import { bankById } from '@/data/toeic';
+import { toQuestion } from '@/lib/toeic';
+import type { ToeicExam } from '@/lib/toeic';
+import { themeByKey } from '@/data/lexicon';
+import { stepId, stepsOf, type WordEntry } from '@/lib/lexicon';
+import type { BusinessModule, ExamAttempt, GameState, Lesson, Level, Page, SrsCard } from './types';
 
 // bizId → module Business (complétion à part). practice → entraînement libre
 // (Hub Grammaire) qui n'avance pas la campagne. Sinon : mission de campagne.
@@ -35,6 +43,12 @@ export default function App() {
   const [reviewSession, setReviewSession] = useState<ReviewSession | null>(null);
   const [reviewResult, setReviewResult] = useState<{ correct: number; total: number } | null>(null);
   const [boss, setBoss] = useState<Level | null>(null);
+  // Épreuve blanche en cours, et entraînement libre au format examen (qui, lui, réutilise le
+  // moteur de leçon : ce sont des QCM ordinaires une fois le chrono retiré).
+  const [exam, setExam] = useState<ToeicExam | null>(null);
+  const [drill, setDrill] = useState<{ bankId: string; questions: Question[] } | null>(null);
+  // Palier de vocabulaire en cours : les mots du palier + la séance construite à partir d'eux.
+  const [vocab, setVocab] = useState<{ themeKey: string; step: number; words: WordEntry[]; questions: Question[] } | null>(null);
   const { user, isLoaded } = useUser();
   const hydrated = useRef(false);
   const stateRef = useRef(state);
@@ -136,6 +150,26 @@ export default function App() {
     setReviewSession(null);
     setReviewResult(null);
     setBoss(null);
+    setExam(null);
+    setDrill(null);
+    setVocab(null);
+  }
+
+  // Palier de vocabulaire : une question par mot, du plus simple au plus exigeant selon le tirage
+  // (reconnaître / employer / retrouver).
+  function startVocabStep(themeKey: string, step: number) {
+    const theme = themeByKey(themeKey);
+    const words = theme ? stepsOf(theme)[step] : undefined;
+    if (!words?.length) return;
+    setVocab({ themeKey, step, words: [...words], questions: buildWordSession(words) });
+  }
+
+  // Entraînement libre au format examen : une banque d'items devient une liste de QCM, jouée par
+  // ExercisePage comme une révision (pas de cœurs, correction immédiate).
+  function startDrill(bankId: string) {
+    const bank = bankById(bankId);
+    if (!bank) return;
+    setDrill({ bankId, questions: shuffle(bank.items).map(toQuestion) });
   }
 
   // Lance un duel de boss pour un grade donné.
@@ -216,6 +250,59 @@ export default function App() {
             badges: current.badges.includes(`boss-${boss}`) ? current.badges : [...current.badges, `boss-${boss}`],
           }))
         }
+      />
+    );
+  } else if (exam) {
+    content = (
+      <ExamPage
+        exam={exam}
+        onQuit={() => setExam(null)}
+        onFinish={(attempt: ExamAttempt) => {
+          setState((current) => completeExam(current, attempt));
+          setExam(null);
+        }}
+      />
+    );
+  } else if (vocab) {
+    content = (
+      <ExercisePage
+        level={vocab.words[0].cefr}
+        reviewQuestions={vocab.questions}
+        badge="📖 Vocabulaire"
+        onFinish={(correct, total, maxCombo) => {
+          const finished = vocab;
+          setState((current) => {
+            // Les mots du palier entrent au pool de révision : c'est là que « mots acquis »
+            // commence à monter. Un mot déjà connu n'est jamais réinitialisé.
+            const withWords = {
+              ...current,
+              srs: addWordCards(
+                current.srs,
+                finished.words.map((w) => ({ w: w.w, fr: w.fr, cefr: w.cefr, pos: w.pos, theme: finished.themeKey })),
+              ),
+            };
+            const done = stepId(finished.themeKey, finished.step);
+            const marked = withWords.completed.includes(done)
+              ? withWords
+              : { ...withWords, completed: [...withWords.completed, done] };
+            return completePractice(marked, correct, total, maxCombo);
+          });
+          setVocab(null);
+        }}
+        onQuit={() => setVocab(null)}
+      />
+    );
+  } else if (drill) {
+    content = (
+      <ExercisePage
+        level={bankById(drill.bankId)?.items[0]?.cefr ?? 'B1'}
+        reviewQuestions={drill.questions}
+        badge="🎓 Entraînement"
+        onFinish={(correct, total, maxCombo) => {
+          setState((current) => completePractice(current, correct, total, maxCombo));
+          setDrill(null);
+        }}
+        onQuit={() => setDrill(null)}
       />
     );
   } else if (reviewSession) {
@@ -332,10 +419,14 @@ export default function App() {
         onBoss={(level) => startBoss(level)}
       />
     );
+  } else if (page === 'vocab') {
+    content = <VocabularyPage state={state} onStartStep={startVocabStep} />;
   } else if (page === 'business') {
     content = <BusinessPage state={state} onOpenModule={openBusiness} />;
   } else if (page === 'grammar') {
     content = <GrammarPage onOpenGrammar={openGrammar} />;
+  } else if (page === 'exam') {
+    content = <ExamHubPage state={state} onStartExam={setExam} onStartDrill={startDrill} />;
   } else if (page === 'island') {
     content = <IslandPage state={state} setState={setState} navigate={navigate} />;
   } else if (page === 'shop') {

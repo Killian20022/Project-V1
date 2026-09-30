@@ -1,4 +1,4 @@
-import type { GameState, Level, SavedWord } from '../types';
+import type { ExamAttempt, GameState, Level, SavedWord } from '../types';
 import { SHOP_MAP, WORKER_JOBS } from '../data/shop';
 
 // Anciens articles (thème précédent) : retirés de la carte et remboursés en pièces d'or.
@@ -194,6 +194,41 @@ export function completePractice(
       coinsEarned: (state.stats.coinsEarned ?? 0) + earnedCoins,
       bestCombo: Math.max(state.stats.bestCombo ?? 0, maxCombo),
       practice: (state.stats.practice ?? 0) + 1,
+    },
+  };
+}
+
+// Épreuve blanche rendue. On enregistre la tentative (pour l'historique et la correction qu'on
+// peut rouvrir) et on crédite XP + pièces. La récompense suit le RÉSULTAT, pas la simple
+// participation : une épreuve bâclée ne doit pas rapporter autant qu'une épreuve travaillée.
+//
+// On borne l'historique à 20 tentatives : tout `GameState` part dans une seule colonne JSON
+// côté Supabase, et un historique sans fin finirait par peser plus lourd que le reste du jeu.
+const MAX_ATTEMPTS = 20;
+
+export function completeExam(state: GameState, attempt: ExamAttempt): GameState {
+  const ratio = attempt.raw / Math.max(1, attempt.total);
+  const earnedXp = attempt.raw * 15;
+  const earnedCoins = 25 + Math.round(ratio * 75);
+  const today = new Date().toDateString();
+  const dailyXP = state.dailyDate === today ? state.dailyXP + earnedXp : earnedXp;
+  const history = [attempt, ...(state.examAttempts ?? [])].slice(0, MAX_ATTEMPTS);
+  const best = Math.max(attempt.scaled, ...(state.examAttempts ?? []).map((a) => a.scaled), 0);
+  return {
+    ...state,
+    points: state.points + earnedXp,
+    coins: state.coins + earnedCoins,
+    dailyDate: today,
+    dailyXP,
+    lastActive: today,
+    examAttempts: history,
+    stats: {
+      ...state.stats,
+      exams: (state.stats.exams ?? 0) + 1,
+      examBest: best,
+      exercises: (state.stats.exercises ?? 0) + attempt.total,
+      correct: (state.stats.correct ?? 0) + attempt.raw,
+      coinsEarned: (state.stats.coinsEarned ?? 0) + earnedCoins,
     },
   };
 }

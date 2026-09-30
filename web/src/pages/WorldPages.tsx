@@ -25,6 +25,7 @@ import {
 import { TROPHIES, type Trophy } from '@/lib/trophies';
 import { capsWith, createWorld, findSpot, nextUnlock, repairCost, unlockedIslands, WORLD, type PortalMenu, type ResKind } from '@/lib/world';
 import { breakYoke, levyTribute, ransomLeft } from '@/lib/vassal';
+import { effortBreakdown, englishEffort } from '@/lib/effort';
 import { BAN_UNITS, banAvailable, levy } from '@/lib/ban';
 import { LEVELS, lessonCount } from '@/lib/content';
 import { SPRITES, uiUrl } from '@/lib/sprites';
@@ -41,9 +42,9 @@ export function countOwned(state: GameState, id: string) {
   return (state.placed ?? []).filter((p) => p.id === id).length;
 }
 
-export function questsDone(state: GameState) {
-  return LEVELS.reduce((s, lv) => s + Math.min(state.lessons[lv] ?? 0, lessonCount(lv)), 0);
-}
+// `questsDone` vit désormais dans lib/effort.ts, aux côtés des autres formes de travail.
+// Ré-exporté ici : plusieurs écrans l'importent depuis cette page.
+export { questsDone } from '@/lib/effort';
 
 const BIG_ISLANDS = WORLD.islands.filter((i) => i.size > 12).length;
 
@@ -166,12 +167,12 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
   // Libération par les mots : la rançon se paie en quêtes d'anglais terminées.
   useEffect(() => {
     // On compte les VRAIES quêtes : sinon le compte dev (tout débloqué) paierait la rançon d'office.
-    if (state.vassal && ransomLeft(state, questsDone(state)) === 0) liberate('rançon');
+    if (state.vassal && ransomLeft(state, englishEffort(state)) === 0) liberate('rançon');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.lessons, state.vassal]);
 
   const isDev = useIsDev();
-  const done = isDev ? TOTAL_LESSONS : questsDone(state);
+  const done = isDev ? TOTAL_LESSONS : englishEffort(state);
   const unlocked = useMemo(() => unlockedIslands(done), [done]);
   const openBig = WORLD.islands.filter((isl, i) => isl.size > 12 && unlocked.has(i)).length;
   const next = nextUnlock(done);
@@ -277,7 +278,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         setState((current) =>
           current.vassal
             ? current
-            : { ...current, vassal: { of: lord, atQuests: questsDone(current), tribute: { gold: 0, wood: 0, food: 0 } } },
+            : { ...current, vassal: { of: lord, atQuests: englishEffort(current), tribute: { gold: 0, wood: 0, food: 0 } } },
         );
         raiseAlert(`Ton dernier château est tombé. Le royaume ${lord} plante sa bannière : tu lui dois tribut.`);
       },
@@ -604,7 +605,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
           </div>
         </div>
         <span className="pointer-events-none rounded-md bg-[#2b1a0d]/80 px-3 py-1 text-[11px] font-semibold text-[#ffeccc]">
-          {next ? `Prochaine île : ${next.name} dans ${next.remaining} quête${next.remaining > 1 ? 's' : ''}` : 'Tout l’archipel est libéré !'}
+          {next ? `Prochaine île : ${next.name} dans ${next.remaining} ${next.remaining > 1 ? 'travaux' : 'travail'} d’anglais` : 'Tout l’archipel est libéré !'}
         </span>
         {/* Le ban qui t'attend : l'anglais déjà fait te doit des soldats, va les lever au Marché. */}
         {levies > 0 && (
@@ -655,8 +656,9 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
           <div className="mt-0.5 text-[11px] leading-snug text-[#ffd9cc]/80">
             Un tiers de tes récoltes part au tribut ({state.vassal.tribute.gold} or prélevé).
             <br />
-            Rançon : encore {ransomLeft(state, questsDone(state))} quête
-            {ransomLeft(state, questsDone(state)) > 1 ? 's' : ''} — ou rase son dernier château.
+            Rançon : encore {ransomLeft(state, englishEffort(state))}{' '}
+            {ransomLeft(state, englishEffort(state)) > 1 ? 'travaux' : 'travail'} d’anglais — ou rase son dernier
+            château.
           </div>
         </div>
       )}
@@ -881,7 +883,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
   const [cat, setCat] = useState<ShopCategory>('soldats');
   const [bought, setBought] = useState<string | null>(null);
   const isDev = useIsDev();
-  const done = isDev ? TOTAL_LESSONS : questsDone(state);
+  const done = isDev ? TOTAL_LESSONS : englishEffort(state);
   const unlocked = useMemo(() => unlockedIslands(done), [done]);
   const placedItems = state.placed ?? [];
   const inv = state.inventory ?? [];
@@ -954,8 +956,9 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
     window.setTimeout(() => setBought((b) => (b === base ? null : b)), 1400);
   }
 
-  // ---- Le Ban royal : une quête d'anglais = une levée, une levée = un soldat sans or ni caserne.
+  // ---- Le Ban royal : un travail d'anglais = une levée, une levée = un soldat sans or ni caserne.
   const levies = banAvailable(state, done);
+  const effort = effortBreakdown(state);
   // Le compte créateur ignore la population, comme il ignore déjà les coûts dans `buy` : sinon on
   // pouvait acheter un soldat sans limite mais pas le lever, ce qui n'a aucun sens.
   const banFull = !isDev && popUsed >= popMax;
@@ -963,7 +966,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
     if (levies < 1 || banFull) return;
     const id = applyFaction(base, faction);
     // Le décompte est refait sur `current` : c'est lui qui fait foi au moment d'écrire l'état.
-    setState((current) => levy(current, base, faction, isDev ? TOTAL_LESSONS : questsDone(current)));
+    setState((current) => levy(current, base, faction, isDev ? TOTAL_LESSONS : englishEffort(current)));
     setBought(id);
     window.setTimeout(() => setBought((b) => (b === id ? null : b)), 1400);
   }
@@ -1021,9 +1024,24 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
             </span>
           </div>
           <p className="text-sm text-muted-foreground">
-            Chaque quête d’anglais terminée te donne une levée. Une levée lève un soldat <b>sans or et sans caserne</b> — ton étude arme le
-            royaume plus vite que ton trésor.
+            <b>Tout</b> travail d’anglais te donne une levée : une quête, un palier de vocabulaire, une situation de
+            la section Formules — et <b>trois</b> pour une épreuve blanche réussie. Une levée lève un soldat{' '}
+            <b>sans or et sans caserne</b> : ton étude arme le royaume plus vite que ton trésor.
           </p>
+          {/* D'où viennent les levées. Sans ce détail, on ne sait pas quoi travailler pour en
+              avoir davantage — et une monnaie qu'on ne sait pas gagner ne motive personne. */}
+          <div className="flex flex-wrap gap-2 text-[11px] font-semibold text-[#e8dcc2]/80">
+            {([
+              ['quête', 'quêtes', effort.quests, effort.quests],
+              ['palier de vocabulaire', 'paliers de vocabulaire', effort.vocab, effort.vocab],
+              ['situation', 'situations', effort.formulas, effort.formulas],
+              ['épreuve blanche', 'épreuves blanches', effort.exams, effort.exams * 3],
+            ] as const).map(([one, many, n, gain]) => (
+              <span key={one} className={`rounded-full px-2.5 py-1 ${n ? 'bg-[#3a2513]' : 'bg-[#1a140c]/60 opacity-60'}`}>
+                {n} {n > 1 ? many : one} → {gain} levée{gain > 1 ? 's' : ''}
+              </span>
+            ))}
+          </div>
           <div className="grid gap-2 sm:grid-cols-3">
             {BAN_UNITS.map((u) => {
               const id = applyFaction(u.base, faction);

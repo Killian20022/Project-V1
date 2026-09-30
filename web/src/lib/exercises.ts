@@ -1,5 +1,10 @@
 import { LEVELS, sentencesFor } from './content';
-import type { Comprehension, Lesson, Level, Sentence } from '../types';
+import { POS_LABEL, wordDistractors, type WordEntry } from './lexicon';
+import { allWords } from '../data/lexicon';
+import type { Comprehension, Lesson, Level, Sentence, SrsCard } from '../types';
+
+// Le lexique complet, calculé une fois : il sert de vivier de distracteurs partout.
+const LEXICON: readonly WordEntry[] = allWords();
 
 export type Question =
   | { type: 'qcm' | 'listen'; prompt: string; options: string[]; answer: string; explanation: string; audio?: string }
@@ -33,6 +38,37 @@ function words(sentence: string): string[] {
   return sentence.replace(/[.,!?;:''"]/g, '').split(/\s+/).filter(Boolean);
 }
 
+/**
+ * Distracteurs d'un texte à trou.
+ *
+ * L'ancienne version tirait trois mots AU HASARD parmi tous ceux du niveau : on proposait donc
+ * régulièrement un verbe conjugué contre trois noms, voire un mot déjà présent dans la phrase —
+ * et la bonne réponse sautait aux yeux sans rien connaître. Trois garde-fous :
+ *   · jamais un mot déjà présent dans la phrase (il se repère d'un coup d'œil) ;
+ *   · si le mot visé est au lexique, on prend des mots de MÊME NATURE (c'est le seul cas où on
+ *     connaisse vraiment la grammaire du mot) ;
+ *   · sinon, à défaut de nature, on s'en approche par la longueur — grossier, mais un « the »
+ *     contre « responsibility » ne trompait personne.
+ */
+function fillDistractors(level: Level, hint: string, sentence: string): string[] {
+  const lower = hint.toLowerCase();
+  const inSentence = new Set(words(sentence).map((x) => x.toLowerCase()));
+
+  // Cas favorable : le mot est au lexique, on connaît sa nature.
+  const entry = LEXICON.find((e) => e.w.toLowerCase() === lower || (e.also ?? []).includes(lower));
+  if (entry) {
+    const picked = wordDistractors(entry, LEXICON).map((o) => o.w);
+    const usable = picked.filter((x) => !inSentence.has(x.toLowerCase()));
+    if (usable.length >= 3) return usable.slice(0, 3);
+  }
+
+  const pool = [...new Set(sentencesFor(level).flatMap((s) => words(s.en)))].filter(
+    (x) => x.length > 1 && x.toLowerCase() !== lower && !inSentence.has(x.toLowerCase()),
+  );
+  const close = pool.filter((x) => Math.abs(x.length - hint.length) <= 3);
+  return shuffle(close.length >= 3 ? close : pool).slice(0, 3);
+}
+
 // Texte à trou : on cache un mot, on montre la traduction, et on propose des mots à choisir → jamais ambigu.
 function fillQuestion(level: Level, sentence: Sentence): Question {
   const w = words(sentence.en);
@@ -42,13 +78,7 @@ function fillQuestion(level: Level, sentence: Sentence): Question {
       : w[Math.min(1, w.length - 1)];
 
   const blanked = sentence.en.replace(new RegExp(`\\b${escapeRegExp(hint)}\\b`), '_____');
-
-  // Distracteurs : d'autres mots du même niveau, plausibles
-  const pool = [...new Set(sentencesFor(level).flatMap((s) => words(s.en)))].filter(
-    (x) => x.length > 1 && x.toLowerCase() !== hint.toLowerCase(),
-  );
-  const distractors = shuffle(pool).slice(0, 3);
-  const options = shuffle([hint, ...distractors]);
+  const options = shuffle([hint, ...fillDistractors(level, hint, sentence.en)]);
 
   return {
     type: 'fill',
@@ -58,6 +88,61 @@ function fillQuestion(level: Level, sentence: Sentence): Question {
     answer: hint,
     explanation: `${sentence.en} — ${sentence.fr}`,
   };
+}
+
+// ---------- Exercices de VOCABULAIRE ----------
+/**
+ * Une question sur un mot du lexique. Trois degrés, tirés au sort, du plus facile au plus exigeant :
+ *   · RECONNAÎTRE — anglais → français, à choix multiple ;
+ *   · EMPLOYER    — le mot manque dans son propre exemple ;
+ *   · RETROUVER   — français → anglais, au clavier, sans proposition.
+ * Jusqu'ici tout le site en restait au premier degré : on reconnaissait, on ne produisait jamais.
+ */
+export function buildWordQuestion(entry: WordEntry, pool: readonly WordEntry[] = LEXICON): Question {
+  const others = wordDistractors(entry, pool);
+  const explanation = `${entry.w} — ${entry.fr}. « ${entry.ex.en} » (${entry.ex.fr})`;
+  const draw = Math.random();
+
+  // EMPLOYER : on ne le tente que si la forme vedette figure telle quelle dans l'exemple —
+  // sinon les propositions mélangeraient formes fléchies et formes de base, ce qui trahirait
+  // la réponse.
+  if (draw < 0.35) {
+    const re = new RegExp(`\\b${escapeRegExp(entry.w)}\\b`, 'i');
+    if (re.test(entry.ex.en) && others.length >= 3) {
+      return {
+        type: 'fill',
+        prompt: entry.ex.en.replace(re, '_____'),
+        fr: entry.ex.fr,
+        options: shuffle([entry.w, ...others.map((o) => o.w)]),
+        answer: entry.w,
+        explanation,
+      };
+    }
+  }
+
+  if (draw < 0.7) {
+    return {
+      type: 'qcm',
+      prompt: `Que veut dire « ${entry.w} » ? (${POS_LABEL[entry.pos]})`,
+      options: shuffle([entry.fr, ...others.map((o) => o.fr)]),
+      answer: entry.fr,
+      explanation,
+    };
+  }
+
+  return {
+    type: 'translate',
+    direction: 'fr2en',
+    prompt: `Comment dit-on « ${entry.fr} » ? (${POS_LABEL[entry.pos]})`,
+    source: entry.fr,
+    answer: entry.w,
+    explanation,
+  };
+}
+
+/** Une séance sur un palier : chaque mot passe une fois, dans un ordre mélangé. */
+export function buildWordSession(entries: readonly WordEntry[], pool: readonly WordEntry[] = LEXICON): Question[] {
+  return shuffle(entries).map((entry) => buildWordQuestion(entry, pool));
 }
 
 // Traduction libre : on donne la phrase dans une langue, il faut taper l'autre.
@@ -182,7 +267,21 @@ export function buildQuestions(level: Level, lesson: Lesson): Question[] {
 // Construit UNE question de révision à partir d'une carte SRS.
 // Le type d'exercice est tiré au hasard (jamais « match » ni « qcm de leçon »,
 // qui ne s'appliquent pas à une phrase isolée).
-export function buildReviewQuestion(card: { level: Level; en: string; fr: string }): Question {
+export function buildReviewQuestion(card: Pick<SrsCard, 'level' | 'en' | 'fr'> & { kind?: 'word' }): Question {
+  // Carte de MOT : on rejoue un exercice de vocabulaire, pas une dictée de phrase. Si le mot a
+  // disparu du lexique entre-temps (thème retiré), on retombe sur une simple reconnaissance.
+  if (card.kind === 'word') {
+    const entry = LEXICON.find((e) => e.w === card.en);
+    if (entry) return buildWordQuestion(entry);
+    return {
+      type: 'translate',
+      direction: 'fr2en',
+      prompt: `Comment dit-on « ${card.fr} » ?`,
+      source: card.fr,
+      answer: card.en,
+      explanation: `${card.en} — ${card.fr}`,
+    };
+  }
   const sentence: Sentence = { en: card.en, fr: card.fr };
   const level = card.level;
   const types: Exclude<Question['type'], 'qcm' | 'match'>[] = [

@@ -14,7 +14,7 @@ export const BUSINESS_MODULES: readonly BusinessModule[] = [
   {
     id: 'introductions',
     level: 'B1',
-    category: 'Relationnel',
+    category: 'À l’oral',
     t: 'V',
     title: 'Se présenter & réseauter',
     goal: 'Faire une première impression pro et engager la conversation.',
@@ -76,7 +76,7 @@ export const BUSINESS_MODULES: readonly BusinessModule[] = [
   {
     id: 'emails',
     level: 'B1',
-    category: 'Écrit',
+    category: 'À l’écrit',
     t: 'V',
     title: 'Emails professionnels',
     goal: 'Écrire des emails clairs, polis et efficaces.',
@@ -136,7 +136,7 @@ export const BUSINESS_MODULES: readonly BusinessModule[] = [
   {
     id: 'meetings',
     level: 'B2',
-    category: 'Réunions',
+    category: 'À l’oral',
     t: 'V',
     title: 'Réunions & prises de parole',
     goal: 'Participer, donner son avis et gérer une réunion.',
@@ -198,7 +198,7 @@ export const BUSINESS_MODULES: readonly BusinessModule[] = [
   {
     id: 'telephoning',
     level: 'B1',
-    category: 'Communication',
+    category: 'À l’oral',
     t: 'V',
     title: 'Téléphone & visio',
     goal: 'Gérer un appel pro : accueillir, transférer, laisser un message.',
@@ -260,7 +260,7 @@ export const BUSINESS_MODULES: readonly BusinessModule[] = [
   {
     id: 'presentations',
     level: 'B2',
-    category: 'Prise de parole',
+    category: 'À l’oral',
     t: 'V',
     title: 'Présentations',
     goal: 'Structurer un exposé : intro, transitions, données, conclusion.',
@@ -320,7 +320,7 @@ export const BUSINESS_MODULES: readonly BusinessModule[] = [
   {
     id: 'negotiation',
     level: 'C1',
-    category: 'Négociation',
+    category: 'Négocier & convaincre',
     t: 'V',
     title: 'Négociation',
     goal: 'Proposer, nuancer, faire des concessions et conclure un accord.',
@@ -382,7 +382,7 @@ export const BUSINESS_MODULES: readonly BusinessModule[] = [
   {
     id: 'small-talk',
     level: 'B1',
-    category: 'Relationnel',
+    category: 'À l’oral',
     t: 'V',
     title: 'Small talk',
     goal: 'Briser la glace avant/après une réunion, sans faux pas.',
@@ -444,7 +444,7 @@ export const BUSINESS_MODULES: readonly BusinessModule[] = [
   {
     id: 'interviews',
     level: 'B2',
-    category: 'Carrière',
+    category: 'Négocier & convaincre',
     t: 'V',
     title: 'Entretien d’embauche',
     goal: 'Se vendre : parcours, forces, motivation, questions à poser.',

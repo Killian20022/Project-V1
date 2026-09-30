@@ -32,6 +32,7 @@ export function ExercisePage({
   onQuit,
   reviewQuestions,
   onGrade,
+  badge,
 }: {
   level: Level;
   index?: number;
@@ -42,6 +43,9 @@ export function ExercisePage({
   reviewQuestions?: Question[];
   // Remonté à chaque réponse en mode révision (pour reprogrammer la carte)
   onGrade?: (index: number, success: boolean) => void;
+  // Étiquette affichée à la place de « 🧠 Révision » : le mode sans cœurs sert aussi à
+  // l'entraînement au format examen, qui n'est pas une révision.
+  badge?: string;
 }) {
   const reviewMode = !!reviewQuestions;
   const questions = useMemo(
@@ -157,7 +161,7 @@ export function ExercisePage({
           {position + 1} / {questions.length}
         </span>
         {reviewMode ? (
-          <span className="text-sm font-semibold text-primary">🧠 Révision</span>
+          <span className="text-sm font-semibold text-primary">{badge ?? '🧠 Révision'}</span>
         ) : (
           <span className="flex items-center gap-0.5">
             {Array.from({ length: 5 }).map((_, i) => (
