@@ -149,7 +149,7 @@ const buildings: ShopItem[] = FACTIONS.flatMap(({ id: f }) => {
     max: 12,
     hidden: i > 0,
     variants: i === 0 ? variantIds : undefined,
-    blurb: i === 0 ? '+4 population · molette : change le style' : undefined,
+    blurb: i === 0 ? '+4 population · molette : 3 styles × 2 sens' : undefined,
   }));
   const others: ShopItem[] = OTHER_BUILDINGS.map((b) => ({
     id: buildingKey(b.key, f),
@@ -176,7 +176,7 @@ const portals: ShopItem[] = [
     wood: 300,
     category: 'batiments',
     max: 6,
-    blurb: 'Relie deux de tes îles · tes troupes le traversent au lieu de nager',
+    blurb: 'Relie tes îles · clic droit dessus pour choisir où ressortir',
   },
 ];
 

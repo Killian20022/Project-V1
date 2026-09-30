@@ -23,7 +23,7 @@ import {
   type ShopCategory,
 } from '@/data/shop';
 import { TROPHIES, type Trophy } from '@/lib/trophies';
-import { capsWith, createWorld, findSpot, nextUnlock, repairCost, unlockedIslands, WORLD, type ResKind } from '@/lib/world';
+import { capsWith, createWorld, findSpot, nextUnlock, repairCost, unlockedIslands, WORLD, type PortalMenu, type ResKind } from '@/lib/world';
 import { breakYoke, levyTribute, ransomLeft } from '@/lib/vassal';
 import { BAN_UNITS, banAvailable, levy } from '@/lib/ban';
 import { LEVELS, lessonCount } from '@/lib/content';
@@ -48,13 +48,61 @@ export function questsDone(state: GameState) {
 const BIG_ISLANDS = WORLD.islands.filter((i) => i.size > 12).length;
 
 /**
- * Icône de ressource, tirée du pack (bûche, pépite, steak). Remplace les emojis 🪵🍖🪙 : toutes les
- * polices ne les ont pas et ils s'affichaient alors en carré « tofu ».
+ * Icônes de ressource, tirées du pack (pièce, bûche, steak, pépite, population). Remplacent les
+ * emojis 🪵🍖🪙 : toutes les polices ne les ont pas et ils s'affichaient alors en carré « tofu ».
+ *
+ * Le pack ne cadre pas ses images de la même façon : la pépite ne remplit que 24×26 px de sa
+ * planche de 128, la bûche 47×28 de sa planche de 64, la pièce 55×52. Posées telles quelles dans
+ * un carré de 20 px, la pièce et la bûche n'avaient donc pas du tout la même taille à l'écran.
+ * `box` = [x, y, largeur, hauteur] du DESSIN dans sa planche, mesuré une fois pour toutes : on
+ * recadre dessus, et toutes les icônes pèsent enfin le même poids.
  */
-function Res({ kind, className = '' }: { kind: 'gold' | 'wood' | 'food'; className?: string }) {
-  const file = { gold: 'res_gold.png', wood: 'res_wood.png', food: 'res_food.png' }[kind];
-  const label = { gold: 'or', wood: 'bois', food: 'nourriture' }[kind];
-  return <img src={uiUrl(file)} alt={label} title={label} className={`pixel inline-block h-5 w-5 align-[-4px] ${className}`} />;
+const RES_ICON = {
+  gold: { file: 'res_gold.png', label: 'or', w: 128, h: 128, box: [51, 49, 24, 26] },
+  wood: { file: 'res_wood.png', label: 'bois', w: 64, h: 64, box: [9, 18, 47, 28] },
+  food: { file: 'res_food.png', label: 'nourriture', w: 64, h: 64, box: [9, 16, 47, 36] },
+  coin: { file: 'icon_03.png', label: 'or', w: 64, h: 64, box: [4, 4, 55, 52] },
+  pop: { file: 'icon_01.png', label: 'population', w: 64, h: 64, box: [5, 3, 57, 57] },
+} as const;
+
+function Res({ kind, size = 20, className = '' }: { kind: keyof typeof RES_ICON; size?: number; className?: string }) {
+  const ic = RES_ICON[kind];
+  const [bx, by, bw, bh] = ic.box;
+  const s = size / Math.max(bw, bh); // le dessin remplit le carré dans sa plus grande dimension
+  return (
+    <span
+      role="img"
+      aria-label={ic.label}
+      title={ic.label}
+      className={`relative inline-block overflow-hidden align-[-4px] ${className}`}
+      style={{ width: size, height: size }}
+    >
+      <img
+        src={uiUrl(ic.file)}
+        alt=""
+        className="pixel absolute max-w-none"
+        style={{
+          width: ic.w * s,
+          height: ic.h * s,
+          left: (size - bw * s) / 2 - bx * s,
+          top: (size - bh * s) / 2 - by * s,
+        }}
+      />
+    </span>
+  );
+}
+
+/**
+ * Rognage à appliquer à un personnage pour qu'il s'affiche à la MÊME échelle que les autres.
+ *
+ * Tous les sprites du pack sont dessinés au même grossissement ; seul le CADRE change de taille —
+ * 320 px pour le lancier, à cause de sa lance, contre 192 px pour tout le monde. Rogner d'une
+ * fraction fixe revenait donc à afficher le lancier ~28 % plus petit que ses camarades. On repart
+ * de la référence (un cadre de 192 rogné de `ref`) et on en déduit le rognage du cadre réel.
+ */
+function unitCrop(id: string, ref = 0.26) {
+  const fh = SPRITES[id]?.fh;
+  return fh ? (1 - (192 * (1 - 2 * ref)) / fh) / 2 : ref;
 }
 
 // Ton royaume est menacé ('war'), tu marques un point ('win'), ou le monde bouge sans toi ('news').
@@ -79,6 +127,9 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
   const [moving, setMoving] = useState(false);
   const [ordering, setOrdering] = useState(false);
   const [troop, setTroop] = useState(0); // unités retenues au lasso (0 = l'ordre part à toute l'île)
+  // Clic droit sur un portail. `openedAt` : instant d'ouverture, pour ne pas refermer le menu sur
+  // la queue d'évènements du clic qui vient tout juste de l'ouvrir.
+  const [portalMenu, setPortalMenu] = useState<(PortalMenu & { openedAt: number }) | null>(null);
   const [confirmDel, setConfirmDel] = useState(false);
   const [mapVersion, setMapVersion] = useState(0); // bump = recréer le moteur (reset / changement de couleur)
   const [confirmReset, setConfirmReset] = useState(false);
@@ -142,10 +193,10 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
           ...current,
           placed: (current.placed ?? []).map((p) => (p.k === k ? { ...p, x, y } : p)),
         })),
-      onVariant: (k, id) =>
+      onVariant: (k, id, flip) =>
         setState((current) => ({
           ...current,
-          placed: (current.placed ?? []).map((p) => (p.k === k ? { ...p, id } : p)),
+          placed: (current.placed ?? []).map((p) => (p.k === k ? { ...p, id, flip } : p)),
         })),
       onSelect: (k, info) => {
         setSelected(k);
@@ -155,6 +206,19 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
       onMoveMode: setMoving,
       onOrderMode: setOrdering,
       onTroop: setTroop,
+      // Menu du portail : on le recale dans le cadre, sinon un clic droit près du bord droit ou
+      // du bas ouvrirait la liste hors de l'écran.
+      onPortalMenu: (m) => {
+        if (!m) return setPortalMenu(null);
+        const r = wrap.getBoundingClientRect();
+        const w = 244;
+        const h = 92 + m.dests.length * 40;
+        setPortalMenu({
+          ...m,
+          openedAt: Date.now(),
+          at: { x: Math.max(8, Math.min(m.at.x, r.width - w - 8)), y: Math.max(8, Math.min(m.at.y, r.height - h - 8)) },
+        });
+      },
       onNotice: (text) => raiseAlert(text, 'news'),
       // Un bâtiment vient d'être rasé : on garde sa ruine sur place, relevable à moitié prix.
       onRuin: (id, x, y) =>
@@ -218,11 +282,11 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         raiseAlert(`Ton dernier château est tombé. Le royaume ${lord} plante sa bannière : tu lui dois tribut.`);
       },
       // Objet de l'inventaire posé sur la carte : on le retire de l'inventaire et on l'ajoute aux objets placés.
-      onPlaceNew: (k, id, x, y) =>
+      onPlaceNew: (k, id, x, y, flip) =>
         setState((current) => ({
           ...current,
           inventory: (current.inventory ?? []).filter((it) => it.k !== k),
-          placed: [...(current.placed ?? []), { k, id, x, y }],
+          placed: [...(current.placed ?? []), { k, id, x, y, flip }],
         })),
       onHarvest: (kind, amount) => {
         // Sous tutelle, le suzerain prélève sa part au passage (calculée hors du setState, qui doit rester pur).
@@ -280,6 +344,14 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
   useEffect(() => {
     engineRef.current?.setUnlocked(unlocked, done);
   }, [unlocked, done]);
+
+  // Menu du portail ouvert : Échap le referme, comme n'importe quel menu contextuel.
+  useEffect(() => {
+    if (!portalMenu) return;
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && engineRef.current?.closePortalMenu();
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [portalMenu]);
 
   // Tient le moteur informé des réserves (pour savoir quand le stockage est plein).
   useEffect(() => {
@@ -478,7 +550,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         <h1 className="ribbon text-xl md:text-2xl">L’archipel de Scriptoria</h1>
         <p className="mt-1 hidden max-w-sm rounded-md bg-[#2b1a0d]/75 px-3 py-1.5 text-xs text-[#ffeccc] md:block">
           Glisser : explorer la carte, ou déplacer ce qu’on saisit · double-clic maintenu : encadrer une troupe ·
-          clic droit : l’envoyer · molette : zoomer
+          clic droit : l’envoyer, ou sur un portail : choisir l’île de sortie · molette : zoomer
         </p>
       </div>
 
@@ -498,13 +570,15 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
             <span
               key={k}
               title={full ? 'Stockage plein — construis pour agrandir' : undefined}
-              className={`flex items-center gap-1 rounded-md bg-[#2b1a0d]/85 px-2 py-1 text-sm font-bold shadow-lg ${
+              className={`flex items-center gap-1.5 rounded-md bg-[#2b1a0d]/85 px-2.5 py-1 text-base font-bold shadow-lg ${
                 full ? 'text-[#ff9a8a]' : 'text-[#ffe7a6]'
               }`}
             >
-              {k === 'gold' ? <img src={uiUrl('icon_03.png')} alt="or" title="or" className="pixel inline-block h-5 w-5 align-[-4px]" /> : <Res kind={k} />}{' '}
+              {/* Plus grosses qu'au Marché : ici elles sont posées sur la carte, en plein décor —
+                  à 20 px on ne distinguait plus la bûche de la viande. */}
+              <Res kind={k === 'gold' ? 'coin' : k} size={28} />{' '}
               {v}
-              {cap !== null && <span className="text-[10px] font-semibold opacity-70">/ {cap}</span>}
+              {cap !== null && <span className="text-[11px] font-semibold opacity-70">/ {cap}</span>}
             </span>
           );
         })}
@@ -615,6 +689,53 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         </div>
       )}
 
+      {/* Clic droit sur un portail, troupe retenue : la liste des portails d'arrivée. Choisir un
+          nom envoie la troupe s'y engouffrer. Le voile derrière attrape le clic « à côté ». */}
+      {portalMenu && (
+        <>
+          {/* Le voile ne se referme QUE sur un nouvel appui, et jamais sur `contextmenu` : sous
+              Windows cet évènement part au RELÂCHÉ du clic droit, donc après que React a monté le
+              voile — il atterrissait dessus et refermait le menu dans la foulée de son ouverture
+              (le menu « clignotait »). Le garde-temps couvre les navigateurs qui ordonnent encore
+              autrement les évènements d'un même clic. */}
+          <div
+            className="absolute inset-0 z-30"
+            onPointerDown={() => Date.now() - portalMenu.openedAt > 250 && engineRef.current?.closePortalMenu()}
+            onContextMenu={(e) => e.preventDefault()}
+          />
+          <div
+            className="absolute z-40 w-[244px] overflow-hidden rounded-lg border-2 border-[#c9a24a] bg-[#2b1a0d]/95 shadow-[0_0_28px_rgba(0,0,0,0.6)]"
+            style={{ left: portalMenu.at.x, top: portalMenu.at.y }}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <div className="border-b border-[#6b552a] px-3 py-2">
+              <div className="font-display text-sm text-[#ffe7a6]">Portail de {portalMenu.fromName}</div>
+              <div className="text-[11px] text-[#e8dcc2]/80">
+                {portalMenu.n} soldat{portalMenu.n > 1 ? 's' : ''} — où les faire ressortir ?
+              </div>
+            </div>
+            <div className="max-h-56 overflow-y-auto py-1">
+              {portalMenu.dests.map((d) => (
+                <button
+                  key={d.k}
+                  onClick={() => engineRef.current?.warpTroop(portalMenu.from, d.k)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[#ffeccc] transition hover:bg-[#3a2513]"
+                >
+                  <MapPin className="size-4 shrink-0 text-[#ffcf6b]" />
+                  <span className="truncate">{d.name}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => engineRef.current?.closePortalMenu()}
+              className="w-full border-t border-[#6b552a] px-3 py-1.5 text-[11px] font-semibold text-[#e8dcc2]/70 transition hover:bg-[#3a2513]"
+            >
+              Annuler
+            </button>
+          </div>
+        </>
+      )}
+
       {/* Alerte de guerre : débarquement ennemi, château perdu ou pris, ou chronique du monde.
           Disparaît toute seule. */}
       {alert && !moving && !ordering && (
@@ -665,7 +786,7 @@ export function IslandPage({ state, setState, navigate }: { state: GameState; se
         <div className="absolute bottom-20 left-1/2 z-10 w-[min(94vw,400px)] -translate-x-1/2 md:bottom-6">
           <div className="paper-dark p-1">
             <div className="flex items-center gap-3">
-              <Sprite k={selInfo.id} act={jobOf(selInfo.id)?.tool} height={56} crop={isUnit ? 0.2 : 0} />
+              <Sprite k={selInfo.id} act={jobOf(selInfo.id)?.tool} height={56} crop={isUnit ? unitCrop(selInfo.id, 0.2) : 0} />
               <div className="min-w-0 flex-1">
                 <div className="font-display truncate text-[#ffe7a6]">{selName}</div>
                 <div className="text-[11px] text-[#e8dcc2]/80">
@@ -909,7 +1030,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
               const can = levies > 0 && !banFull;
               return (
                 <div key={u.base} className="flex items-center gap-3 rounded-md border border-[#6b552a] bg-[#1a140c]/60 p-2">
-                  <Sprite k={id} height={46} crop={u.base === 'lancier' ? 0.3 : 0.26} />
+                  <Sprite k={id} height={46} crop={unitCrop(id)} />
                   <div className="min-w-0 flex-1">
                     <div className="font-display text-[15px] text-[#ffe7a6]">{u.name}</div>
                     <div className="truncate text-[11px] text-muted-foreground">{u.blurb}</div>
@@ -973,7 +1094,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
               <Card key={tr.base}>
                 <CardContent className="flex flex-col items-center gap-1.5 p-2 text-center">
                   <div className="grid h-28 w-full place-items-end justify-center overflow-hidden">
-                    <Sprite k={id} height={100} crop={tr.base === 'lancier' ? 0.3 : 0.26} />
+                    <Sprite k={id} height={100} crop={unitCrop(id)} />
                   </div>
                   <div className="font-display leading-tight">{tr.name}</div>
                   <div className="text-[11px] text-[hsl(var(--accent))]">{tr.blurb}</div>
@@ -1036,7 +1157,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
                     k={item.id}
                     act={jobOf(item.id)?.tool}
                     height={item.category === 'batiments' ? 108 : person ? 100 : 84}
-                    crop={person ? (item.id.startsWith('lancier') ? 0.3 : 0.26) : 0}
+                    crop={person ? unitCrop(item.id) : 0}
                   />
                 </div>
                 <div className="font-display leading-tight">{item.name}</div>
@@ -1046,7 +1167,7 @@ export function ShopPage({ state, setState, navigate }: { state: GameState; setS
                   <span className={state.coins >= item.price ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}><Res kind="gold" /> {item.price}</span>
                   {!!item.wood && (<span className={wood >= item.wood ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}><Res kind="wood" /> {item.wood}</span>)}
                   {!!item.food && (<span className={food >= item.food ? 'text-[#ffe7a6]' : 'text-[#ff9a8a]'}><Res kind="food" /> {item.food}</span>)}
-                  {!!item.pop && (<span className="text-muted-foreground"><img src={uiUrl('icon_01.png')} alt="population" className="pixel inline-block h-4 w-4 align-[-3px]" /> {item.pop}</span>)}
+                  {!!item.pop && (<span className="text-muted-foreground"><Res kind="pop" size={16} /> {item.pop}</span>)}
                 </div>
                 <div className="text-[11px] text-muted-foreground">
                   {count}/{item.max} possédé{item.max > 1 ? 's' : ''}

@@ -168,6 +168,21 @@ export interface Placed {
   x: number; // position des pieds (px monde)
   y: number;
   xp?: number; // ennemis abattus par ce soldat : sa vétérance, conservée d'une session à l'autre
+  // Sens du bâtiment. Les maisons du pack sont dessinées DE BIAIS : retournée, la même maison
+  // penche de l'autre côté. Chaque style existe donc en deux sens, et la molette fait le tour des
+  // six. Absent = jamais choisi à la molette (voir `stableFlip`).
+  flip?: boolean;
+}
+
+/**
+ * Sens par défaut d'un objet posé, tiré de sa clé : varié d'un objet à l'autre, mais TOUJOURS le
+ * même pour un objet donné. Un vrai tirage au sort serait refait à chaque chargement de la carte,
+ * et la maison qu'on a placée de biais à gauche se retrouverait de biais à droite le lendemain.
+ */
+function stableFlip(k: string): boolean {
+  let h = 0;
+  for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) >>> 0;
+  return h % 2 === 1;
 }
 
 // ---------- Aides pures (utilisables hors canvas : marché, sauvegarde) ----------
@@ -578,6 +593,19 @@ type Ent = {
   freshKey?: string; // clé d'inventaire de l'objet en cours de pose
 };
 
+/**
+ * Menu d'un portail : ouvert au clic droit sur un portail, troupe retenue. C'est React qui le
+ * dessine (une liste de boutons par-dessus le canevas) ; le moteur ne fait que fournir les
+ * destinations et exécuter le choix (`warpTroop`).
+ */
+export type PortalMenu = {
+  from: string; // clé du portail d'entrée
+  fromName: string;
+  n: number; // soldats prêts à s'y engouffrer
+  at: { x: number; y: number }; // point du clic, en pixels du canevas
+  dests: { k: string; name: string }[]; // portails de sortie, sur les AUTRES îles
+};
+
 export function createWorld(
   canvas: HTMLCanvasElement,
   opts: {
@@ -585,7 +613,9 @@ export function createWorld(
     unlocked: Set<number>;
     missionsDone: number;
     onMove?: (k: string, x: number, y: number) => void;
-    onVariant?: (k: string, id: string) => void; // style de maison changé à la molette
+    // Style ET sens de la maison changés à la molette (`flip` : image retournée, toit de biais
+    // dans l'autre sens).
+    onVariant?: (k: string, id: string, flip: boolean) => void;
     // `mine` : l'objet est à ta couleur. Les bâtiments ennemis sont sélectionnables (on les inspecte)
     // mais on ne répare évidemment pas le château qu'on assiège.
     onSelect?: (
@@ -595,10 +625,12 @@ export function createWorld(
     onMoveMode?: (active: boolean) => void;
     onOrderMode?: (active: boolean) => void; // mode « envoyer les troupes » actif ?
     onTroop?: (n: number) => void; // nombre d'unités retenues au lasso (0 = l'ordre part à toute l'île)
+    // Clic droit sur un portail : on propose les portails d'arrivée. `null` = refermer le menu.
+    onPortalMenu?: (menu: PortalMenu | null) => void;
     onNotice?: (text: string) => void; // message discret (ex. « île non tenue : impossible de déposer ici »)
     ruins?: { k: string; id: string; x: number; y: number }[]; // bâtiments rasés, relevables
     onRuin?: (id: string, x: number, y: number) => void; // un bâtiment vient d'être rasé : il en reste une ruine
-    onPlaceNew?: (k: string, id: string, x: number, y: number) => void; // objet de l'inventaire posé sur la carte
+    onPlaceNew?: (k: string, id: string, x: number, y: number, flip: boolean) => void; // objet de l'inventaire posé sur la carte
     decorRemoved?: string[]; // personnages du décor supprimés par le joueur
     onDecorRemove?: (id: string) => void;
     decorPos?: Record<string, [number, number]>; // personnages du décor déplacés par le joueur
@@ -933,7 +965,10 @@ export function createWorld(
           acting: -1,
           radius: 3.5,
           wait: Math.random() * 3,
-          face: Math.random() < 0.5 ? -1 : 1,
+          // Le sens choisi à la molette prime ; sans choix, on en tire un STABLE depuis la clé de
+          // l'objet. Avant, c'était un `Math.random()` : la même maison penchait à gauche ou à
+          // droite au gré des rechargements — c'est le « bug » qui a fait naître la rotation.
+          face: (p.flip ?? stableFlip(p.k)) ? -1 : 1,
           home: { isl: islandAt(cx, cy), lvl: levelAt(cx, cy) },
           origKey: HARVEST[p.id] ? p.id : undefined,
           nodeStock: HARVEST[p.id] ? HARVEST[p.id].cycles : undefined,
@@ -2592,6 +2627,55 @@ export function createWorld(
     }
     return null;
   }
+  /**
+   * Nom d'un portail : celui de son île, suffixé d'un numéro s'il y en a plusieurs sur la même
+   * terre. C'est ce nom que le menu du clic droit propose comme destination — sans lui, deux
+   * portails se ressembleraient trait pour trait dans la liste.
+   */
+  function portalName(p: Ent): string {
+    const isl = islandAt(...cellAt(p.x, p.y));
+    const base = WORLD.islands[isl]?.name ?? 'Terre inconnue';
+    // Tri par clé : l'ordre ne bouge pas d'une image à l'autre, donc le numéro non plus.
+    const sameIsle = portals()
+      .filter((o) => islandAt(...cellAt(o.x, o.y)) === isl)
+      .sort((a, b) => keyOf(a).localeCompare(keyOf(b)));
+    return sameIsle.length > 1 ? `${base} — portail ${sameIsle.indexOf(p) + 1}` : base;
+  }
+  /** Les soldats retenus qui se trouvent sur l'île `isl` : eux seuls peuvent marcher jusqu'au portail. */
+  function troopOn(isl: number): Ent[] {
+    return [...placed, ...decor].filter(
+      (e) => alive(e) && e.agent && isFriendly(e) && isFighter(e) && e !== drag?.ent && e !== moveEnt && troop.has(keyOf(e)) && islandOf(e) === isl,
+    );
+  }
+  /**
+   * Clic droit sur un portail, troupe retenue : au lieu d'un simple ordre de marche, on propose
+   * les portails des AUTRES îles. Le joueur choisit sa sortie par son nom, et `warpTroop` envoie.
+   */
+  function openPortalMenu(from: Ent, at: { x: number; y: number }) {
+    const isl = islandAt(...cellAt(from.x, from.y));
+    if (!troop.size) {
+      flashBad = t;
+      opts.onNotice?.('Choisis d’abord tes soldats : clique l’un d’eux, ou encadre-en plusieurs au double-clic glissé.');
+      return;
+    }
+    const dests = portals()
+      .filter((o) => o !== from && islandAt(...cellAt(o.x, o.y)) !== isl && portalStep(o))
+      .map((o) => ({ k: keyOf(o), name: portalName(o) }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    if (!dests.length) {
+      flashBad = t;
+      opts.onNotice?.('Ce portail ne mène nulle part : bâtis-en un second sur une autre île.');
+      return;
+    }
+    const ready = troopOn(isl);
+    if (!ready.length) {
+      flashBad = t;
+      opts.onNotice?.('Tes soldats ne sont pas sur cette île : le portail ne prend que ceux qui peuvent y marcher.');
+      return;
+    }
+    endOrder();
+    opts.onPortalMenu?.({ from: keyOf(from), fromName: portalName(from), n: ready.length, at, dests });
+  }
   /** L'unité est au pied du portail : elle disparaît dans le vortex et ressort à l'autre. */
   function teleport(e: Ent) {
     const w = e.warp!;
@@ -3630,8 +3714,12 @@ export function createWorld(
       return;
     }
     // Clic DROIT : ordre de marche vers le point visé, pour la troupe retenue (ou toute l'île).
+    // Sur un PORTAIL, l'ordre n'est plus « marche jusque-là » mais « traverse » : on ouvre la liste
+    // des portails d'arrivée plutôt que d'envoyer la troupe se planter devant la ruine.
     if (ev.button === 2) {
-      commandTo(p.x, p.y);
+      const aim = pick(p.x, p.y);
+      if (aim && isPortal(aim) && alive(aim)) openPortalMenu(aim, p);
+      else commandTo(p.x, p.y);
       return;
     }
     const startDrag = (mode: 'pan' | 'band' | 'ent', ent?: Ent) => {
@@ -3739,16 +3827,19 @@ export function createWorld(
     const fs = footprint(ent.key)?.w ?? 1;
     const ey = y - decorLift(ent.key) - (fs > 1 ? 16 : 0);
     effects.push({ x, y: ey, t0: t, kind: 'ring', s: fs }, { x, y: ey, t0: t, kind: 'dust', s: fs });
+    // Style ET sens de la maison retenus à la molette : les deux voyagent ensemble jusqu'à React.
+    const flip = ent.face === -1;
     if (ent.fresh) {
       // Objet posé depuis l'inventaire : on le confirme sur la carte (React l'ajoute à `placed`).
-      opts.onPlaceNew?.(ent.freshKey!, ent.key, x, y);
+      opts.onPlaceNew?.(ent.freshKey!, ent.key, x, y, flip);
     } else if (ent.placed) {
       ent.placed.x = x;
       ent.placed.y = y;
       ent.placed.id = ent.key; // conserve le style de maison éventuellement choisi à la molette
+      ent.placed.flip = flip;
       ent.orig = { x, y };
       opts.onMove?.(ent.placed.k, x, y);
-      opts.onVariant?.(ent.placed.k, ent.key);
+      opts.onVariant?.(ent.placed.k, ent.key, flip);
     } else {
       // personnage du décor : il vit désormais autour de son nouvel emplacement
       ent.origin = { x, y };
@@ -3914,7 +4005,11 @@ export function createWorld(
         const isl = islandAt(Math.floor(w.x / TS), Math.floor(w.y / TS));
         // Une troupe est retenue et on survole un ennemi : épées croisées. Le curseur annonce ce que
         // fera le clic droit — charger CETTE cible — au lieu de laisser deviner.
-        if (troop.size && enemyAt(w.x, w.y, isl)) canvas.style.cursor = CUR.sword;
+        // Troupe retenue sur un portail : le clic droit ouvrira la liste des sorties, pas un
+        // ordre de marche — la main l'annonce, comme partout où le clic AGIT au lieu de déplacer.
+        const overPortal = troop.size ? pick(p.x, p.y) : undefined;
+        if (overPortal && isPortal(overPortal) && alive(overPortal)) canvas.style.cursor = CUR.hand;
+        else if (troop.size && enemyAt(w.x, w.y, isl)) canvas.style.cursor = CUR.sword;
         else if (orderMode) canvas.style.cursor = CUR.hand;
         else {
           const over = pick(p.x, p.y);
@@ -4000,11 +4095,22 @@ export function createWorld(
     if (placing) {
       const vars = houseVariants(placing.key);
       if (vars) {
+        // Six crans : les trois styles, chacun dans ses deux sens. Les maisons du pack sont
+        // dessinées de biais, retourner l'image fait donc pencher le toit de l'autre côté — c'est
+        // une vraie quatrième orientation, pas un doublon. Le sens alterne à chaque cran pour
+        // qu'on voie les deux faces d'un style avant de passer au suivant.
         const dir = ev.deltaY > 0 ? 1 : -1;
-        const nk = vars[(vars.indexOf(placing.key) + dir + vars.length) % vars.length];
+        const n = vars.length * 2;
+        const at = vars.indexOf(placing.key) * 2 + (placing.face === -1 ? 1 : 0);
+        const to = (((at + dir) % n) + n) % n;
+        const nk = vars[to >> 1];
         placing.key = nk;
         placing.def = SPRITES[nk];
-        if (placing.placed) placing.placed.id = nk;
+        placing.face = to % 2 ? -1 : 1;
+        if (placing.placed) {
+          placing.placed.id = nk;
+          placing.placed.flip = placing.face === -1;
+        }
         return;
       }
     }
@@ -4147,6 +4253,7 @@ export function createWorld(
         ph: Math.random() * 10,
         fresh: true,
         freshKey: k,
+        face: 1, // la molette part toujours du même cran : le premier style, de biais à droite
         acting: -1,
         walks: !!def.run,
         agent: !!(def.run || def.act),
@@ -4168,6 +4275,54 @@ export function createWorld(
     },
     cancelOrder() {
       endOrder();
+    },
+    /**
+     * Destination choisie dans le menu du portail : la troupe retenue marche jusqu'au portail
+     * d'entrée, s'y engouffre et ressort au pied de celui d'arrivée (c'est `teleport` qui la
+     * fait ressortir, quand elle atteint le seuil). Renvoie le nombre de soldats engagés.
+     */
+    warpTroop(fromKey: string, toKey: string): number {
+      opts.onPortalMenu?.(null);
+      const from = findByKey(fromKey);
+      const to = findByKey(toKey);
+      if (!alive(from) || !alive(to) || !isPortal(from) || !isPortal(to)) {
+        flashBad = t;
+        return 0;
+      }
+      const entryStep = portalStep(from);
+      const exitStep = portalStep(to);
+      if (!entryStep || !exitStep) {
+        flashBad = t;
+        opts.onNotice?.('Le pied d’un des deux portails est encombré : dégage-le et réessaie.');
+        return 0;
+      }
+      const isl = islandAt(...cellAt(from.x, from.y));
+      const destIsl = islandAt(...cellAt(to.x, to.y));
+      const exit = { x: exitStep[0] * TS + TS / 2, y: exitStep[1] * TS + TS * 0.75 };
+      const entry = { x: entryStep[0] * TS + TS / 2, y: entryStep[1] * TS + TS * 0.75 };
+      const corps = troopOn(isl);
+      for (const e of corps) {
+        e.warp = { x: exit.x, y: exit.y, isl: destIsl };
+        e.cross = undefined; // on ne nage plus : la route passe par le vortex
+        e.order = { x: entry.x, y: entry.y };
+        e.orderTarget = undefined;
+        dropTask(e);
+        e.moving = false;
+        e.acting = -1;
+        e.wait = 0;
+      }
+      if (!corps.length) {
+        flashBad = t;
+        return 0;
+      }
+      effects.push({ x: from.x, y: from.y, t0: t, kind: 'rally' });
+      const n = corps.length;
+      opts.onNotice?.(`${n} soldat${n > 1 ? 's' : ''} gagne${n > 1 ? 'nt' : ''} le portail — sortie : « ${portalName(to)} ».`);
+      return n;
+    },
+    /** Referme le menu du portail sans rien envoyer (clic à côté, Échap). */
+    closePortalMenu() {
+      opts.onPortalMenu?.(null);
     },
     /** Retire un personnage du décor de la carte. */
     removeDecor(id: string) {
