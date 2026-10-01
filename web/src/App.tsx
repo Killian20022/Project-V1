@@ -21,7 +21,7 @@ import { BossPage } from '@/pages/BossPage';
 import { ExamHubPage } from '@/pages/ExamHubPage';
 import { ExamPage } from '@/pages/ExamPage';
 import { VocabularyPage } from '@/pages/VocabularyPage';
-import { bankById } from '@/data/toeic';
+import { bankById, passageById } from '@/data/toeic';
 import { toQuestion } from '@/lib/toeic';
 import type { ToeicExam } from '@/lib/toeic';
 import { themeByKey } from '@/data/lexicon';
@@ -169,7 +169,9 @@ export default function App() {
   function startDrill(bankId: string) {
     const bank = bankById(bankId);
     if (!bank) return;
-    setDrill({ bankId, questions: shuffle(bank.items).map(toQuestion) });
+    // `.map(toQuestion)` passerait l'INDICE en second argument : il faut une lambda explicite pour
+    // lui donner le passage et non le rang de la question.
+    setDrill({ bankId, questions: shuffle(bank.items).map((it) => toQuestion(it, passageById(it.passage))) });
   }
 
   // Lance un duel de boss pour un grade donné.

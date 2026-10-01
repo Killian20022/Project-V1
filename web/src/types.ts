@@ -11,6 +11,12 @@ export interface ExamAttempt {
   scaled: number; // score ESTIMÉ sur l'échelle 5–495 (cf. lib/toeic.ts)
   seconds: number;
   answers: (number | null)[]; // null = laissée vide
+  // Les trois champs ci-dessous sont OPTIONNELS parce que des tentatives sont déjà enregistrées
+  // sans eux : une épreuve de lecture seule n'a pas de score d'écoute, et les copies rendues avant
+  // l'ajout de la section Écoute n'en portent aucun. Les lire doit toujours tolérer `undefined`.
+  listening?: { raw: number; outOf: number; scaled: number } | null;
+  reading?: { raw: number; outOf: number; scaled: number } | null;
+  scaledTotal?: number; // somme des deux sections, sur 990 — la façon dont un score TOEIC se lit
 }
 
 export interface Sentence {

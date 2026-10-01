@@ -5,8 +5,8 @@
 // C'est le filet qui rend acceptable la génération d'items par lots : une banque écrite à la main
 // et une banque générée passent le MÊME contrôle. Sortie non nulle en cas d'erreur, pour pouvoir
 // le brancher sur un pré-commit ou une CI plus tard.
-import { TOEIC_BANKS, TOEIC_EXAMS } from './src/data/toeic';
-import { TOEIC_TAGS, type ToeicItem, type ToeicPart } from './src/lib/toeic';
+import { TOEIC_BANKS, TOEIC_EXAMS, TOEIC_PASSAGES, passageById } from './src/data/toeic';
+import { PART_DISPLAY, TOEIC_TAGS, isListening, type ToeicItem, type ToeicPart } from './src/lib/toeic';
 
 const LEVELS = new Set(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']);
 /** Nombre de propositions attendu par partie (la partie 2 n'en a que trois, à l'oral). */
@@ -62,8 +62,37 @@ function checkItem(item: ToeicItem, where: string) {
   if (twin) fail(id, `énoncé identique à ${twin}`);
   else seenStems.set(k, id);
 
-  // Parties écrites : un audio ou une image n'aurait aucun sens.
-  if (item.part >= 5 && (item.audio || item.image)) fail(id, 'une partie écrite ne porte ni audio ni image');
+  // ---------- Audio, images, passages ----------
+  // Une partie écrite ne porte pas d'image, et une question d'écoute doit avoir quelque chose à
+  // FAIRE ENTENDRE : sans script ni passage, l'item serait injouable — soit muet, soit résolu en
+  // lisant un texte que le vrai examen n'imprime pas.
+  if (!isListening(item.part) && item.image) fail(id, 'une partie écrite ne porte pas d’image');
+  if (item.part !== 1 && item.image) fail(id, 'seule la partie 1 porte une image');
+  if (item.part === 1 && !item.image) fail(id, 'partie 1 sans image — la question n’a plus d’objet');
+
+  if (isListening(item.part) && !item.passage && item.part > 2)
+    fail(id, `partie ${item.part} sans « passage » : son script serait introuvable`);
+
+  if (item.passage) {
+    const passage = passageById(item.passage);
+    if (!passage) fail(id, `passage inconnu : « ${item.passage} »`);
+    else {
+      // Un item d'écoute a besoin de répliques à prononcer ; un item de lecture, de documents à
+      // afficher. Confondre les deux donne une partie 7 muette ou une partie 3 sans bande.
+      if (isListening(item.part) && !passage.turns?.length)
+        fail(id, `le passage « ${passage.id} » n’a aucune réplique à lire`);
+      if (!isListening(item.part) && !passage.docs?.length)
+        fail(id, `le passage « ${passage.id} » n’a aucun document à afficher`);
+    }
+  }
+
+  // Parties 1 et 2 : les propositions ne sont PAS imprimées, elles sont lues. Une proposition très
+  // longue devient alors inintelligible à l'oreille — c'est une faute de conception, pas de goût.
+  if (!PART_DISPLAY[item.part].options) {
+    for (const opt of item.options)
+      if (opt.split(/\s+/).length > 14)
+        warn(id, `proposition de ${opt.split(/\s+/).length} mots alors qu’elle sera seulement ENTENDUE`);
+  }
 }
 
 for (const bank of TOEIC_BANKS) {
@@ -71,6 +100,24 @@ for (const bank of TOEIC_BANKS) {
     checkItem(item, bank.id);
     if (item.part !== bank.part) fail(`${bank.id}/${item.id}`, `partie ${item.part} rangée dans une banque de partie ${bank.part}`);
   }
+}
+
+// ---------- Supports partagés ----------
+const usedPassages = new Set(TOEIC_BANKS.flatMap((b) => b.items.map((i) => i.passage).filter(Boolean)));
+const passageIds = new Set<string>();
+for (const p of TOEIC_PASSAGES) {
+  if (passageIds.has(p.id)) fail(p.id, 'identifiant de passage en double');
+  passageIds.add(p.id);
+  if (!p.intro.trim()) fail(p.id, 'passage sans annonce (« intro ») — elle est lue avant la bande');
+  if (!p.turns?.length && !p.docs?.length) fail(p.id, 'passage vide : ni réplique ni document');
+  for (const t of p.turns ?? []) {
+    if (!t.text.trim()) fail(p.id, 'une réplique est vide');
+    if (!t.speaker.trim()) fail(p.id, 'une réplique n’indique pas qui parle');
+  }
+  for (const d of p.docs ?? []) if (!d.body.trim()) fail(p.id, `document « ${d.label} » vide`);
+  // Un passage orphelin est du contenu écrit pour rien : on le signale sans bloquer, il peut être
+  // en cours de rédaction.
+  if (!usedPassages.has(p.id)) warn(p.id, 'passage qu’aucune question n’utilise');
 }
 
 // Les épreuves réutilisent les items des banques : on ne les revalide pas (les identifiants
@@ -97,4 +144,13 @@ if (errors.length) {
   console.error(`\n${errors.length} erreur(s) sur ${items} item(s).`);
   process.exit(1);
 }
-console.log(`✓ ${items} item(s) valides dans ${TOEIC_BANKS.length} banque(s), ${TOEIC_EXAMS.length} épreuve(s).${warnings.length ? ` ${warnings.length} avertissement(s).` : ''}`);
+const byPart = TOEIC_BANKS.reduce<Record<number, number>>((acc, b) => {
+  for (const i of b.items) acc[i.part] = (acc[i.part] ?? 0) + 1;
+  return acc;
+}, {});
+const spread = [1, 2, 3, 4, 5, 6, 7].map((p) => `P${p} ${byPart[p] ?? 0}`).join(' · ');
+console.log(
+  `✓ ${items} item(s) valides (${spread}) dans ${TOEIC_BANKS.length} banque(s), ` +
+    `${TOEIC_PASSAGES.length} support(s), ${TOEIC_EXAMS.length} épreuve(s).` +
+    `${warnings.length ? ` ${warnings.length} avertissement(s).` : ''}`,
+);

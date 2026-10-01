@@ -1,12 +1,66 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, Flag, Timer, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, Flag, Headphones, Timer, Volume2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { PART_LABEL, allItems, countCorrect, scaledScore, scoreRange, scoreVerdict, tagBreakdown } from '@/lib/toeic';
-import type { ToeicExam } from '@/lib/toeic';
+import {
+  PART_DISPLAY,
+  PART_LABEL,
+  allItems,
+  audioTurnsFor,
+  audioUnitOf,
+  countCorrect,
+  scaledScore,
+  scoreRange,
+  scoreVerdict,
+  sectionResults,
+  tagBreakdown,
+  totalVerdict,
+} from '@/lib/toeic';
+import type { ToeicExam, ToeicItem } from '@/lib/toeic';
+import { passageById } from '@/data/toeic';
+import { speakScript } from '@/lib/speak';
 import type { ExamAttempt } from '../types';
 
 const LETTER = ['A', 'B', 'C', 'D'];
+
+/** Le script d'un passage, mis en forme pour la CORRECTION — pendant l'épreuve il reste caché. */
+function Script({ item }: { item: ToeicItem }) {
+  const passage = passageById(item.passage);
+  const turns = passage?.turns;
+  if (!turns?.length) return null;
+  return (
+    <details className="mt-3 rounded-md bg-secondary/40 p-3">
+      <summary className="cursor-pointer text-sm font-semibold text-[#ffe7a6]">Transcription de l’enregistrement</summary>
+      <div className="mt-2 space-y-1.5">
+        {turns.map((t, i) => (
+          <p key={i} className="text-sm leading-relaxed">
+            <span className="font-semibold text-muted-foreground">{t.speaker} — </span>
+            {t.text}
+          </p>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+/** Les documents des parties 6 et 7, affichés pendant l'épreuve ET à la correction. */
+function Documents({ item }: { item: ToeicItem }) {
+  const docs = passageById(item.passage)?.docs;
+  if (!docs?.length) return null;
+  return (
+    <div className="space-y-3">
+      {docs.map((d) => (
+        <div key={d.label} className="rounded-md border border-border bg-secondary/30 p-4">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{d.label}</div>
+          {/* `whitespace-pre-wrap` : la mise en page d'un courriel ou d'un planning PORTE du sens
+              (lignes d'en-tête, colonnes de dates). La réduire à un paragraphe rendrait les
+              questions de recoupement de la partie 7 impossibles. */}
+          <p className="whitespace-pre-wrap font-serif text-[15px] leading-relaxed">{d.body}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function clock(seconds: number): string {
   const s = Math.max(0, Math.ceil(seconds));
@@ -62,16 +116,49 @@ export function ExamPage({
 
   const remaining = (deadline - now) / 1000;
 
+  // ---------- Écoute ----------
+  // Une bande ne passe QU'UNE FOIS, comme au vrai examen : `played` retient les unités déjà
+  // diffusées, et la clé est celle du PASSAGE pour les parties 3-4 — les trois questions d'une
+  // conversation partagent un seul enregistrement.
+  const [played, setPlayed] = useState<Set<string>>(new Set());
+  const [playing, setPlaying] = useState<string | null>(null);
+  const stopRef = useRef<() => void>(() => {});
+  // Le garde-fou est un REF, pas l'état : deux clics dans la même image de rendu liraient tous les
+  // deux l'ancien `played` et lanceraient la bande deux fois. Un ref est écrit tout de suite.
+  const playedRef = useRef<Set<string>>(new Set());
+
+  const item = items[position];
+  const unit = audioUnitOf(item);
+
+  const playAudio = useCallback(() => {
+    if (!unit || playedRef.current.has(unit)) return;
+    const turns = audioTurnsFor(item, passageById(item.passage));
+    if (!turns.length) return;
+    playedRef.current.add(unit);
+    setPlayed(new Set(playedRef.current));
+    setPlaying(unit);
+    stopRef.current = speakScript(turns, () => setPlaying(null));
+  }, [item, unit]);
+
+  // Quitter l'épreuve ou changer de question ne doit jamais laisser une voix parler dans le vide.
+  useEffect(() => () => stopRef.current(), []);
+
   const submitRef = useRef<() => void>(() => {});
   submitRef.current = () => {
+    stopRef.current();
     const raw = countCorrect(items, answers);
-    const scaled = scaledScore(raw, items.length);
+    const parts = sectionResults(items, answers);
     setDone({
       examId: exam.id,
       at: Date.now(),
       raw,
       total: items.length,
-      scaled,
+      // `scaled` reste le score d'UNE section pour ne pas casser les tentatives déjà enregistrées :
+      // on y met la lecture si l'épreuve en a une, sinon l'écoute.
+      scaled: parts.reading?.scaled ?? parts.listening?.scaled ?? scaledScore(raw, items.length),
+      listening: parts.listening,
+      reading: parts.reading,
+      scaledTotal: parts.total,
       seconds: Math.round((Date.now() - startedAt.current) / 1000),
       answers: [...answers],
     });
@@ -89,8 +176,11 @@ export function ExamPage({
     const verdict = scoreVerdict(done.scaled);
     const tags = tagBreakdown(items, done.answers);
     const weak = tags.filter((t) => t.correct / t.total < 0.7).slice(0, 4);
-    const item = items[reviewIdx];
+    // `reviewItem` et non `item` : `item` désigne déjà la question EN COURS dans la portée de la
+    // fonction, et les confondre dans un écran de correction serait une source de bogue silencieux.
+    const reviewItem = items[reviewIdx];
     const given = done.answers[reviewIdx];
+    const both = done.listening && done.reading;
 
     return (
       <div className="mx-auto max-w-3xl space-y-6">
@@ -102,13 +192,50 @@ export function ExamPage({
               <span className="text-2xl text-muted-foreground">/{done.total}</span>
             </div>
             <div className="mt-4 rounded-lg bg-secondary/60 p-4">
-              <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Score estimé</div>
-              <div className="text-3xl font-bold text-[#ffe7a6]">
-                {low} – {high}
+              <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                {both ? 'Score total estimé' : 'Score estimé'}
               </div>
-              <div className="mt-1 text-sm">
-                {verdict.label} · niveau {verdict.cefr}
-              </div>
+              {both ? (
+                <>
+                  <div className="text-3xl font-bold text-[#ffe7a6]">
+                    {Math.max(10, (done.scaledTotal ?? 0) - 50)} – {Math.min(990, (done.scaledTotal ?? 0) + 50)}
+                    <span className="ml-1 text-base text-muted-foreground">/ 990</span>
+                  </div>
+                  <div className="mt-1 text-sm">
+                    {totalVerdict(done.scaledTotal ?? 0).label} · niveau {totalVerdict(done.scaledTotal ?? 0).cefr}
+                  </div>
+                  {/* Les deux sections côte à côte : c'est le déséquilibre qui se travaille, pas le
+                      total. Un francophone a très souvent 100 points de retard à l'écoute. */}
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {([
+                      ['Écoute', done.listening],
+                      ['Lecture', done.reading],
+                    ] as const).map(([label, s]) => (
+                      <div key={label} className="rounded-md bg-background/50 p-2">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {label}
+                        </div>
+                        <div className="text-xl font-bold text-[#ffe7a6]">
+                          {s?.scaled ?? '—'}
+                          <span className="text-xs text-muted-foreground"> / 495</span>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {s ? `${s.raw}/${s.outOf} bonnes réponses` : 'section non passée'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-3xl font-bold text-[#ffe7a6]">
+                    {low} – {high}
+                  </div>
+                  <div className="mt-1 text-sm">
+                    {verdict.label} · niveau {verdict.cefr}
+                  </div>
+                </>
+              )}
               {/* Dire ce qu'on ne sait pas : la table de conversion officielle n'est pas publiée
                   et varie d'une session à l'autre. Promettre un score exact serait mentir. */}
               <p className="mx-auto mt-2 max-w-md text-[11px] leading-snug text-muted-foreground">
@@ -172,10 +299,29 @@ export function ExamPage({
               })}
             </div>
 
-            <p className="mt-5 text-lg">{item.stem}</p>
+            <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {PART_LABEL[reviewItem.part]}
+            </div>
+
+            {/* À la correction, TOUT se montre : la photo, les documents et la transcription que
+                l'épreuve gardait pour elle. C'est là qu'est la valeur pédagogique — comprendre ce
+                qu'on n'a pas entendu demande de pouvoir le relire. */}
+            {reviewItem.image && (
+              <img
+                src={`${import.meta.env.BASE_URL}assets/toeic/${reviewItem.image}`}
+                alt={reviewItem.stem}
+                className="mt-3 w-full rounded-md border border-border object-cover"
+              />
+            )}
+            <div className="mt-3">
+              <Documents item={reviewItem} />
+            </div>
+            <p className="mt-4 text-lg">{reviewItem.stem}</p>
+            <Script item={reviewItem} />
+
             <div className="mt-3 space-y-2">
-              {item.options.map((opt, i) => {
-                const isAnswer = i === item.answer;
+              {reviewItem.options.map((opt, i) => {
+                const isAnswer = i === reviewItem.answer;
                 const isGiven = i === given;
                 return (
                   <div
@@ -197,7 +343,7 @@ export function ExamPage({
               })}
             </div>
             {given === null && <p className="mt-2 text-sm text-[#ff9a8a]">Tu n’as pas répondu à cette question.</p>}
-            <p className="mt-3 rounded-md bg-secondary/60 p-3 text-sm leading-relaxed">{item.explain}</p>
+            <p className="mt-3 rounded-md bg-secondary/60 p-3 text-sm leading-relaxed">{reviewItem.explain}</p>
 
             <div className="mt-4 flex justify-between gap-2">
               <Button variant="secondary" size="sm" disabled={reviewIdx === 0} onClick={() => setReviewIdx(reviewIdx - 1)}>
@@ -223,7 +369,6 @@ export function ExamPage({
   }
 
   // ---------- Épreuve en cours ----------
-  const item = items[position];
   const answeredInSection = answers.slice(range.start, range.end).filter((a) => a !== null).length;
   const sectionSize = range.end - range.start;
   const lastSection = sectionIdx === bounds.length - 1;
@@ -303,26 +448,90 @@ export function ExamPage({
             </Button>
           </div>
 
-          <p className="mt-4 text-lg leading-relaxed">{item.stem}</p>
+          {/* Partie 1 : la photo EST la question. */}
+          {item.image && (
+            <img
+              src={`${import.meta.env.BASE_URL}assets/toeic/${item.image}`}
+              alt="Photographie à décrire"
+              className="mt-4 w-full rounded-md border border-border object-cover"
+            />
+          )}
 
-          <div className="mt-4 space-y-2">
-            {item.options.map((opt, i) => (
-              <button
-                key={opt}
-                onClick={() => choose(i)}
-                aria-pressed={answers[position] === i}
-                className={`flex w-full items-center gap-3 rounded-md border-2 px-3 py-3 text-left transition ${
-                  answers[position] === i
-                    ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/15'
-                    : 'border-border hover:bg-secondary'
-                }`}
-              >
-                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-secondary text-xs font-bold">
-                  {LETTER[i]}
+          {/* Parties 6 et 7 : le document reste sous les yeux pendant toute la section. */}
+          <div className="mt-4">
+            <Documents item={item} />
+          </div>
+
+          {/* Bande sonore. Elle ne passe qu'une fois : c'est la règle de l'examen, et la tenir est
+              ce qui sépare un entraînement crédible d'un QCM avec un bouton « réécouter ». */}
+          {unit && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-border bg-secondary/40 p-3">
+              <Headphones className="size-4 shrink-0 text-[#ffe7a6]" />
+              {played.has(unit) ? (
+                <span className="flex-1 text-sm text-muted-foreground">
+                  {playing === unit ? (
+                    <span className="flex items-center gap-2 text-[#ffe7a6]">
+                      <Volume2 className="size-4 animate-pulse" /> Lecture en cours…
+                    </span>
+                  ) : (
+                    'Enregistrement déjà diffusé — il ne repasse pas, comme à l’examen.'
+                  )}
                 </span>
-                <span>{opt}</span>
-              </button>
-            ))}
+              ) : (
+                <>
+                  <span className="flex-1 text-sm">
+                    {item.passage
+                      ? 'Cet enregistrement couvre plusieurs questions. Lis-les d’abord : il ne passera qu’une fois.'
+                      : 'L’énoncé et les réponses sont à l’oral. Une seule écoute.'}
+                  </span>
+                  <Button size="sm" onClick={playAudio}>
+                    <Volume2 /> Lancer l’écoute
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* `PART_DISPLAY` décide : aux parties 1 et 2 rien n'est imprimé, et afficher l'énoncé
+              ou les propositions rendrait l'épreuve plus facile que la vraie. */}
+          {PART_DISPLAY[item.part].stem && <p className="mt-4 text-lg leading-relaxed">{item.stem}</p>}
+
+          <div className={PART_DISPLAY[item.part].options ? 'mt-4 space-y-2' : 'mt-4 flex flex-wrap gap-2'}>
+            {item.options.map((opt, i) =>
+              PART_DISPLAY[item.part].options ? (
+                <button
+                  key={opt}
+                  onClick={() => choose(i)}
+                  aria-pressed={answers[position] === i}
+                  className={`flex w-full items-center gap-3 rounded-md border-2 px-3 py-3 text-left transition ${
+                    answers[position] === i
+                      ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/15'
+                      : 'border-border hover:bg-secondary'
+                  }`}
+                >
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-secondary text-xs font-bold">
+                    {LETTER[i]}
+                  </span>
+                  <span>{opt}</span>
+                </button>
+              ) : (
+                // Feuille de réponses nue : la lettre seule, exactement ce que le candidat a devant
+                // lui aux parties 1 et 2.
+                <button
+                  key={LETTER[i]}
+                  onClick={() => choose(i)}
+                  aria-pressed={answers[position] === i}
+                  aria-label={`Réponse ${LETTER[i]}`}
+                  className={`grid h-14 w-14 place-items-center rounded-full border-2 text-lg font-bold transition ${
+                    answers[position] === i
+                      ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/20 text-[#ffe7a6]'
+                      : 'border-border hover:bg-secondary'
+                  }`}
+                >
+                  {LETTER[i]}
+                </button>
+              ),
+            )}
           </div>
 
           <div className="mt-5 flex justify-between gap-2">

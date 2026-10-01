@@ -2,7 +2,7 @@ import { Dumbbell, GraduationCap, History, Timer, TrendingUp } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { TOEIC_BANKS, TOEIC_EXAMS } from '@/data/toeic';
-import { PART_LABEL, examMinutes, scoreRange, scoreVerdict } from '@/lib/toeic';
+import { PART_LABEL, examMinutes, scoreRange, scoreVerdict, totalVerdict } from '@/lib/toeic';
 import type { ToeicExam } from '@/lib/toeic';
 import type { GameState } from '../types';
 
@@ -24,7 +24,16 @@ export function ExamHubPage({
   onStartDrill: (bankId: string) => void;
 }) {
   const attempts = state.examAttempts ?? [];
-  const best = attempts.length ? Math.max(...attempts.map((a) => a.scaled)) : null;
+  // Un score sur 990 et un score de section sur 495 ne se comparent PAS : en prendre le maximum
+  // commun afficherait « record 430 » sans dire de quoi, et une épreuve complète paraîtrait moins
+  // bonne qu'une épreuve de lecture seule. On privilégie donc le total quand il existe, et on
+  // affiche toujours son échelle.
+  const full = attempts.filter((a) => a.scaledTotal != null && a.listening && a.reading);
+  const best = full.length
+    ? { value: Math.max(...full.map((a) => a.scaledTotal ?? 0)), outOf: 990 }
+    : attempts.length
+      ? { value: Math.max(...attempts.map((a) => a.scaled)), outOf: 495 }
+      : null;
 
   return (
     <div>
@@ -40,7 +49,8 @@ export function ExamHubPage({
         </div>
         {best !== null && (
           <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-sm font-semibold">
-            <TrendingUp className="size-4" /> record {best}
+            <TrendingUp className="size-4" /> record {best.value}
+            <span className="font-normal text-muted-foreground">/ {best.outOf}</span>
           </span>
         )}
       </div>
@@ -121,7 +131,12 @@ export function ExamHubPage({
           <Card>
             <CardContent className="divide-y divide-border p-0">
               {attempts.map((a) => {
-                const [low, high] = scoreRange(a.scaled);
+                // Même précaution que pour le record : une copie complète se lit sur 990, une
+                // épreuve d'une seule section sur 495.
+                const complete = a.scaledTotal != null && a.listening && a.reading;
+                const [low, high] = complete
+                  ? [Math.max(10, (a.scaledTotal ?? 0) - 50), Math.min(990, (a.scaledTotal ?? 0) + 50)]
+                  : scoreRange(a.scaled);
                 return (
                   <div key={a.at} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 text-sm">
                     <span className="w-32 shrink-0 text-muted-foreground">{shortDate(a.at)}</span>
@@ -130,8 +145,11 @@ export function ExamHubPage({
                     </span>
                     <span className="text-[#ffe7a6]">
                       {low} – {high}
+                      <span className="text-muted-foreground"> / {complete ? 990 : 495}</span>
                     </span>
-                    <span className="text-muted-foreground">{scoreVerdict(a.scaled).label}</span>
+                    <span className="text-muted-foreground">
+                      {complete ? totalVerdict(a.scaledTotal ?? 0).label : scoreVerdict(a.scaled).label}
+                    </span>
                     <span className="ml-auto text-muted-foreground">
                       {Math.floor(a.seconds / 60)} min {a.seconds % 60} s
                     </span>
