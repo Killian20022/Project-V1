@@ -1,5 +1,6 @@
-// Les courses & les achats — 111 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// Les courses & les achats — 120 mots.
+// 118 repris du curriculum, 2 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_COURSES: Theme = {
@@ -17,7 +18,7 @@ export const THEME_COURSES: Theme = {
     { w: 'shopping', pos: 'n', fr: 'les courses, le shopping', cefr: 'A1', ex: { en: 'We go shopping every Saturday.', fr: 'Nous faisons les courses tous les samedis.' } },
     { w: 'store', pos: 'n', fr: 'magasin', cefr: 'A1', also: ['stores'], ex: { en: 'There’s a new store on the corner.', fr: 'Il y a un nouveau magasin au coin de la rue.' } },
     { w: 'cash', pos: 'n', fr: 'espèces', cefr: 'A1', ex: { en: 'Can I pay in cash?', fr: 'Puis-je payer en espèces ?' } },
-    { w: 'cost', pos: 'v', fr: 'coûter', cefr: 'A1', also: ['costs', 'cost', 'costing'], ex: { en: 'How much does this dress cost?', fr: 'Combien coûte cette robe ?' } },
+    { w: 'cost', pos: 'v', fr: 'coûter', cefr: 'A1', also: ['costs', 'costing'], ex: { en: 'How much does this dress cost?', fr: 'Combien coûte cette robe ?' } },
     { w: 'big', pos: 'adj', fr: 'grand', cefr: 'A1', also: ['bigger', 'biggest'], ex: { en: 'I need a bigger size.', fr: 'J’ai besoin d’une taille plus grande.' } },
     { w: 'small', pos: 'adj', fr: 'petit', cefr: 'A1', also: ['smaller', 'smallest'], ex: { en: 'This shirt is too small for me.', fr: 'Cette chemise est trop petite pour moi.' } },
     { w: 'open', pos: 'adj', fr: 'ouvert', cefr: 'A1', ex: { en: 'The store is open until nine.', fr: 'Le magasin est ouvert jusqu’à neuf heures.' } },
@@ -120,5 +121,14 @@ export const THEME_COURSES: Theme = {
     { w: 'out-of-date', pos: 'adj', fr: 'périmé', cefr: 'B1', ex: { en: 'Don\'t eat that yogurt, it\'s out-of-date.', fr: 'Ne mange pas ce yaourt, il est périmé.' } },
     { w: 'expiry date', pos: 'n', fr: 'date de péremption', cefr: 'B1', also: ['expiry dates'], ex: { en: 'Check the expiry date before buying milk.', fr: 'Vérifiez la date de péremption avant d’acheter le lait.' } },
     { w: 'counterfeit', pos: 'adj', fr: 'contrefait', cefr: 'C1', ex: { en: 'Police seized thousands of counterfeit handbags.', fr: 'La police a saisi des milliers de sacs à main contrefaits.' } },
+    { w: 'till', pos: 'n', fr: 'caisse (dans un magasin)', cefr: 'A2', also: ['tills'], ex: { en: 'Please pay at the till by the door.', fr: 'Veuillez payer à la caisse près de la porte.' } },
+    { w: 'barcode', pos: 'n', fr: 'code-barres', cefr: 'A2', also: ['barcodes'], ex: { en: 'The cashier scanned the barcode on the box.', fr: 'La caissière a scanné le code-barres sur la boîte.' } },
+    { w: 'gift card', pos: 'n', fr: 'carte cadeau', cefr: 'A2', also: ['gift cards'], ex: { en: 'I bought her a gift card for her birthday.', fr: 'Je lui ai acheté une carte cadeau pour son anniversaire.' } },
+    { w: 'price tag', pos: 'n', fr: 'étiquette de prix', cefr: 'A2', also: ['price tags'], ex: { en: 'The price tag is still on the jacket.', fr: 'L’étiquette de prix est encore sur la veste.' } },
+    { w: 'swipe', pos: 'v', fr: 'passer (une carte)', cefr: 'B1', also: ['swipes', 'swiped', 'swiping'], ex: { en: 'Just swipe your card to pay.', fr: 'Il suffit de passer votre carte pour payer.' } },
+    { w: 'markdown', pos: 'n', fr: 'démarque, baisse de prix', cefr: 'B2', also: ['markdowns'], ex: { en: 'The store announced a big markdown on winter coats.', fr: 'Le magasin a annoncé une forte démarque sur les manteaux d’hiver.' } },
+    { w: 'overpriced', pos: 'adj', fr: 'trop cher, surévalué', cefr: 'B2', ex: { en: 'These shoes are overpriced for their quality.', fr: 'Ces chaussures sont trop chères pour leur qualité.' } },
+    { w: 'reimburse', pos: 'v', fr: 'rembourser', cefr: 'B2', also: ['reimburses', 'reimbursed', 'reimbursing'], ex: { en: 'The store reimbursed me for the faulty item.', fr: 'Le magasin m’a remboursé pour l’article défectueux.' } },
+    { w: 'shoplifting', pos: 'n', fr: 'vol à l\'étalage', cefr: 'B1', ex: { en: 'The shop installed cameras to prevent shoplifting.', fr: 'Le magasin a installé des caméras pour prévenir le vol à l\'étalage.' } },
   ],
 };

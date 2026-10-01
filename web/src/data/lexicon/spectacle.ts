@@ -1,5 +1,6 @@
-// Cinéma, musique & spectacle — 125 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// Cinéma, musique & spectacle — 129 mots.
+// 128 repris du curriculum, 1 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_SPECTACLE: Theme = {
@@ -134,5 +135,9 @@ export const THEME_SPECTACLE: Theme = {
     { w: 'understudy', pos: 'n', fr: 'doublure', cefr: 'C1', also: ['understudies'], ex: { en: 'The understudy took over when the lead got sick.', fr: 'La doublure a pris le relais quand l\'actrice principale est tombée malade.' } },
     { w: 'stagehand', pos: 'n', fr: 'machiniste', cefr: 'C1', also: ['stagehands'], ex: { en: 'Stagehands moved the set during the blackout.', fr: 'Les machinistes ont changé le décor pendant le noir.' } },
     { w: 'roadie', pos: 'n', fr: 'technicien de tournée', cefr: 'C2', also: ['roadies'], ex: { en: 'The roadies loaded the amps into the truck.', fr: 'Les techniciens de tournée ont chargé les amplis dans le camion.' } },
+    { w: 'cameo', pos: 'n', fr: 'apparition (d\'une célébrité)', cefr: 'B2', also: ['cameos'], ex: { en: 'The director made a cameo in his own film.', fr: 'Le réalisateur a fait une apparition dans son propre film.' } },
+    { w: 'screenwriter', pos: 'n', fr: 'scénariste', cefr: 'B1', also: ['screenwriters'], ex: { en: 'The screenwriter adapted the novel for the big screen.', fr: 'Le scénariste a adapté le roman pour le grand écran.' } },
+    { w: 'standing ovation', pos: 'phr', fr: 'ovation debout', cefr: 'B2', also: ['standing ovations'], ex: { en: 'The actors received a standing ovation at the end.', fr: 'Les acteurs ont reçu une ovation debout à la fin.' } },
+    { w: 'ensemble', pos: 'n', fr: 'troupe, ensemble (de musiciens)', cefr: 'B2', also: ['ensembles'], ex: { en: 'The ensemble performed a new piece by a young composer.', fr: 'L’ensemble a interprété une nouvelle pièce d’un jeune compositeur.' } },
   ],
 };

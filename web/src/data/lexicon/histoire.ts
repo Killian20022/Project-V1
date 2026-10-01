@@ -1,5 +1,6 @@
-// L’histoire & le patrimoine — 105 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// L’histoire & le patrimoine — 120 mots.
+// 117 repris du curriculum, 3 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_HISTOIRE: Theme = {
@@ -114,5 +115,20 @@ export const THEME_HISTOIRE: Theme = {
     { w: 'restoration', pos: 'n', fr: 'restauration', cefr: 'C1', also: ['restorations'], ex: { en: 'The restoration of the palace took ten years.', fr: 'La restauration du palais a duré dix ans.' } },
     { w: 'preserve', pos: 'v', fr: 'préserver', cefr: 'B1', also: ['preserves', 'preserved', 'preserving'], ex: { en: 'The organization works to preserve historical monuments.', fr: 'L’organisation s’efforce de préserver les monuments historiques.' } },
     { w: 'restore', pos: 'v', fr: 'restaurer', cefr: 'B1', also: ['restores', 'restored', 'restoring'], ex: { en: 'Experts restored the castle to its original state.', fr: 'Des experts ont restauré le château dans son état d’origine.' } },
+    { w: 'remember', pos: 'v', fr: 'se souvenir de', cefr: 'A1', also: ['remembers', 'remembered', 'remembering'], ex: { en: 'We remember the soldiers who died in the war.', fr: 'Nous nous souvenons des soldats morts pendant la guerre.' } },
+    { w: 'document', pos: 'n', fr: 'document', cefr: 'A2', also: ['documents'], ex: { en: 'The museum keeps original documents from the war.', fr: 'Le musée conserve des documents originaux de la guerre.' } },
+    { w: 'memory', pos: 'n', fr: 'mémoire, souvenir', cefr: 'A2', also: ['memories'], ex: { en: 'The statue honours the memory of the victims.', fr: 'La statue honore la mémoire des victimes.' } },
+    { w: 'ceremony', pos: 'n', fr: 'cérémonie', cefr: 'B1', also: ['ceremonies'], ex: { en: 'A ceremony was held to mark the anniversary.', fr: 'Une cérémonie a été organisée pour marquer l\'anniversaire.' } },
+    { w: 'settle', pos: 'v', fr: 's\'installer, coloniser', cefr: 'B1', also: ['settles', 'settled', 'settling'], ex: { en: 'European migrants settled in the region in the 1800s.', fr: 'Des migrants européens se sont installés dans la région au XIXe siècle.' } },
+    { w: 'timeline', pos: 'n', fr: 'chronologie', cefr: 'B1', also: ['timelines'], ex: { en: 'The exhibition shows a timeline of key events.', fr: 'L\'exposition présente une chronologie des événements clés.' } },
+    { w: 'historian', pos: 'n', fr: 'historien', cefr: 'B2', also: ['historians'], ex: { en: 'The historian studied the causes of the revolution.', fr: 'L\'historien a étudié les causes de la révolution.' } },
+    { w: 'pioneer', pos: 'n', fr: 'pionnier', cefr: 'B2', also: ['pioneers'], ex: { en: 'She was a pioneer of women\'s rights in the region.', fr: 'Elle était une pionnière des droits des femmes dans la région.' } },
+    { w: 'revolt', pos: 'n', fr: 'révolte', cefr: 'B2', also: ['revolts'], ex: { en: 'The revolt was crushed by the army within weeks.', fr: 'La révolte fut écrasée par l\'armée en quelques semaines.' } },
+    { w: 'ritual', pos: 'n', fr: 'rituel', cefr: 'B2', also: ['rituals'], ex: { en: 'The ancient ritual is still performed every spring.', fr: 'Le rituel ancien est encore pratiqué chaque printemps.' } },
+    { w: 'epoch', pos: 'n', fr: 'époque', cefr: 'C1', also: ['epochs'], ex: { en: 'The discovery marked a new epoch in human history.', fr: 'La découverte a marqué une nouvelle époque dans l\'histoire humaine.' } },
+    { w: 'centenary', pos: 'n', fr: 'centenaire', cefr: 'C1', also: ['centenaries'], ex: { en: 'The town celebrated the centenary of its liberation.', fr: 'La ville a célébré le centenaire de sa libération.' } },
+    { w: 'battlefield', pos: 'n', fr: 'champ de bataille', cefr: 'B1', also: ['battlefields'], ex: { en: 'Thousands of soldiers died on that battlefield.', fr: 'Des milliers de soldats sont morts sur ce champ de bataille.' } },
+    { w: 'liberation', pos: 'n', fr: 'libération', cefr: 'B2', ex: { en: 'The town still celebrates its liberation every year.', fr: 'La ville célèbre encore sa libération chaque année.' } },
+    { w: 'feudal', pos: 'adj', fr: 'féodal', cefr: 'C1', ex: { en: 'Peasants had few rights under the feudal system.', fr: 'Les paysans avaient peu de droits sous le système féodal.' } },
   ],
 };

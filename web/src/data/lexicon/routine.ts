@@ -1,5 +1,6 @@
-// La routine & les tâches — 81 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// La routine & les tâches — 120 mots.
+// 110 repris du curriculum, 10 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_ROUTINE: Theme = {
@@ -71,7 +72,7 @@ export const THEME_ROUTINE: Theme = {
     { w: 'grocery shopping', pos: 'n', fr: 'courses alimentaires', cefr: 'A2', ex: { en: 'We do the grocery shopping every Friday.', fr: 'Nous faisons les courses alimentaires tous les vendredis.' } },
     { w: 'groceries', pos: 'n', fr: 'provisions', cefr: 'A2', ex: { en: 'I need to buy some groceries after work.', fr: 'Je dois acheter des provisions après le travail.' } },
     { w: 'shopping list', pos: 'n', fr: 'liste de courses', cefr: 'A2', also: ['shopping lists'], ex: { en: 'He forgot his shopping list at home.', fr: 'Il a oublié sa liste de courses à la maison.' } },
-    { w: 'set the table', pos: 'phr', fr: 'mettre la table', cefr: 'A1', also: ['sets the table', 'set the table', 'setting the table'], ex: { en: 'Can you set the table for dinner?', fr: 'Peux-tu mettre la table pour le dîner ?' } },
+    { w: 'set the table', pos: 'phr', fr: 'mettre la table', cefr: 'A1', also: ['sets the table', 'setting the table'], ex: { en: 'Can you set the table for dinner?', fr: 'Peux-tu mettre la table pour le dîner ?' } },
     { w: 'clear the table', pos: 'phr', fr: 'débarrasser la table', cefr: 'A2', also: ['clears the table', 'cleared the table', 'clearing the table'], ex: { en: 'He cleared the table after breakfast.', fr: 'Il a débarrassé la table après le petit-déjeuner.' } },
     { w: 'do the dishes', pos: 'phr', fr: 'faire la vaisselle', cefr: 'A1', also: ['does the dishes', 'did the dishes', 'doing the dishes'], ex: { en: 'I hate doing the dishes at night.', fr: 'Je déteste faire la vaisselle le soir.' } },
     { w: 'cutlery', pos: 'n', fr: 'couverts', cefr: 'B1', ex: { en: 'The cutlery is in the top drawer.', fr: 'Les couverts sont dans le tiroir du haut.' } },
@@ -90,5 +91,44 @@ export const THEME_ROUTINE: Theme = {
     { w: 'procrastinate', pos: 'v', fr: 'procrastiner', cefr: 'C1', also: ['procrastinates', 'procrastinated', 'procrastinating'], ex: { en: 'He tends to procrastinate before deadlines.', fr: 'Il a tendance à procrastiner avant les échéances.' } },
     { w: 'prioritize', pos: 'v', fr: 'prioriser', cefr: 'B2', also: ['prioritizes', 'prioritized', 'prioritizing'], ex: { en: 'You need to prioritize your tasks for today.', fr: 'Tu dois prioriser tes tâches pour aujourd\'hui.' } },
     { w: 'checklist', pos: 'n', fr: 'liste de vérification', cefr: 'B1', also: ['checklists'], ex: { en: 'She went through the checklist before leaving.', fr: 'Elle a parcouru la liste de vérification avant de partir.' } },
+    { w: 'wash up', pos: 'phr', fr: 'faire la vaisselle', cefr: 'A1', also: ['washes up', 'washed up', 'washing up'], ex: { en: 'I wash up after every meal.', fr: 'Je fais la vaisselle après chaque repas.' } },
+    { w: 'sleep', pos: 'v', fr: 'dormir', cefr: 'A1', also: ['sleeps', 'slept', 'sleeping'], ex: { en: 'I sleep eight hours a night.', fr: 'Je dors huit heures par nuit.' } },
+    { w: 'bath', pos: 'n', fr: 'bain', cefr: 'A1', also: ['baths'], ex: { en: 'She takes a bath every evening.', fr: 'Elle prend un bain tous les soirs.' } },
+    { w: 'pet', pos: 'n', fr: 'animal de compagnie', cefr: 'A1', also: ['pets'], ex: { en: 'We feed the pet every morning.', fr: 'Nous nourrissons l’animal de compagnie tous les matins.' } },
+    { w: 'toothpaste', pos: 'n', fr: 'dentifrice', cefr: 'A1', ex: { en: 'Don\'t forget to buy toothpaste.', fr: 'N’oublie pas d’acheter du dentifrice.' } },
+    { w: 'bedtime', pos: 'n', fr: 'heure du coucher', cefr: 'A1', ex: { en: 'Bedtime is at nine for the kids.', fr: 'L’heure du coucher est à neuf heures pour les enfants.' } },
+    { w: 'dust', pos: 'n', fr: 'poussière', cefr: 'A2', ex: { en: 'There is dust on the shelves.', fr: 'Il y a de la poussière sur les étagères.' } },
+    { w: 'appliance', pos: 'n', fr: 'appareil électroménager', cefr: 'A2', also: ['appliances'], ex: { en: 'This kitchen has every appliance you need.', fr: 'Cette cuisine a tous les appareils électroménagers nécessaires.' } },
+    { w: 'duvet', pos: 'n', fr: 'couette', cefr: 'A2', also: ['duvets'], ex: { en: 'I need to wash the duvet this weekend.', fr: 'Je dois laver la couette ce week-end.' } },
+    { w: 'bedsheet', pos: 'n', fr: 'drap de lit', cefr: 'A2', also: ['bedsheets'], ex: { en: 'She changes the bedsheets every Sunday.', fr: 'Elle change les draps de lit tous les dimanches.' } },
+    { w: 'houseplant', pos: 'n', fr: 'plante d’intérieur', cefr: 'A2', also: ['houseplants'], ex: { en: 'He waters his houseplants every morning.', fr: 'Il arrose ses plantes d’intérieur tous les matins.' } },
+    { w: 'clean up', pos: 'phr', fr: 'nettoyer, ranger', cefr: 'B1', also: ['cleans up', 'cleaned up', 'cleaning up'], ex: { en: 'We need to clean up the kitchen before guests arrive.', fr: 'Nous devons nettoyer la cuisine avant l’arrivée des invités.' } },
+    { w: 'sort out', pos: 'phr', fr: 'trier, régler', cefr: 'B1', also: ['sorts out', 'sorted out', 'sorting out'], ex: { en: 'I need to sort out my closet this weekend.', fr: 'Je dois trier mon placard ce week-end.' } },
+    { w: 'put away', pos: 'phr', fr: 'ranger', cefr: 'B1', also: ['puts away', 'putting away'], ex: { en: 'Please put away your toys before dinner.', fr: 'Range tes jouets avant le dîner, s’il te plaît.' } },
+    { w: 'ironing', pos: 'n', fr: 'repassage', cefr: 'B1', ex: { en: 'I do the ironing on Sunday afternoons.', fr: 'Je fais le repassage le dimanche après-midi.' } },
+    { w: 'clothesline', pos: 'n', fr: 'corde à linge', cefr: 'B1', also: ['clotheslines'], ex: { en: 'She hung the shirts on the clothesline.', fr: 'Elle a étendu les chemises sur la corde à linge.' } },
+    { w: 'maintenance', pos: 'n', fr: 'entretien', cefr: 'B1', ex: { en: 'Regular maintenance keeps the house in good shape.', fr: 'Un entretien régulier maintient la maison en bon état.' } },
+    { w: 'mealtime', pos: 'n', fr: 'heure du repas', cefr: 'B1', also: ['mealtimes'], ex: { en: 'We try to eat together at mealtimes.', fr: 'Nous essayons de manger ensemble aux heures des repas.' } },
+    { w: 'prepare', pos: 'v', fr: 'préparer', cefr: 'B1', also: ['prepares', 'prepared', 'preparing'], ex: { en: 'She prepares dinner every evening at six.', fr: 'Elle prépare le dîner tous les soirs à six heures.' } },
+    { w: 'maid', pos: 'n', fr: 'femme de ménage', cefr: 'B2', also: ['maids'], ex: { en: 'The maid cleans the rooms every morning.', fr: 'La femme de ménage nettoie les chambres tous les matins.' } },
+    { w: 'babysit', pos: 'v', fr: 'garder des enfants', cefr: 'B2', also: ['babysits', 'babysat', 'babysitting'], ex: { en: 'My sister babysits for the neighbours on weekends.', fr: 'Ma sœur garde les enfants des voisins le week-end.' } },
+    { w: 'hoover', pos: 'v', fr: 'passer l\'aspirateur', cefr: 'B2', also: ['hoovers', 'hoovered', 'hoovering'], ex: { en: 'Could you hoover the living room before lunch?', fr: 'Tu pourrais passer l\'aspirateur dans le salon avant le déjeuner ?' } },
+    { w: 'dish rack', pos: 'n', fr: 'égouttoir à vaisselle', cefr: 'B2', also: ['dish racks'], ex: { en: 'She put the clean plates in the dish rack.', fr: 'Elle a posé les assiettes propres dans l\'égouttoir.' } },
+    { w: 'unwind', pos: 'v', fr: 'se détendre', cefr: 'B2', also: ['unwinds', 'unwound', 'unwinding'], ex: { en: 'I like to unwind with a book after work.', fr: 'J\'aime me détendre avec un livre après le travail.' } },
+    { w: 'wind down', pos: 'phr', fr: 'décompresser', cefr: 'B2', also: ['winds down', 'wound down', 'winding down'], ex: { en: 'We watched a film to wind down before bed.', fr: 'Nous avons regardé un film pour décompresser avant de dormir.' } },
+    { w: 'duty', pos: 'n', fr: 'tâche, corvée', cefr: 'B2', also: ['duties'], ex: { en: 'Taking out the bins is his duty this week.', fr: 'Sortir les poubelles est sa tâche cette semaine.' } },
+    { w: 'spotless', pos: 'adj', fr: 'impeccable, immaculé', cefr: 'C1', ex: { en: 'The kitchen was spotless after she finished cleaning.', fr: 'La cuisine était impeccable après qu\'elle a fini de nettoyer.' } },
+    { w: 'upkeep', pos: 'n', fr: 'entretien', cefr: 'C1', ex: { en: 'The upkeep of the garden takes a whole afternoon.', fr: 'L\'entretien du jardin prend tout un après-midi.' } },
+    { w: 'daily grind', pos: 'n', fr: 'train-train quotidien', cefr: 'C1', ex: { en: 'She needed a break from the daily grind.', fr: 'Elle avait besoin de souffler un peu du train-train quotidien.' } },
+    { w: 'load', pos: 'v', fr: 'charger', cefr: 'A2', also: ['loads', 'loaded', 'loading'], ex: { en: 'Can you load the washing machine, please?', fr: 'Peux-tu charger la machine à laver, s\'il te plaît ?' } },
+    { w: 'unpack', pos: 'v', fr: 'déballer', cefr: 'A2', also: ['unpacks', 'unpacked', 'unpacking'], ex: { en: 'I need to unpack the groceries before dinner.', fr: 'Je dois déballer les courses avant le dîner.' } },
+    { w: 'rinse', pos: 'v', fr: 'rincer', cefr: 'A2', also: ['rinses', 'rinsed', 'rinsing'], ex: { en: 'Rinse the plates before putting them in the dishwasher.', fr: 'Rince les assiettes avant de les mettre au lave-vaisselle.' } },
+    { w: 'mow', pos: 'v', fr: 'tondre', cefr: 'B1', also: ['mows', 'mowed', 'mowing'], ex: { en: 'My brother mows the lawn every Saturday.', fr: 'Mon frère tond la pelouse tous les samedis.' } },
+    { w: 'unload', pos: 'v', fr: 'décharger', cefr: 'B1', also: ['unloads', 'unloaded', 'unloading'], ex: { en: 'Could you unload the dishwasher this morning?', fr: 'Pourrais-tu décharger le lave-vaisselle ce matin ?' } },
+    { w: 'soak', pos: 'v', fr: 'laisser tremper', cefr: 'B1', also: ['soaks', 'soaked', 'soaking'], ex: { en: 'Let the pans soak overnight before scrubbing them.', fr: 'Laisse tremper les casseroles toute la nuit avant de les frotter.' } },
+    { w: 'stack', pos: 'v', fr: 'empiler', cefr: 'B1', also: ['stacks', 'stacked', 'stacking'], ex: { en: 'She stacked the clean towels in the cupboard.', fr: 'Elle a empilé les serviettes propres dans le placard.' } },
+    { w: 'wring', pos: 'v', fr: 'essorer', cefr: 'B2', also: ['wrings', 'wrung', 'wringing'], ex: { en: 'Wring the cloth before you wipe the counter.', fr: 'Essore le chiffon avant d\'essuyer le plan de travail.' } },
+    { w: 'air out', pos: 'phr', fr: 'aérer', cefr: 'B2', also: ['airs out', 'aired out', 'airing out'], ex: { en: 'Open the windows to air out the bedroom.', fr: 'Ouvre les fenêtres pour aérer la chambre.' } },
+    { w: 'scour', pos: 'v', fr: 'décaper', cefr: 'C1', also: ['scours', 'scoured', 'scouring'], ex: { en: 'She scoured the burnt pot with a metal brush.', fr: 'Elle a décapé la casserole brûlée avec une brosse métallique.' } },
   ],
 };

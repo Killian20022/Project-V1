@@ -24,6 +24,10 @@ function render(entry: WordEntry): string {
   );
 }
 
+// Mots ajoutés depuis le début de CE passage, tous thèmes confondus. Voir le commentaire sur
+// `elsewhere` : sans cet accumulateur, deux thèmes fusionnés d'affilée peuvent se voler un mot.
+const addedThisRun = new Set<string>();
+
 const keys = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 if (!keys.length) {
   console.error('usage : bun merge-lexicon-draft.ts <thème…>');
@@ -51,7 +55,15 @@ for (const key of keys) {
   // Le publié d'abord : c'est lui qui gagne en cas de doublon. On écarte aussi tout mot déjà
   // publié dans un AUTRE thème — un mot ne vit que dans un seul, sinon deux cartes de révision
   // se disputeraient le même identifiant.
-  const elsewhere = new Set(THEMES.filter((t) => t.key !== key).flatMap((t) => t.words.map((w) => w.w.toLowerCase())));
+  //
+  // ⚠ `THEMES` est un INSTANTANÉ pris à l'import, donc figé au début du processus : il ignore ce que
+  // les thèmes déjà fusionnés dans CE passage viennent de recevoir. En fusionnant 28 thèmes d'un
+  // coup, « numerique » a ainsi repris onze mots que « sciences » avait obtenus dix lignes plus
+  // haut, et `check-content.ts` a refusé le lot entier. `addedThisRun` comble ce trou.
+  const elsewhere = new Set([
+    ...THEMES.filter((t) => t.key !== key).flatMap((t) => t.words.map((w) => w.w.toLowerCase())),
+    ...addedThisRun,
+  ]);
   const seen = new Set(published.map((w) => w.w.toLowerCase()));
   const dropped: string[] = [];
   const added = draft.words.filter((w) => {
@@ -62,6 +74,7 @@ for (const key of keys) {
   });
   if (dropped.length) console.log(`  – ${dropped.length} écarté(s), déjà dans un autre thème : ${dropped.slice(0, 8).join(', ')}${dropped.length > 8 ? '…' : ''}`);
   const all = [...published, ...added];
+  for (const w of all) addedThisRun.add(w.w.toLowerCase());
 
   const out = [
     `// ${plan.label} — ${all.length} mots.`,

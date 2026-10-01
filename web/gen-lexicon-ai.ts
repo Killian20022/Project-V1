@@ -92,44 +92,157 @@ ${EXEMPLAR}`;
 const client = new Anthropic({ baseURL: 'https://api.anthropic.com' });
 
 // ── Schémas de sortie ──────────────────────────────────────────────────────
+// ⚠ `pos` et `cefr` sont des `z.string()` et NON des `z.enum()`, volontairement. Avec l'énumération,
+// une seule fiche portant un `pos` hors liste (« prep », « n/v »…) faisait échouer la validation du
+// lot ENTIER : 25 fiches payées, 25 fiches perdues. Trois thèmes y sont passés. On accepte donc
+// n'importe quelle chaîne, puis `normalize()` la ramène dans l'énumération — et n'écarte que la
+// fiche réellement fautive.
 const InventorySchema = z.object({
-  words: z.array(z.object({ w: z.string(), cefr: z.enum(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']) })),
+  words: z.array(z.object({ w: z.string(), cefr: z.string() })),
 });
 
-const EntrySchema = z.object({
+const RawEntrySchema = z.object({
   w: z.string(),
-  pos: z.enum(['n', 'v', 'adj', 'adv', 'phr']),
+  pos: z.string(),
   fr: z.string(),
-  cefr: z.enum(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']),
+  cefr: z.string(),
   also: z.array(z.string()).optional(),
   note: z.string().optional(),
   ex: z.object({ en: z.string(), fr: z.string() }),
 });
-const EntriesSchema = z.object({ entries: z.array(EntrySchema) });
-type Entry = z.infer<typeof EntrySchema>;
+const EntriesSchema = z.object({ entries: z.array(RawEntrySchema) });
+type RawEntry = z.infer<typeof RawEntrySchema>;
+type Entry = Omit<RawEntry, 'pos' | 'cefr'> & { pos: Pos; cefr: Cefr };
+
+type Pos = 'n' | 'v' | 'adj' | 'adv' | 'phr';
+type Cefr = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+
+// Tout ce qu'un modèle écrit à la place des cinq natures attendues. Les natures que le site ne
+// connaît pas (préposition, conjonction, déterminant) tombent dans `phr` : ce sont des mots-outils,
+// ils s'apprennent dans un bout de phrase, pas isolés — c'est exactement ce que `phr` désigne ici.
+const POS_ALIAS: Record<string, Pos> = {
+  n: 'n', noun: 'n', nom: 'n', substantif: 'n', 'proper noun': 'n',
+  v: 'v', verb: 'v', verbe: 'v', 'phrasal verb': 'phr', 'verbe à particule': 'phr',
+  adj: 'adj', adjective: 'adj', adjectif: 'adj',
+  adv: 'adv', adverb: 'adv', adverbe: 'adv',
+  phr: 'phr', phrase: 'phr', phrasal: 'phr', expr: 'phr', expression: 'phr',
+  idiom: 'phr', idiome: 'phr', locution: 'phr', 'locution nominale': 'n', collocation: 'phr',
+  prep: 'phr', preposition: 'phr', préposition: 'phr',
+  conj: 'phr', conjunction: 'phr', conjonction: 'phr',
+  det: 'phr', determiner: 'phr', pron: 'phr', pronoun: 'phr', pronom: 'phr',
+  num: 'adj', number: 'adj', numeral: 'adj', interj: 'phr', interjection: 'phr',
+};
+
+const CEFR_SET = new Set<string>(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']);
+
+/** `'Noun'`, `'n.'`, `'n/v'` → `'n'`. `null` si vraiment rien de reconnaissable. */
+function toPos(raw: string): Pos | null {
+  const k = raw.trim().toLowerCase().replace(/\.$/, '');
+  // `n/v`, `adj (n)` : le modèle hésite entre deux natures — on prend la première, c'est celle
+  // qu'il a jugée dominante.
+  const first = k.split(/[\/,(|]/)[0].trim();
+  return POS_ALIAS[k] ?? POS_ALIAS[first] ?? null;
+}
+
+const toCefr = (raw: string): Cefr | null => {
+  const k = raw.trim().toUpperCase().replace(/\s+/g, '');
+  return CEFR_SET.has(k) ? (k as Cefr) : null;
+};
+
+/**
+ * Ramène un lot brut dans les énumérations du site. Une fiche irrécupérable est écartée SEULE,
+ * avec son motif — c'est tout l'intérêt de la manœuvre par rapport à l'énumération zod.
+ */
+function normalize(raw: RawEntry[], drops: string[]): Entry[] {
+  const out: Entry[] = [];
+  for (const e of raw) {
+    const pos = toPos(e.pos);
+    const cefr = toCefr(e.cefr);
+    if (!e.w?.trim() || !e.fr?.trim() || !e.ex?.en?.trim()) {
+      drops.push(`${e.w || '?'} (fiche incomplète)`);
+      continue;
+    }
+    if (!pos) {
+      drops.push(`${e.w} (nature « ${e.pos} » inconnue)`);
+      continue;
+    }
+    // Un niveau illisible ne justifie pas de jeter une fiche correcte : B1 est le milieu du
+    // barème, et `check-content.ts` repassera dessus.
+    if (!cefr) drops.push(`${e.w} (niveau « ${e.cefr} » → B1)`);
+    // `also` ne sert QU'À retrouver le mot dans le corpus de phrases, et `formsOf` y ajoute déjà la
+    // vedette : y répéter la vedette (fréquent sur les invariables — hurt, cost, shrimp) est du
+    // poids mort. On dédoublonne ici plutôt que de le signaler 13 fois à la relecture.
+    const also = [...new Set((e.also ?? []).map((f) => f.trim()).filter(Boolean))].filter(
+      (f) => f.toLowerCase() !== e.w.trim().toLowerCase(),
+    );
+    out.push({ ...e, pos, cefr: cefr ?? 'B1', ...(also.length ? { also } : { also: undefined }) });
+  }
+  return out;
+}
 
 const ChecksSchema = z.object({
   checks: z.array(z.object({ w: z.string(), ok: z.boolean(), probleme: z.string().optional() })),
 });
 
-/** Un appel, avec mise en cache du système et comptabilité de la dépense. */
+/**
+ * Un appel, avec mise en cache du système et comptabilité de la dépense.
+ *
+ * Deux tentatives, pas plus. La première perte de lot venait d'une sortie TRONQUÉE
+ * (`stop_reason: 'max_tokens'`) : le JSON s'arrêtait au milieu, zod rejetait tout, et l'appel était
+ * payé pour rien. Le réessai double le plafond de jetons — c'est la seule cause de troncature, et
+ * la même requête relancée à l'identique échouerait pareil. Un troisième essai ne rattraperait
+ * qu'un incident réseau tout en risquant de tripler la facture d'un lot : on s'arrête à deux.
+ */
+// Plafond dur du SDK : `_calculateNonstreamingTimeout` refuse tout appel non diffusé dont
+// `max_tokens` dépasse 128 000 / 6 ≈ 21 333 (« Streaming is required… »), AVANT même d'émettre la
+// requête. Le réessai doit donc rester sous cette barre : passer en diffusion juste pour doubler un
+// plafond que 21 000 couvre déjà largement (un lot de 25 fiches en consomme ~3 000) ne vaut pas la
+// réécriture de `messages.parse` en flux.
+const MAX_NONSTREAMING_TOKENS = 21000;
+
 async function ask<T>(model: string, system: string, prompt: string, schema: z.ZodType<T>, maxTokens: number): Promise<T | null> {
-  checkBudget();
-  const res = await client.messages.parse({
-    model,
-    max_tokens: maxTokens,
-    // Le système est identique à chaque appel : mis en cache, il n'est facturé plein tarif qu'une fois.
-    system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content: prompt }],
-    // `effort: low` est le levier de coût documenté ; Haiku 4.5 ne l'accepte pas.
-    output_config: { format: zodOutputFormat(schema as never), ...(model.includes('haiku') ? {} : { effort: 'low' as const }) },
-  } as never).catch((e: unknown) => {
-    console.warn(`  ⚠ lot perdu (${model}) : ${String(e instanceof Error ? e.message : e).split('\n')[0].slice(0, 100)}`);
-    return null;
-  });
-  if (!res) return null;
-  account(model, (res as { usage: never }).usage);
-  return ((res as { parsed_output: T | null }).parsed_output) ?? null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    checkBudget();
+    const budget = attempt === 1 ? maxTokens : Math.min(maxTokens * 2, MAX_NONSTREAMING_TOKENS);
+    // try/catch et NON `.catch()` : les garde-fous du SDK (plafond de jetons, options invalides)
+    // lèvent de façon SYNCHRONE, avant qu'une promesse existe — un `.catch()` les laissait remonter
+    // jusqu'à la boucle principale et faisait tomber le run entier au lieu de perdre un lot.
+    let res: unknown = null;
+    try {
+      res = await client.messages.parse({
+        model,
+        max_tokens: budget,
+        // Le système est identique à chaque appel : mis en cache, il n'est facturé plein tarif qu'une fois.
+        system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+        messages: [{ role: 'user', content: prompt }],
+        // `effort: low` est le levier de coût documenté ; Haiku 4.5 ne l'accepte pas.
+        output_config: { format: zodOutputFormat(schema as never), ...(model.includes('haiku') ? {} : { effort: 'low' as const }) },
+      } as never);
+    } catch (e: unknown) {
+      const msg = String(e instanceof Error ? e.message : e).split('\n')[0];
+      console.warn(`  ⚠ appel ${attempt}/2 en erreur (${model}) : ${msg.slice(0, 120)}`);
+      // Une clé refusée ne se répare pas en réessayant, et chaque thème relancerait 2 appels par
+      // lot pour rien : on remonte tout de suite.
+      if (/authentication_error|invalid x-api-key|API key is invalid|permission_error/i.test(msg)) {
+        throw new Error(`clé API refusée (401) — vérifie ANTHROPIC_API_KEY dans web/.env`);
+      }
+    }
+    // Erreur réseau ou refus : la réponse n'existe pas, donc rien à facturer.
+    if (!res) continue;
+
+    const r = res as { usage: never; stop_reason?: string | null; parsed_output: T | null };
+    account(model, r.usage);
+    if (r.stop_reason === 'max_tokens') {
+      console.warn(`  ⚠ sortie tronquée à ${budget} jetons (${model})${attempt === 1 ? ' — réessai au double' : ' — LOT PERDU'}`);
+      continue;
+    }
+    if (!r.parsed_output) {
+      console.warn(`  ⚠ sortie illisible (${model})${attempt === 1 ? ' — réessai' : ' — LOT PERDU'}`);
+      continue;
+    }
+    return r.parsed_output;
+  }
+  return null;
 }
 
 /** Exécute des travaux par paquets de `PARALLEL`, pour aller vite sans se faire limiter. */
@@ -162,17 +275,34 @@ async function generate(themeKey: string, count?: number) {
   }
 
   // ── Passe 1 : inventaire ──
+  // La liste d'exclusion pèse ~16 000 jetons (4 000 mots déjà écrits) et elle est IDENTIQUE pour les
+  // 31 thèmes d'une série. Placée dans l'invite utilisateur, elle était refacturée plein tarif à
+  // chaque thème — environ 1 $ sur la série. Placée en fin de bloc système, elle est mise en cache :
+  // payée 1,25× une fois, puis 0,1×. Elle va APRÈS les règles, parce qu'un préfixe de cache ne vaut
+  // que s'il est stable : `RULES` seul reste ainsi réutilisable par les appels de rédaction.
   const inv = await ask(
     WRITER,
-    RULES,
+    `${RULES}
+
+Mots déjà traités ailleurs sur le site, à ne JAMAIS reprendre :
+${[...taken].sort().join(', ')}`,
     `Thème : « ${plan.label} » — ${plan.blurb}
 Donne les ${target} mots anglais les plus utiles de ce thème, du plus courant au plus rare, avec une répartition réaliste par niveau (beaucoup de A1-B1, moins de C1-C2).
-N'inclus AUCUN de ces mots, déjà traités ailleurs : ${[...taken].sort().join(', ')}
-Réponds uniquement avec la liste.`,
+Aucun des mots déjà traités listés dans les consignes. Réponds uniquement avec la liste, ${target} mots au maximum.`,
     InventorySchema,
-    8000,
+    16000,
   );
-  const words = (inv?.words ?? []).filter((x) => x.w && !taken.has(x.w.toLowerCase()));
+  // 16 000 et non 8 000 : `effort: low` consomme des jetons de raisonnement sur le MÊME plafond que
+  // la réponse, et un inventaire de 180 mots s'arrêtait donc au milieu de la liste.
+  // `.slice(0, target)` : le modèle rend régulièrement BEAUCOUP plus de mots que demandé — 44 pour
+  // une demande de 1, constaté sur « maison ». Sans ce plafond, on paie la rédaction de dizaines de
+  // fiches non voulues (0,13 $ au lieu de 0,01 $ sur ce seul thème) et on dépasse l'objectif du
+  // thème, que `check-content.ts` signale aussitôt. L'inventaire étant trié du plus courant au plus
+  // rare, couper par la fin garde les mots les plus utiles.
+  const words = (inv?.words ?? [])
+    .filter((x) => x.w?.trim() && !taken.has(x.w.trim().toLowerCase()))
+    .map((x) => ({ w: x.w.trim(), cefr: toCefr(x.cefr) ?? 'B1' }))
+    .slice(0, target);
   console.log(`  inventaire : ${words.length} mots · ${spentUsd.toFixed(3)} $`);
   if (!words.length) return;
 
@@ -180,6 +310,7 @@ Réponds uniquement avec la liste.`,
   const batches: typeof words[] = [];
   for (let i = 0; i < words.length; i += BATCH) batches.push(words.slice(i, i + BATCH));
 
+  const drops: string[] = [];
   const written = (
     await pool(batches, async (batch) => {
       const r = await ask(
@@ -189,12 +320,13 @@ Réponds uniquement avec la liste.`,
 Rédige la fiche complète de chacun de ces mots, dans cet ordre, en respectant le niveau indiqué :
 ${batch.map((x) => `- ${x.w} (${x.cefr})`).join('\n')}`,
         EntriesSchema,
-        8000,
+        16000,
       );
-      return r?.entries ?? [];
+      return normalize(r?.entries ?? [], drops);
     })
   ).flat();
   console.log(`  rédaction  : ${written.length} fiches · ${spentUsd.toFixed(3)} $`);
+  if (drops.length) console.log(`  normalisées/écartées : ${drops.join(' · ')}`);
 
   // ── Passe 3 : vérification ──
   const vBatches: Entry[][] = [];
@@ -241,11 +373,16 @@ Sinon ok=true. Sois strict mais ne signale pas les questions de goût.`,
   if (already.length) lines.push(`    // ⚠ ${already.length} mot(s) déjà présents dans le thème publié : ${already.join(', ')}`);
   for (const e of written) {
     const bad = verdicts.get(e.w.toLowerCase());
+    // ⚠ `note` est un CHAMP, pas un commentaire. Il était écrit en `// …` en fin de ligne : lisible
+    // à la relecture, mais invisible pour `import` — donc `merge-lexicon-draft.ts` perdait
+    // silencieusement toutes les notes, c'est-à-dire les faux amis et les pièges de construction,
+    // la partie la plus utile d'une fiche et celle que les règles demandent explicitement.
     const body =
       `{ w: '${esc(e.w)}', pos: '${e.pos}', fr: '${esc(e.fr)}', cefr: '${e.cefr}',` +
       (e.also?.length ? ` also: [${e.also.map((f) => `'${esc(f)}'`).join(', ')}],` : '') +
-      ` ex: { en: '${esc(e.ex.en)}', fr: '${esc(e.ex.fr)}' } }` +
-      (e.note ? `, // ${e.note.replace(/\n/g, ' ')}` : ',');
+      ` ex: { en: '${esc(e.ex.en)}', fr: '${esc(e.ex.fr)}' }` +
+      (e.note ? `, note: '${esc(e.note.replace(/\s*\n\s*/g, ' ').trim())}'` : '') +
+      ' },';
     lines.push(bad ? `    // SIGNALÉ — ${bad}\n    // ${body}` : `    ${body}`);
   }
   lines.push('  ],', '};', '');

@@ -1,5 +1,6 @@
-// Réunions, emails & téléphone — 109 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// Réunions, emails & téléphone — 125 mots.
+// 125 repris du curriculum, 0 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_REUNIONS: Theme = {
@@ -110,7 +111,7 @@ export const THEME_REUNIONS: Theme = {
     { w: 'background noise', pos: 'n', fr: 'bruit de fond', cefr: 'B1', ex: { en: 'There is a lot of background noise on your line.', fr: 'Il y a beaucoup de bruit de fond sur votre ligne.' } },
     { w: 'informal', pos: 'adj', fr: 'informel', cefr: 'B1', ex: { en: 'It was just an informal chat, not a real meeting.', fr: 'C’était juste une discussion informelle, pas une vraie réunion.' } },
     { w: 'wording', pos: 'n', fr: 'formulation', cefr: 'C1', ex: { en: 'We need to change the wording of this clause.', fr: 'Nous devons changer la formulation de cette clause.' } },
-    { w: 'proofread', pos: 'v', fr: 'relire (pour corriger)', cefr: 'B2', also: ['proofreads', 'proofread', 'proofreading'], ex: { en: 'Please proofread the report before sending it.', fr: 'Merci de relire le rapport avant de l’envoyer.' } },
+    { w: 'proofread', pos: 'v', fr: 'relire (pour corriger)', cefr: 'B2', also: ['proofreads', 'proofreading'], ex: { en: 'Please proofread the report before sending it.', fr: 'Merci de relire le rapport avant de l’envoyer.' } },
     { w: 'typo', pos: 'n', fr: 'coquille', cefr: 'B1', also: ['typos'], ex: { en: 'There is a typo in the subject line.', fr: 'Il y a une coquille dans l’objet du mail.' } },
     { w: 'urgent', pos: 'adj', fr: 'urgent', cefr: 'B1', ex: { en: 'This request is urgent, please reply today.', fr: 'Cette demande est urgente, merci de répondre aujourd’hui.' } },
     { w: 'priority', pos: 'n', fr: 'priorité', cefr: 'B1', also: ['priorities'], ex: { en: 'Answering client emails is our top priority.', fr: 'Répondre aux e-mails clients est notre priorité absolue.' } },
@@ -118,5 +119,21 @@ export const THEME_REUNIONS: Theme = {
     { w: 'loop in', pos: 'phr', fr: 'mettre dans la boucle', cefr: 'C1', also: ['loops in', 'looped in', 'looping in'], ex: { en: 'Let\'s loop in the finance team on this decision.', fr: 'Mettons l’équipe finance dans la boucle sur cette décision.' } },
     { w: 'circulate', pos: 'v', fr: 'diffuser', cefr: 'C1', also: ['circulates', 'circulated', 'circulating'], ex: { en: 'I\'ll circulate the minutes after the meeting.', fr: 'Je diffuserai le compte-rendu après la réunion.' } },
     { w: 'consensus', pos: 'n', fr: 'consensus', cefr: 'C1', ex: { en: 'We need to reach a consensus before the meeting ends.', fr: 'Nous devons parvenir à un consensus avant la fin de la réunion.' } },
+    { w: 'hold on', pos: 'phr', fr: 'patienter (au téléphone)', cefr: 'A1', ex: { en: 'Hold on, I\'ll transfer your call.', fr: 'Patientez, je transfère votre appel.' } },
+    { w: 'wrong number', pos: 'n', fr: 'mauvais numéro', cefr: 'A1', ex: { en: 'Sorry, you\'ve got the wrong number.', fr: 'Désolé, vous avez fait un mauvais numéro.' } },
+    { w: 'catch up', pos: 'phr', fr: 'se mettre à jour', cefr: 'A2', also: ['catches up', 'caught up', 'catching up'], ex: { en: 'Let\'s catch up on the project tomorrow.', fr: 'Mettons-nous à jour sur le projet demain.' } },
+    { w: 'get back to', pos: 'phr', fr: 'recontacter', cefr: 'A2', also: ['gets back to', 'got back to', 'getting back to'], ex: { en: 'I\'ll get back to you by Friday.', fr: 'Je vous recontacte d\'ici vendredi.' } },
+    { w: 'leave a message', pos: 'phr', fr: 'laisser un message', cefr: 'A2', also: ['leaves a message', 'left a message', 'leaving a message'], ex: { en: 'You can leave a message after the beep.', fr: 'Vous pouvez laisser un message après le bip.' } },
+    { w: 'take a message', pos: 'phr', fr: 'prendre un message', cefr: 'A2', also: ['takes a message', 'took a message', 'taking a message'], ex: { en: 'Can I take a message for Mr Smith?', fr: 'Puis-je prendre un message pour M. Smith ?' } },
+    { w: 'operator', pos: 'n', fr: 'standardiste', cefr: 'A2', also: ['operators'], ex: { en: 'The operator put me through to sales.', fr: 'La standardiste m\'a transféré au service commercial.' } },
+    { w: 'headset', pos: 'n', fr: 'casque (avec micro)', cefr: 'A2', also: ['headsets'], ex: { en: 'She wears a headset during calls.', fr: 'Elle porte un casque pendant les appels.' } },
+    { w: 'touch base', pos: 'phr', fr: 'faire le point', cefr: 'B1', ex: { en: 'Let\'s touch base next week about the budget.', fr: 'Faisons le point la semaine prochaine sur le budget.' } },
+    { w: 'put through', pos: 'phr', fr: 'transférer (un appel)', cefr: 'B1', also: ['puts through', 'putting through'], ex: { en: 'Could you put me through to the manager?', fr: 'Pourriez-vous me transférer au responsable ?' } },
+    { w: 'out of office', pos: 'n', fr: 'message d\'absence', cefr: 'B1', ex: { en: 'I set up my out of office before the trip.', fr: 'J\'ai activé mon message d\'absence avant le voyage.' } },
+    { w: 'wrap up', pos: 'phr', fr: 'conclure', cefr: 'B1', also: ['wraps up', 'wrapped up', 'wrapping up'], ex: { en: 'Let\'s wrap up the meeting in five minutes.', fr: 'Concluons la réunion dans cinq minutes.' } },
+    { w: 'webinar', pos: 'n', fr: 'webinaire', cefr: 'B1', also: ['webinars'], ex: { en: 'The webinar starts at ten o\'clock.', fr: 'Le webinaire commence à dix heures.' } },
+    { w: 'small talk', pos: 'n', fr: 'bavardage de politesse', cefr: 'B1', ex: { en: 'They made small talk before the meeting.', fr: 'Ils ont fait un peu de bavardage de politesse avant la réunion.' } },
+    { w: 'overrun', pos: 'v', fr: 'dépasser le temps prévu', cefr: 'B2', also: ['overruns', 'overran', 'overrunning'], ex: { en: 'The meeting overran by twenty minutes.', fr: 'La réunion a dépassé le temps prévu de vingt minutes.' } },
+    { w: 'teleconference', pos: 'n', fr: 'téléconférence', cefr: 'B2', also: ['teleconferences'], ex: { en: 'We scheduled a teleconference with the Tokyo office.', fr: 'Nous avons programmé une téléconférence avec le bureau de Tokyo.' } },
   ],
 };

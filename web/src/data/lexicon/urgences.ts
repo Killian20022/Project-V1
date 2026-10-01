@@ -1,5 +1,6 @@
-// Urgences, sécurité & imprévus — 90 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// Urgences, sécurité & imprévus — 110 mots.
+// 106 repris du curriculum, 4 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_URGENCES: Theme = {
@@ -16,7 +17,7 @@ export const THEME_URGENCES: Theme = {
     { w: 'warning', pos: 'n', fr: 'avertissement', cefr: 'A2', also: ['warnings'], ex: { en: 'The government issued a storm warning.', fr: 'Le gouvernement a émis un avertissement de tempête.' } },
     { w: 'alarm', pos: 'n', fr: 'alarme', cefr: 'A2', also: ['alarms'], ex: { en: 'The fire alarm went off suddenly.', fr: 'L’alarme incendie s’est déclenchée soudainement.' } },
     { w: 'accident', pos: 'n', fr: 'accident', cefr: 'A2', also: ['accidents'], ex: { en: 'There was a car accident on the highway.', fr: 'Il y a eu un accident de voiture sur l’autoroute.' } },
-    { w: 'hurt', pos: 'v', fr: 'blesser', cefr: 'A2', also: ['hurts', 'hurt', 'hurting'], ex: { en: 'Nobody was hurt in the crash.', fr: 'Personne n’a été blessé dans l’accident.' } },
+    { w: 'hurt', pos: 'v', fr: 'blesser', cefr: 'A2', also: ['hurts', 'hurting'], ex: { en: 'Nobody was hurt in the crash.', fr: 'Personne n’a été blessé dans l’accident.' } },
     { w: 'scream', pos: 'v', fr: 'hurler', cefr: 'A2', also: ['screams', 'screamed', 'screaming'], ex: { en: 'She screamed when she saw the smoke.', fr: 'Elle a hurlé en voyant la fumée.' } },
     { w: 'shout', pos: 'v', fr: 'crier', cefr: 'A2', also: ['shouts', 'shouted', 'shouting'], ex: { en: 'He shouted for everyone to leave.', fr: 'Il a crié à tout le monde de partir.' } },
     { w: 'run away', pos: 'phr', fr: 's’enfuir', cefr: 'A2', also: ['runs away', 'ran away', 'running away'], ex: { en: 'The animals ran away from the fire.', fr: 'Les animaux se sont enfuis loin du feu.' } },
@@ -99,5 +100,25 @@ export const THEME_URGENCES: Theme = {
     { w: 'flee', pos: 'v', fr: 'fuir', cefr: 'B2', also: ['flees', 'fled', 'fleeing'], ex: { en: 'Residents had to flee the area after the explosion.', fr: 'Les habitants ont dû fuir la zone après l\'explosion.' } },
     { w: 'seek shelter', pos: 'phr', fr: 'chercher un abri', cefr: 'B2', also: ['seeks shelter', 'sought shelter', 'seeking shelter'], ex: { en: 'People were told to seek shelter immediately.', fr: 'On a demandé aux gens de chercher un abri immédiatement.' } },
     { w: 'distress', pos: 'n', fr: 'détresse', cefr: 'B2', ex: { en: 'The ship sent a distress signal after hitting the rocks.', fr: 'Le navire a envoyé un signal de détresse après avoir heurté les rochers.' } },
+    { w: 'safety', pos: 'n', fr: 'sécurité', cefr: 'A2', ex: { en: 'Please check the safety instructions first.', fr: 'Veuillez d\'abord vérifier les consignes de sécurité.' } },
+    { w: 'dangerous', pos: 'adj', fr: 'dangereux', cefr: 'A2', ex: { en: 'The road is dangerous at night.', fr: 'La route est dangereuse la nuit.' } },
+    { w: 'unlock', pos: 'v', fr: 'déverrouiller', cefr: 'A2', also: ['unlocks', 'unlocked', 'unlocking'], ex: { en: 'Firefighters had to unlock the door.', fr: 'Les pompiers ont dû déverrouiller la porte.' } },
+    { w: 'stuck', pos: 'adj', fr: 'coincé', cefr: 'A2', ex: { en: 'My foot is stuck under the car.', fr: 'Mon pied est coincé sous la voiture.' } },
+    { w: 'immediately', pos: 'adv', fr: 'immédiatement', cefr: 'A2', ex: { en: 'Leave the building immediately.', fr: 'Quittez le bâtiment immédiatement.' } },
+    { w: 'warn', pos: 'v', fr: 'avertir', cefr: 'B1', also: ['warns', 'warned', 'warning'], ex: { en: 'They warned residents about the flood.', fr: 'Ils ont averti les habitants de l\'inondation.' } },
+    { w: 'poison', pos: 'n', fr: 'poison', cefr: 'B1', also: ['poisons'], ex: { en: 'The bottle contains poison.', fr: 'La bouteille contient du poison.' } },
+    { w: 'disaster', pos: 'n', fr: 'catastrophe', cefr: 'B1', also: ['disasters'], ex: { en: 'The flood was a natural disaster.', fr: 'L\'inondation était une catastrophe naturelle.' } },
+    { w: 'trap', pos: 'n', fr: 'piège', cefr: 'B1', also: ['traps'], ex: { en: 'The miners were caught in a trap.', fr: 'Les mineurs étaient pris au piège.' } },
+    { w: 'survive', pos: 'v', fr: 'survivre', cefr: 'B1', also: ['survives', 'survived', 'surviving'], ex: { en: 'Only three passengers survived the crash.', fr: 'Seuls trois passagers ont survécu à l\'accident.' } },
+    { w: 'burglar', pos: 'n', fr: 'cambrioleur', cefr: 'B1', also: ['burglars'], ex: { en: 'A burglar broke into the house last night.', fr: 'Un cambrioleur s\'est introduit dans la maison hier soir.' } },
+    { w: 'catastrophe', pos: 'n', fr: 'catastrophe', cefr: 'B2', also: ['catastrophes'], ex: { en: 'The earthquake was a complete catastrophe.', fr: 'Le séisme a été une véritable catastrophe.' } },
+    { w: 'hazardous', pos: 'adj', fr: 'dangereux, à risque', cefr: 'B2', ex: { en: 'The factory stores hazardous chemicals.', fr: 'L\'usine stocke des produits chimiques dangereux.' } },
+    { w: 'collide', pos: 'v', fr: 'entrer en collision', cefr: 'B2', also: ['collides', 'collided', 'colliding'], ex: { en: 'The two trains collided near the station.', fr: 'Les deux trains sont entrés en collision près de la gare.' } },
+    { w: 'extinguish', pos: 'v', fr: 'éteindre', cefr: 'B2', also: ['extinguishes', 'extinguished', 'extinguishing'], ex: { en: 'Firefighters extinguished the fire within an hour.', fr: 'Les pompiers ont éteint l\'incendie en une heure.' } },
+    { w: 'life-threatening', pos: 'adj', fr: 'mettant la vie en danger', cefr: 'C1', ex: { en: 'His injuries are not life-threatening.', fr: 'Ses blessures ne mettent pas sa vie en danger.' } },
+    { w: 'choke', pos: 'v', fr: 's\'étouffer', cefr: 'B1', also: ['chokes', 'choked', 'choking'], ex: { en: 'She started to choke on a piece of bread.', fr: 'Elle a commencé à s\'étouffer avec un morceau de pain.' } },
+    { w: 'paramedic', pos: 'n', fr: 'ambulancier', cefr: 'B1', also: ['paramedics'], ex: { en: 'The paramedics arrived within minutes.', fr: 'Les ambulanciers sont arrivés en quelques minutes.' } },
+    { w: 'stretcher', pos: 'n', fr: 'civière', cefr: 'B2', also: ['stretchers'], ex: { en: 'They carried the injured man on a stretcher.', fr: 'Ils ont transporté le blessé sur une civière.' } },
+    { w: 'SOS', pos: 'n', fr: 'SOS', cefr: 'A2', ex: { en: 'The sailors sent an SOS before the ship sank.', fr: 'Les marins ont envoyé un SOS avant que le navire ne coule.' } },
   ],
 };

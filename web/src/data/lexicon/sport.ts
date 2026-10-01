@@ -1,5 +1,6 @@
-// Le sport & les loisirs — 127 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// Le sport & les loisirs — 130 mots.
+// 128 repris du curriculum, 2 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_SPORT: Theme = {
@@ -27,7 +28,7 @@ export const THEME_SPORT: Theme = {
     { w: 'jump', pos: 'v', fr: 'sauter', cefr: 'A2', also: ['jumps', 'jumped', 'jumping'], ex: { en: 'She jumped over the hurdle easily.', fr: 'Elle a sauté la haie facilement.' } },
     { w: 'throw', pos: 'v', fr: 'lancer', cefr: 'A2', also: ['throws', 'threw', 'thrown', 'throwing'], ex: { en: 'He threw the ball to his teammate.', fr: 'Il a lancé le ballon à son coéquipier.' } },
     { w: 'catch', pos: 'v', fr: 'attraper', cefr: 'A2', also: ['catches', 'caught', 'catching'], ex: { en: 'He caught the ball with one hand.', fr: 'Il a attrapé le ballon d\'une seule main.' } },
-    { w: 'hit', pos: 'v', fr: 'frapper', cefr: 'A2', also: ['hits', 'hit', 'hitting'], ex: { en: 'She hit the ball over the net.', fr: 'Elle a frappé la balle par-dessus le filet.' } },
+    { w: 'hit', pos: 'v', fr: 'frapper', cefr: 'A2', also: ['hits', 'hitting'], ex: { en: 'She hit the ball over the net.', fr: 'Elle a frappé la balle par-dessus le filet.' } },
     { w: 'cycling', pos: 'n', fr: 'cyclisme', cefr: 'A2', ex: { en: 'Cycling is very popular in France.', fr: 'Le cyclisme est très populaire en France.' } },
     { w: 'swimming pool', pos: 'n', fr: 'piscine', cefr: 'A2', also: ['swimming pools'], ex: { en: 'There is a swimming pool near our house.', fr: 'Il y a une piscine près de chez nous.' } },
     { w: 'stadium', pos: 'n', fr: 'stade', cefr: 'A2', also: ['stadiums', 'stadia'], ex: { en: 'The stadium was full for the final.', fr: 'Le stade était plein pour la finale.' } },
@@ -136,5 +137,8 @@ export const THEME_SPORT: Theme = {
     { w: 'tiebreak', pos: 'n', fr: 'jeu décisif', cefr: 'B2', also: ['tiebreaks'], ex: { en: 'The set was decided in a tiebreak.', fr: 'Le set s’est joué au jeu décisif.' } },
     { w: 'fixture', pos: 'n', fr: 'rencontre sportive, match programmé', cefr: 'B2', also: ['fixtures'], ex: { en: 'The next fixture is against last year’s champions.', fr: 'La prochaine rencontre est contre les champions de l’an dernier.' } },
     { w: 'stalemate', pos: 'n', fr: 'pat (aux échecs), impasse', cefr: 'C1', ex: { en: 'The game ended in a stalemate.', fr: 'La partie s’est terminée par un pat.' } },
+    { w: 'referee\'s whistle', pos: 'n', fr: 'sifflet de l\'arbitre', cefr: 'B1', ex: { en: 'The referee\'s whistle signalled the end of the match.', fr: 'Le sifflet de l\'arbitre a signalé la fin du match.' } },
+    { w: 'athlete', pos: 'n', fr: 'athlète', cefr: 'A2', also: ['athletes'], ex: { en: 'The athlete trains six days a week.', fr: 'L\'athlète s\'entraîne six jours par semaine.' } },
+    { w: 'compete', pos: 'v', fr: 'concourir, être en compétition', cefr: 'B1', also: ['competes', 'competed', 'competing'], ex: { en: 'She will compete in the national championship.', fr: 'Elle va concourir au championnat national.' } },
   ],
 };

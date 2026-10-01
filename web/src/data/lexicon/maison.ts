@@ -1,5 +1,6 @@
-// La maison & le mobilier — 139 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// La maison & le mobilier — 140 mots.
+// 139 repris du curriculum, 1 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_MAISON: Theme = {
@@ -148,5 +149,6 @@ export const THEME_MAISON: Theme = {
     { w: 'sandpaper', pos: 'n', fr: 'papier de verre', cefr: 'B2', ex: { en: 'Smooth the wood with sandpaper before painting.', fr: 'Poncez le bois avec du papier de verre avant de peindre.' } },
     { w: 'varnish', pos: 'n', fr: 'vernis', cefr: 'C1', ex: { en: 'He applied two coats of varnish to the table.', fr: 'Il a appliqué deux couches de vernis sur la table.' } },
     { w: 'floorboard', pos: 'n', fr: 'latte de plancher', cefr: 'C1', also: ['floorboards'], ex: { en: 'One of the floorboards creaks loudly.', fr: 'Une des lattes de plancher grince fort.' } },
+    { w: 'staircase', pos: 'n', fr: 'escalier', cefr: 'A2', also: ['staircases'], ex: { en: 'The staircase leads up to the bedrooms.', fr: 'L\'escalier mène aux chambres.' } },
   ],
 };

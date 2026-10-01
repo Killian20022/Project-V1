@@ -44,8 +44,25 @@ for (const theme of THEMES) {
     if (!e.ex?.en.trim() || !e.ex?.fr.trim()) errors.push(`${where} : exemple incomplet`);
 
     // L'exemple doit contenir le mot, sous une forme ou une autre — sinon il n'illustre rien.
+    //
+    // La frontière est en lookaround sur les LETTRES Unicode, et non `\b` : `\b` se définit à partir
+    // de `[A-Za-z0-9_]`, donc il échoue des deux côtés d'un mot non ASCII (« à la carte ») et après
+    // une apostrophe finale (« maître d' » suivi d'une espace). Deux fiches parfaitement correctes
+    // étaient refusées pour cette seule raison.
+    //
+    // Un verbe à particule SÉPARABLE accueille son objet entre le verbe et la particule — « put me
+    // through », « hand it in ». Chercher « put through » collé échoue donc sur l'exemple le plus
+    // naturel qu'on puisse écrire, et rejetait une fiche correcte. Pour les `phr` de plusieurs mots
+    // on accepte un à trois mots intercalés après le premier.
+    const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const bounded = (body: string) => new RegExp(`(?<![\\p{L}\\p{N}])${body}(?![\\p{L}\\p{N}])`, 'iu');
     const forms = [e.w, ...(e.also ?? [])];
-    const inExample = forms.some((f) => new RegExp(`\\b${f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(e.ex.en));
+    const inExample = forms.some((f) => {
+      if (bounded(esc(f)).test(e.ex.en)) return true;
+      const parts = f.split(/\s+/);
+      if (e.pos !== 'phr' || parts.length < 2) return false;
+      return bounded(`${esc(parts[0])}(?:\\s+\\S+){1,3}\\s+${parts.slice(1).map(esc).join('\\s+')}`).test(e.ex.en);
+    });
     if (!inExample) errors.push(`${where} : le mot n’apparaît pas dans son exemple`);
 
     // Une forme fléchie identique à la vedette ne sert à rien et fausse la recherche au corpus.

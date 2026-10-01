@@ -1,5 +1,6 @@
-// Le droit & la justice — 124 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// Le droit & la justice — 139 mots.
+// 139 repris du curriculum, 0 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_JUSTICE: Theme = {
@@ -133,5 +134,20 @@ export const THEME_JUSTICE: Theme = {
     { w: 'alimony', pos: 'n', fr: 'pension alimentaire', cefr: 'C1', ex: { en: 'He pays alimony to his ex-wife every month.', fr: 'Il verse une pension alimentaire à son ex-femme chaque mois.' } },
     { w: 'extradite', pos: 'v', fr: 'extrader', cefr: 'C2', also: ['extradites', 'extradited', 'extraditing'], ex: { en: 'The suspect was extradited to face trial.', fr: 'Le suspect a été extradé pour être jugé.' } },
     { w: 'extradition', pos: 'n', fr: 'extradition', cefr: 'C2', ex: { en: 'The government requested his extradition.', fr: 'Le gouvernement a demandé son extradition.' } },
+    { w: 'clerk', pos: 'n', fr: 'greffier', cefr: 'B1', also: ['clerks'], ex: { en: 'The clerk read out the charges to the court.', fr: 'Le greffier a lu les charges à la cour.' } },
+    { w: 'imprisonment', pos: 'n', fr: 'emprisonnement', cefr: 'B1', ex: { en: 'He was sentenced to five years\' imprisonment.', fr: 'Il a été condamné à cinq ans d\'emprisonnement.' } },
+    { w: 'terminate', pos: 'v', fr: 'résilier', cefr: 'B2', also: ['terminates', 'terminated', 'terminating'], ex: { en: 'The company terminated the contract without notice.', fr: 'L\'entreprise a résilié le contrat sans préavis.' } },
+    { w: 'void', pos: 'adj', fr: 'nul', cefr: 'B2', ex: { en: 'The agreement was declared null and void.', fr: 'L\'accord a été déclaré nul et non avenu.' } },
+    { w: 'binding', pos: 'adj', fr: 'contraignant', cefr: 'B2', ex: { en: 'This clause is legally binding on both parties.', fr: 'Cette clause est juridiquement contraignante pour les deux parties.' } },
+    { w: 'waiver', pos: 'n', fr: 'renonciation', cefr: 'B2', also: ['waivers'], ex: { en: 'She signed a waiver before the training session.', fr: 'Elle a signé une renonciation avant la séance de formation.' } },
+    { w: 'compensate', pos: 'v', fr: 'indemniser', cefr: 'B2', also: ['compensates', 'compensated', 'compensating'], ex: { en: 'The firm agreed to compensate the victims.', fr: 'L\'entreprise a accepté d\'indemniser les victimes.' } },
+    { w: 'trespass', pos: 'v', fr: 's\'introduire sans autorisation', cefr: 'B2', also: ['trespasses', 'trespassed', 'trespassing'], ex: { en: 'It is illegal to trespass on this property.', fr: 'Il est illégal de s\'introduire sans autorisation sur cette propriété.' } },
+    { w: 'complainant', pos: 'n', fr: 'plaignant', cefr: 'B2', also: ['complainants'], ex: { en: 'The complainant testified against the defendant.', fr: 'Le plaignant a témoigné contre l\'accusé.' } },
+    { w: 'overturn', pos: 'v', fr: 'annuler (une décision)', cefr: 'B2', also: ['overturns', 'overturned', 'overturning'], ex: { en: 'The appeals court overturned the verdict.', fr: 'La cour d\'appel a annulé le verdict.' } },
+    { w: 'cross-examine', pos: 'v', fr: 'contre-interroger', cefr: 'C1', also: ['cross-examines', 'cross-examined', 'cross-examining'], ex: { en: 'The lawyer cross-examined the witness for an hour.', fr: 'L\'avocat a contre-interrogé le témoin pendant une heure.' } },
+    { w: 'deposition', pos: 'n', fr: 'déposition', cefr: 'C1', also: ['depositions'], ex: { en: 'The witness gave a deposition before the trial.', fr: 'Le témoin a fait une déposition avant le procès.' } },
+    { w: 'indictment', pos: 'n', fr: 'mise en accusation', cefr: 'C1', also: ['indictments'], ex: { en: 'The grand jury issued an indictment against him.', fr: 'Le grand jury a prononcé une mise en accusation contre lui.' } },
+    { w: 'perjury', pos: 'n', fr: 'faux témoignage', cefr: 'C1', ex: { en: 'She was charged with perjury after lying under oath.', fr: 'Elle a été inculpée de faux témoignage après avoir menti sous serment.' } },
+    { w: 'affidavit', pos: 'n', fr: 'déclaration sous serment', cefr: 'C2', also: ['affidavits'], ex: { en: 'He submitted a signed affidavit to the court.', fr: 'Il a présenté une déclaration sous serment signée au tribunal.' } },
   ],
 };

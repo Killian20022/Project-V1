@@ -36,21 +36,21 @@ export const THEME_PLAN: readonly ThemePlan[] = [
   // ---------- Vie quotidienne ----------
   { key: 'maison', domain: 'quotidien', label: 'La maison & le mobilier', blurb: 'Les pièces, les meubles, le bricolage.', target: 140 },
   { key: 'nourriture', domain: 'quotidien', label: 'La nourriture & les boissons', blurb: 'Les aliments, la cuisine, les goûts.', target: 180 },
-  { key: 'vetements', domain: 'quotidien', label: 'Les vêtements & l’apparence', blurb: 'S’habiller, les matières, les tailles.', target: 120 },
+  { key: 'vetements', domain: 'quotidien', label: 'Les vêtements & l’apparence', blurb: 'S’habiller, les matières, les tailles.', target: 127 },
   { key: 'courses', domain: 'quotidien', label: 'Les courses & les achats', blurb: 'Acheter, payer, échanger, se plaindre.', target: 120 },
   { key: 'routine', domain: 'quotidien', label: 'La routine & les tâches', blurb: 'La journée, le ménage, les habitudes.', target: 120 },
   { key: 'ville', domain: 'quotidien', label: 'La ville & les commerces', blurb: 'Les rues, les services, la vie urbaine.', target: 160 },
 
   // ---------- Les gens ----------
   { key: 'famille', domain: 'gens', label: 'La famille & les proches', blurb: 'Les liens de parenté, les âges de la vie.', target: 120 },
-  { key: 'corps', domain: 'gens', label: 'Le corps & la santé', blurb: 'L’anatomie, les maladies, les soins.', target: 190 },
+  { key: 'corps', domain: 'gens', label: 'Le corps & la santé', blurb: 'L’anatomie, les maladies, les soins.', target: 200 },
   { key: 'emotions', domain: 'gens', label: 'Les émotions & les sentiments', blurb: 'Dire ce qu’on ressent, avec nuance.', target: 160 },
   { key: 'caractere', domain: 'gens', label: 'Le caractère & la personnalité', blurb: 'Décrire quelqu’un autrement que « nice ».', target: 140 },
   { key: 'relations', domain: 'gens', label: 'Les relations & la vie sociale', blurb: 'L’amitié, le couple, les conflits.', target: 130 },
 
   // ---------- Le monde ----------
   { key: 'nature', domain: 'monde', label: 'La nature & l’environnement', blurb: 'Le climat, l’écologie, les ressources.', target: 160 },
-  { key: 'animaux', domain: 'monde', label: 'Les animaux', blurb: 'Domestiques, sauvages, marins.', target: 120 },
+  { key: 'animaux', domain: 'monde', label: 'Les animaux', blurb: 'Domestiques, sauvages, marins.', target: 125 },
   { key: 'meteo', domain: 'monde', label: 'La météo & les saisons', blurb: 'Le temps qu’il fait, du crachin au blizzard.', target: 100 },
   { key: 'geographie', domain: 'monde', label: 'La géographie & les paysages', blurb: 'Le relief, les eaux, les milieux.', target: 120 },
   { key: 'pays', domain: 'monde', label: 'Pays, peuples & langues', blurb: 'Nationalités, continents, frontières.', target: 110 },
@@ -59,7 +59,7 @@ export const THEME_PLAN: readonly ThemePlan[] = [
   { key: 'travail', domain: 'travail', label: 'Le travail & les métiers', blurb: 'Le bureau, l’équipe, le contrat, la carrière.', target: 150 },
   { key: 'entreprise', domain: 'travail', label: 'L’entreprise & la gestion', blurb: 'Les services, la stratégie, les résultats.', target: 150 },
   { key: 'argent', domain: 'travail', label: 'L’argent, la banque & les impôts', blurb: 'Compter, emprunter, déclarer.', target: 170 },
-  { key: 'ecole', domain: 'travail', label: 'L’école & les études', blurb: 'Les matières, les examens, le diplôme.', target: 140 },
+  { key: 'ecole', domain: 'travail', label: 'L’école & les études', blurb: 'Les matières, les examens, le diplôme.', target: 146 },
   { key: 'reunions', domain: 'travail', label: 'Réunions, emails & téléphone', blurb: 'Les formules qui font la communication pro.', target: 130 },
   { key: 'entretien', domain: 'travail', label: 'Candidature & entretien', blurb: 'CV, lettre, entretien, négociation d’offre.', target: 110 },
 

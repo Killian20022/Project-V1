@@ -1,5 +1,6 @@
-// Les sciences & la technologie — 143 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// Les sciences & la technologie — 166 mots.
+// 166 repris du curriculum, 0 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_SCIENCES: Theme = {
@@ -152,5 +153,28 @@ export const THEME_SCIENCES: Theme = {
     { w: 'biotechnology', pos: 'n', fr: 'biotechnologie', cefr: 'C1', ex: { en: 'The company invests heavily in biotechnology.', fr: 'L\'entreprise investit massivement dans la biotechnologie.' } },
     { w: 'nanotechnology', pos: 'n', fr: 'nanotechnologie', cefr: 'C1', ex: { en: 'Nanotechnology could transform modern medicine.', fr: 'La nanotechnologie pourrait transformer la médecine moderne.' } },
     { w: 'quantum', pos: 'adj', fr: 'quantique', cefr: 'C2', also: ['quanta'], ex: { en: 'Quantum computing could revolutionize cryptography.', fr: 'L\'informatique quantique pourrait révolutionner la cryptographie.' } },
+    { w: 'laser', pos: 'n', fr: 'laser', cefr: 'A2', also: ['lasers'], ex: { en: 'The laser cuts through metal precisely.', fr: 'Le laser découpe le métal avec précision.' } },
+    { w: 'graph', pos: 'n', fr: 'graphique', cefr: 'A2', also: ['graphs'], ex: { en: 'The graph shows a steady increase.', fr: 'Le graphique montre une augmentation constante.' } },
+    { w: 'chart', pos: 'n', fr: 'diagramme', cefr: 'A2', also: ['charts'], ex: { en: 'The chart compares sales across regions.', fr: 'Le diagramme compare les ventes par région.' } },
+    { w: 'diagram', pos: 'n', fr: 'schéma', cefr: 'A2', also: ['diagrams'], ex: { en: 'The diagram explains how the engine works.', fr: 'Le schéma explique le fonctionnement du moteur.' } },
+    { w: 'process', pos: 'n', fr: 'processus', cefr: 'A2', also: ['processes'], ex: { en: 'The manufacturing process takes two weeks.', fr: 'Le processus de fabrication prend deux semaines.' } },
+    { w: 'drone', pos: 'n', fr: 'drone', cefr: 'A2', also: ['drones'], ex: { en: 'The drone filmed the city from above.', fr: 'Le drone a filmé la ville d\'en haut.' } },
+    { w: 'hack', pos: 'v', fr: 'pirater', cefr: 'B1', also: ['hacks', 'hacked', 'hacking'], ex: { en: 'Someone tried to hack the company\'s server.', fr: 'Quelqu\'un a essayé de pirater le serveur de l\'entreprise.' } },
+    { w: 'radar', pos: 'n', fr: 'radar', cefr: 'B1', also: ['radars'], ex: { en: 'The radar detected an approaching storm.', fr: 'Le radar a détecté une tempête approchant.' } },
+    { w: 'statistics', pos: 'n', fr: 'statistiques', cefr: 'B1', ex: { en: 'The statistics confirm the new trend.', fr: 'Les statistiques confirment la nouvelle tendance.' } },
+    { w: 'technique', pos: 'n', fr: 'technique', cefr: 'B1', also: ['techniques'], ex: { en: 'Researchers developed a new imaging technique.', fr: 'Les chercheurs ont développé une nouvelle technique d\'imagerie.' } },
+    { w: 'procedure', pos: 'n', fr: 'procédure', cefr: 'B1', also: ['procedures'], ex: { en: 'Follow the safety procedure carefully.', fr: 'Suivez attentivement la procédure de sécurité.' } },
+    { w: 'astronomy', pos: 'n', fr: 'astronomie', cefr: 'B1', ex: { en: 'She studies astronomy at university.', fr: 'Elle étudie l\'astronomie à l\'université.' } },
+    { w: 'microchip', pos: 'n', fr: 'puce électronique', cefr: 'B1', also: ['microchips'], ex: { en: 'The microchip controls the device\'s functions.', fr: 'La puce électronique contrôle les fonctions de l\'appareil.' } },
+    { w: 'electron', pos: 'n', fr: 'électron', cefr: 'B2', also: ['electrons'], ex: { en: 'Electrons orbit the atomic nucleus.', fr: 'Les électrons gravitent autour du noyau atomique.' } },
+    { w: 'specimen', pos: 'n', fr: 'échantillon, spécimen', cefr: 'B2', also: ['specimens'], ex: { en: 'The lab analysed a blood specimen from each patient.', fr: 'Le laboratoire a analysé un échantillon de sang de chaque patient.' } },
+    { w: 'control group', pos: 'n', fr: 'groupe témoin', cefr: 'B2', also: ['control groups'], ex: { en: 'The control group received a placebo instead of the drug.', fr: 'Le groupe témoin a reçu un placebo au lieu du médicament.' } },
+    { w: 'antibody', pos: 'n', fr: 'anticorps', cefr: 'B2', also: ['antibodies'], ex: { en: 'Her blood test showed high levels of antibodies.', fr: 'Son analyse de sang a montré un taux élevé d’anticorps.' } },
+    { w: 'clone', pos: 'v', fr: 'cloner', cefr: 'B2', also: ['clones', 'cloned', 'cloning'], ex: { en: 'Scientists managed to clone the sheep successfully.', fr: 'Les scientifiques ont réussi à cloner le mouton.' } },
+    { w: 'mutation', pos: 'n', fr: 'mutation', cefr: 'B2', also: ['mutations'], ex: { en: 'A single mutation can change a protein’s shape.', fr: 'Une seule mutation peut changer la forme d’une protéine.' } },
+    { w: 'spectrum', pos: 'n', fr: 'spectre', cefr: 'B2', also: ['spectra', 'spectrums'], ex: { en: 'The prism splits light into a visible spectrum.', fr: 'Le prisme décompose la lumière en un spectre visible.' } },
+    { w: 'stem cell', pos: 'n', fr: 'cellule souche', cefr: 'C1', also: ['stem cells'], ex: { en: 'Researchers are studying stem cells to treat injuries.', fr: 'Les chercheurs étudient les cellules souches pour traiter les blessures.' } },
+    { w: 'catalyst', pos: 'n', fr: 'catalyseur', cefr: 'C1', also: ['catalysts'], ex: { en: 'The enzyme acts as a catalyst in the reaction.', fr: 'L’enzyme agit comme catalyseur dans la réaction.' } },
+    { w: 'enzyme', pos: 'n', fr: 'enzyme', cefr: 'C1', also: ['enzymes'], ex: { en: 'This enzyme breaks down sugars during digestion.', fr: 'Cette enzyme décompose les sucres pendant la digestion.' } },
   ],
 };

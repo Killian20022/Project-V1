@@ -1,5 +1,6 @@
-// L’entreprise & la gestion — 135 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// L’entreprise & la gestion — 146 mots.
+// 146 repris du curriculum, 0 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_ENTREPRISE: Theme = {
@@ -144,5 +145,16 @@ export const THEME_ENTREPRISE: Theme = {
     { w: 'break-even point', pos: 'n', fr: 'seuil de rentabilité', cefr: 'C1', also: ['break-even points'], ex: { en: 'We expect to reach the break-even point within a year.', fr: 'Nous prévoyons d’atteindre le seuil de rentabilité en un an.' } },
     { w: 'capital expenditure', pos: 'n', fr: 'dépenses d’investissement', cefr: 'C1', ex: { en: 'Capital expenditure on new equipment rose sharply this year.', fr: 'Les dépenses d’investissement en nouveaux équipements ont fortement augmenté cette année.' } },
     { w: 'working capital', pos: 'n', fr: 'fonds de roulement', cefr: 'C1', ex: { en: 'The company needs more working capital to grow.', fr: 'L’entreprise a besoin de davantage de fonds de roulement pour se développer.' } },
+    { w: 'plan', pos: 'n', fr: 'plan, projet', cefr: 'A1', also: ['plans'], ex: { en: 'The company has a plan to expand abroad.', fr: 'L\'entreprise a un projet d\'expansion à l\'étranger.' } },
+    { w: 'management', pos: 'n', fr: 'direction, gestion', cefr: 'A2', ex: { en: 'Management decided to cut costs this year.', fr: 'La direction a décidé de réduire les coûts cette année.' } },
+    { w: 'marketing', pos: 'n', fr: 'marketing', cefr: 'A2', ex: { en: 'Our marketing team launched a new campaign.', fr: 'Notre équipe marketing a lancé une nouvelle campagne.' } },
+    { w: 'industry', pos: 'n', fr: 'industrie, secteur', cefr: 'A2', also: ['industries'], ex: { en: 'She works in the car industry.', fr: 'Elle travaille dans l\'industrie automobile.' } },
+    { w: 'demand', pos: 'n', fr: 'demande', cefr: 'B1', ex: { en: 'Demand for the product grew quickly.', fr: 'La demande pour le produit a augmenté rapidement.' } },
+    { w: 'sector', pos: 'n', fr: 'secteur', cefr: 'B1', also: ['sectors'], ex: { en: 'The public sector offers more job security.', fr: 'Le secteur public offre plus de sécurité de l\'emploi.' } },
+    { w: 'workforce', pos: 'n', fr: 'main-d\'œuvre', cefr: 'B2', ex: { en: 'The company plans to cut its workforce by ten percent.', fr: 'L\'entreprise prévoit de réduire sa main-d\'œuvre de dix pour cent.' } },
+    { w: 'enterprise', pos: 'n', fr: 'entreprise', cefr: 'B2', also: ['enterprises'], ex: { en: 'Small enterprises struggle to get bank loans.', fr: 'Les petites entreprises peinent à obtenir des prêts bancaires.' } },
+    { w: 'division', pos: 'n', fr: 'division', cefr: 'B2', also: ['divisions'], ex: { en: 'He was promoted to head the European division.', fr: 'Il a été promu à la tête de la division européenne.' } },
+    { w: 'stake', pos: 'n', fr: 'participation', cefr: 'C1', also: ['stakes'], ex: { en: 'The investor holds a twenty percent stake in the firm.', fr: 'L\'investisseur détient une participation de vingt pour cent dans la société.' } },
+    { w: 'monopoly', pos: 'n', fr: 'monopole', cefr: 'C1', also: ['monopolies'], ex: { en: 'The company has a monopoly on rail transport.', fr: 'L\'entreprise détient un monopole sur le transport ferroviaire.' } },
   ],
 };

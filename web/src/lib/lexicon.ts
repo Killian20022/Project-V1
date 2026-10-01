@@ -59,6 +59,11 @@ const CEFR_ORDER: Level[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
  * Découpe un thème en paliers : du plus simple au plus rare, et par ordre alphabétique à niveau
  * égal — pour que l'ordre soit stable d'une session à l'autre (un tirage au sort déplacerait les
  * mots d'un palier à l'autre et casserait la progression affichée).
+ *
+ * Le reste de la division est RECOLLÉ au palier précédent quand il fait moins de la moitié d'un
+ * palier : treize thèmes finissaient sinon sur une séance de 1 à 4 mots, qui ne vaut pas l'ouverture
+ * de l'écran et donne l'impression de buter sur un fond de tiroir. Un palier final de 11 à 14 mots
+ * est un meilleur marché que deux paliers dont un bâclé.
  */
 export function stepsOf(theme: Theme): WordEntry[][] {
   const sorted = [...theme.words].sort(
@@ -66,6 +71,10 @@ export function stepsOf(theme: Theme): WordEntry[][] {
   );
   const steps: WordEntry[][] = [];
   for (let i = 0; i < sorted.length; i += STEP_SIZE) steps.push(sorted.slice(i, i + STEP_SIZE));
+  // `steps.length > 1` : un thème de 3 mots garde son unique palier — il n'y a rien où le recoller.
+  if (steps.length > 1 && steps[steps.length - 1].length < STEP_SIZE / 2) {
+    steps[steps.length - 2].push(...steps.pop()!);
+  }
   return steps;
 }
 

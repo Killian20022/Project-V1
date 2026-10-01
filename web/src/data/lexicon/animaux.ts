@@ -46,7 +46,7 @@ export const THEME_ANIMAUX: Theme = {
     { w: 'crab', pos: 'n', fr: 'crabe', cefr: 'A2', also: ['crabs'], ex: { en: 'The crab hid under a rock.', fr: 'Le crabe s’est caché sous un rocher.' } },
     { w: 'lobster', pos: 'n', fr: 'homard', cefr: 'B1', also: ['lobsters'], ex: { en: 'The restaurant serves fresh lobster.', fr: 'Le restaurant sert du homard frais.' } },
     { w: 'octopus', pos: 'n', fr: 'pieuvre', cefr: 'B1', also: ['octopuses'], ex: { en: 'The octopus changed color instantly.', fr: 'La pieuvre a changé de couleur instantanément.' } },
-    { w: 'jellyfish', pos: 'n', fr: 'méduse', cefr: 'B1', also: ['jellyfish'], ex: { en: 'A jellyfish stung the swimmer.', fr: 'Une méduse a piqué le nageur.' } },
+    { w: 'jellyfish', pos: 'n', fr: 'méduse', cefr: 'B1', ex: { en: 'A jellyfish stung the swimmer.', fr: 'Une méduse a piqué le nageur.' } },
     { w: 'eagle', pos: 'n', fr: 'aigle', cefr: 'B1', also: ['eagles'], ex: { en: 'An eagle circled above the valley.', fr: 'Un aigle tournoyait au-dessus de la vallée.' } },
     { w: 'parrot', pos: 'n', fr: 'perroquet', cefr: 'A2', also: ['parrots'], ex: { en: 'The parrot can repeat words.', fr: 'Le perroquet sait répéter des mots.' } },
     { w: 'penguin', pos: 'n', fr: 'pingouin', cefr: 'A2', also: ['penguins'], ex: { en: 'Penguins live in cold regions.', fr: 'Les pingouins vivent dans des régions froides.' } },

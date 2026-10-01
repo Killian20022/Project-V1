@@ -1,5 +1,6 @@
-// Les relations & la vie sociale — 111 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// Les relations & la vie sociale — 130 mots.
+// 130 repris du curriculum, 0 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_RELATIONS: Theme = {
@@ -120,5 +121,24 @@ export const THEME_RELATIONS: Theme = {
     { w: 'confide in', pos: 'phr', fr: 'se confier à', cefr: 'C1', also: ['confides in', 'confided in', 'confiding in'], ex: { en: 'She always confides in her sister.', fr: 'Elle se confie toujours à sa sœur.' } },
     { w: 'open up', pos: 'phr', fr: 's’ouvrir, se livrer', cefr: 'B2', also: ['opens up', 'opened up', 'opening up'], ex: { en: 'It took time for him to open up about his feelings.', fr: 'Il lui a fallu du temps pour s’ouvrir sur ses sentiments.' } },
     { w: 'break the ice', pos: 'phr', fr: 'briser la glace', cefr: 'B2', also: ['breaks the ice', 'broke the ice', 'broken the ice', 'breaking the ice'], ex: { en: 'He told a joke to break the ice at the first date.', fr: 'Il a raconté une blague pour briser la glace lors du premier rendez-vous.' } },
+    { w: 'ex', pos: 'n', fr: 'ex (ancien compagnon, ancienne compagne)', cefr: 'A2', also: ['exes'], ex: { en: 'She still talks to her ex sometimes.', fr: 'Elle parle encore parfois à son ex.' } },
+    { w: 'hang out', pos: 'phr', fr: 'traîner, passer du temps ensemble', cefr: 'A2', also: ['hangs out', 'hung out', 'hanging out'], ex: { en: 'We usually hang out at the park on weekends.', fr: 'On traîne généralement au parc le week-end.' } },
+    { w: 'get along', pos: 'phr', fr: 's\'entendre (avec quelqu\'un)', cefr: 'B1', also: ['gets along', 'got along', 'getting along'], ex: { en: 'My brother and I get along really well.', fr: 'Mon frère et moi, on s\'entend très bien.' } },
+    { w: 'crush', pos: 'n', fr: 'béguin', cefr: 'A2', also: ['crushes'], ex: { en: 'She has a crush on her new classmate.', fr: 'Elle a le béguin pour son nouveau camarade de classe.' } },
+    { w: 'flirt', pos: 'v', fr: 'flirter', cefr: 'B1', also: ['flirts', 'flirted', 'flirting'], ex: { en: 'He was flirting with her at the party.', fr: 'Il flirtait avec elle à la soirée.' } },
+    { w: 'dump', pos: 'v', fr: 'larguer', cefr: 'B1', also: ['dumps', 'dumped', 'dumping'], ex: { en: 'She dumped her boyfriend last week.', fr: 'Elle a largué son petit ami la semaine dernière.' } },
+    { w: 'make up', pos: 'phr', fr: 'se réconcilier', cefr: 'B1', also: ['makes up', 'made up', 'making up'], ex: { en: 'They argued but made up the next day.', fr: 'Ils se sont disputés mais se sont réconciliés le lendemain.' } },
+    { w: 'awkward', pos: 'adj', fr: 'gênant', cefr: 'A2', ex: { en: 'It was an awkward silence after the joke.', fr: 'C\'était un silence gênant après la blague.' } },
+    { w: 'tease', pos: 'v', fr: 'taquiner', cefr: 'B1', also: ['teases', 'teased', 'teasing'], ex: { en: 'His friends always tease him about his haircut.', fr: 'Ses amis le taquinent toujours à propos de sa coupe de cheveux.' } },
+    { w: 'blind date', pos: 'n', fr: 'rendez-vous arrangé', cefr: 'B1', also: ['blind dates'], ex: { en: 'She met him on a blind date last month.', fr: 'Elle l\'a rencontré lors d\'un rendez-vous arrangé le mois dernier.' } },
+    { w: 'quality time', pos: 'n', fr: 'moments de qualité', cefr: 'B1', ex: { en: 'We try to spend quality time together every weekend.', fr: 'Nous essayons de passer des moments de qualité ensemble chaque week-end.' } },
+    { w: 'companionship', pos: 'n', fr: 'compagnie', cefr: 'B2', ex: { en: 'Pets can offer real companionship to elderly people.', fr: 'Les animaux de compagnie peuvent offrir une vraie compagnie aux personnes âgées.' } },
+    { w: 'soulmate', pos: 'n', fr: 'âme sœur', cefr: 'B2', also: ['soulmates'], ex: { en: 'She believes he is her soulmate.', fr: 'Elle croit que c\'est son âme sœur.' } },
+    { w: 'clingy', pos: 'adj', fr: 'collant', cefr: 'B2', ex: { en: 'He gets clingy whenever she goes out with friends.', fr: 'Il devient collant dès qu\'elle sort avec des amis.' } },
+    { w: 'bicker', pos: 'v', fr: 'se chamailler', cefr: 'B2', also: ['bickers', 'bickered', 'bickering'], ex: { en: 'The couple were bickering about where to eat.', fr: 'Le couple se chamaillait pour savoir où manger.' } },
+    { w: 'nag', pos: 'v', fr: 'rabâcher, harceler', cefr: 'B2', also: ['nags', 'nagged', 'nagging'], ex: { en: 'She keeps nagging him to clean his room.', fr: 'Elle n\'arrête pas de le harceler pour qu\'il range sa chambre.' } },
+    { w: 'falling out', pos: 'n', fr: 'brouille', cefr: 'C1', also: ['fallings out'], ex: { en: 'They had a falling out over money.', fr: 'Ils se sont brouillés pour une histoire d\'argent.' } },
+    { w: 'gut feeling', pos: 'n', fr: 'intuition', cefr: 'C1', also: ['gut feelings'], ex: { en: 'My gut feeling told me not to trust him.', fr: 'Mon intuition me disait de ne pas lui faire confiance.' } },
+    { w: 'estrangement', pos: 'n', fr: 'éloignement affectif', cefr: 'C2', ex: { en: 'Years of estrangement had left them like strangers.', fr: 'Des années d\'éloignement affectif avaient fait d\'eux des étrangers l\'un pour l\'autre.' } },
   ],
 };

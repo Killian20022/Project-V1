@@ -1,5 +1,6 @@
-// La nourriture & les boissons — 170 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// La nourriture & les boissons — 178 mots.
+// 178 repris du curriculum, 0 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_NOURRITURE: Theme = {
@@ -128,10 +129,10 @@ export const THEME_NOURRITURE: Theme = {
     { w: 'bun', pos: 'n', fr: 'petit pain', cefr: 'B1', also: ['buns'], ex: { en: 'The burger comes with a sesame bun.', fr: 'Le burger est servi avec un petit pain au sésame.' } },
     { w: 'roll', pos: 'n', fr: 'petit pain', cefr: 'B1', also: ['rolls'], ex: { en: 'He bought fresh rolls from the bakery.', fr: 'Il a acheté des petits pains frais à la boulangerie.' } },
     { w: 'noodle', pos: 'n', fr: 'nouille', cefr: 'A2', also: ['noodles'], ex: { en: 'We ordered noodles with vegetables.', fr: 'Nous avons commandé des nouilles avec des légumes.' } },
-    { w: 'shrimp', pos: 'n', fr: 'crevette', cefr: 'B1', also: ['shrimp', 'shrimps'], ex: { en: 'They grilled shrimp for the party.', fr: 'Ils ont grillé des crevettes pour la fête.' } },
+    { w: 'shrimp', pos: 'n', fr: 'crevette', cefr: 'B1', also: ['shrimps'], ex: { en: 'They grilled shrimp for the party.', fr: 'Ils ont grillé des crevettes pour la fête.' } },
     { w: 'prawn', pos: 'n', fr: 'gambas, crevette', cefr: 'B1', also: ['prawns'], ex: { en: 'The prawns were served with garlic butter.', fr: 'Les gambas ont été servies avec du beurre à l’ail.' } },
     { w: 'oyster', pos: 'n', fr: 'huître', cefr: 'B2', also: ['oysters'], ex: { en: 'They ordered a dozen oysters to share.', fr: 'Ils ont commandé une douzaine d’huîtres à partager.' } },
-    { w: 'squid', pos: 'n', fr: 'calmar', cefr: 'B2', also: ['squid', 'squids'], ex: { en: 'The restaurant serves fried squid rings.', fr: 'Le restaurant sert des rondelles de calmar frites.' } },
+    { w: 'squid', pos: 'n', fr: 'calmar', cefr: 'B2', also: ['squids'], ex: { en: 'The restaurant serves fried squid rings.', fr: 'Le restaurant sert des rondelles de calmar frites.' } },
     { w: 'ketchup', pos: 'n', fr: 'ketchup', cefr: 'A2', ex: { en: 'He put ketchup on his fries.', fr: 'Il a mis du ketchup sur ses frites.' } },
     { w: 'mustard', pos: 'n', fr: 'moutarde', cefr: 'B1', ex: { en: 'She spread mustard on the sandwich.', fr: 'Elle a étalé de la moutarde sur le sandwich.' } },
     { w: 'mayonnaise', pos: 'n', fr: 'mayonnaise', cefr: 'B1', ex: { en: 'He mixed mayonnaise into the salad.', fr: 'Il a mélangé de la mayonnaise dans la salade.' } },
@@ -179,5 +180,13 @@ export const THEME_NOURRITURE: Theme = {
     { w: 'pot', pos: 'n', fr: 'casserole', cefr: 'A2', also: ['pots'], ex: { en: 'She cooked rice in a large pot.', fr: 'Elle a cuit du riz dans une grande casserole.' } },
     { w: 'jar', pos: 'n', fr: 'pot (en verre)', cefr: 'A2', also: ['jars'], ex: { en: 'There is only one jar of jam left.', fr: 'Il ne reste qu’un pot de confiture.' } },
     { w: 'can', pos: 'n', fr: 'boîte de conserve', cefr: 'A2', also: ['cans'], ex: { en: 'He opened a can of tomatoes.', fr: 'Il a ouvert une boîte de conserve de tomates.' } },
+    { w: 'hungry', pos: 'adj', fr: 'affamé', cefr: 'A1', ex: { en: 'I\'m hungry, let\'s eat now.', fr: 'J\'ai faim, mangeons maintenant.' } },
+    { w: 'sauce', pos: 'n', fr: 'sauce', cefr: 'A2', also: ['sauces'], ex: { en: 'This pasta needs more tomato sauce.', fr: 'Ces pâtes ont besoin de plus de sauce tomate.' } },
+    { w: 'pepper', pos: 'n', fr: 'poivre', cefr: 'A2', ex: { en: 'Add a pinch of salt and pepper.', fr: 'Ajoutez une pincée de sel et de poivre.' } },
+    { w: 'full', pos: 'adj', fr: 'rassasié', cefr: 'A2', ex: { en: 'No more cake, thanks, I\'m full.', fr: 'Plus de gâteau, merci, je suis rassasié.' } },
+    { w: 'beverage', pos: 'n', fr: 'boisson', cefr: 'B1', also: ['beverages'], ex: { en: 'Hot beverages are served after the meal.', fr: 'Les boissons chaudes sont servies après le repas.' } },
+    { w: 'seasoning', pos: 'n', fr: 'assaisonnement', cefr: 'B1', also: ['seasonings'], ex: { en: 'The soup needs a bit more seasoning.', fr: 'La soupe a besoin d\'un peu plus d\'assaisonnement.' } },
+    { w: 'stew', pos: 'n', fr: 'ragoût', cefr: 'B1', also: ['stews'], ex: { en: 'She cooked a beef stew for dinner.', fr: 'Elle a préparé un ragoût de bœuf pour le dîner.' } },
+    { w: 'cuisine', pos: 'n', fr: 'cuisine (un style culinaire)', cefr: 'B2', ex: { en: 'He specializes in French cuisine.', fr: 'Il est spécialisé dans la cuisine française.' } },
   ],
 };

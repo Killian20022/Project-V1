@@ -1,5 +1,6 @@
-// La politique & les institutions — 141 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// La politique & les institutions — 160 mots.
+// 156 repris du curriculum, 4 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_POLITIQUE: Theme = {
@@ -134,7 +135,7 @@ export const THEME_POLITIQUE: Theme = {
     { w: 'austerity', pos: 'n', fr: 'austérité', cefr: 'B2', ex: { en: 'The government introduced austerity measures last year.', fr: 'Le gouvernement a introduit des mesures d\'austérité l\'année dernière.' } },
     { w: 'privatization', pos: 'n', fr: 'privatisation', cefr: 'B2', also: ['privatisation'], ex: { en: 'The privatization of the railways was controversial.', fr: 'La privatisation des chemins de fer a été controversée.' } },
     { w: 'nationalization', pos: 'n', fr: 'nationalisation', cefr: 'B2', also: ['nationalisation'], ex: { en: 'The nationalization of the banks shocked investors.', fr: 'La nationalisation des banques a choqué les investisseurs.' } },
-    { w: 'cast a vote', pos: 'phr', fr: 'voter, exprimer son vote', cefr: 'B1', also: ['casts a vote', 'cast a vote', 'casting a vote'], ex: { en: 'Millions of citizens cast a vote in the election.', fr: 'Des millions de citoyens ont voté lors de l\'élection.' } },
+    { w: 'cast a vote', pos: 'phr', fr: 'voter, exprimer son vote', cefr: 'B1', also: ['casts a vote', 'casting a vote'], ex: { en: 'Millions of citizens cast a vote in the election.', fr: 'Des millions de citoyens ont voté lors de l\'élection.' } },
     { w: 'abstain', pos: 'v', fr: 's\'abstenir', cefr: 'B2', also: ['abstains', 'abstained', 'abstaining'], ex: { en: 'Twelve members chose to abstain from the vote.', fr: 'Douze membres ont choisi de s\'abstenir lors du vote.' } },
     { w: 'vote of no confidence', pos: 'phr', fr: 'motion de censure', cefr: 'C1', also: ['votes of no confidence'], ex: { en: 'Parliament called for a vote of no confidence in the prime minister.', fr: 'Le Parlement a réclamé une motion de censure contre le premier ministre.' } },
     { w: 'by-election', pos: 'n', fr: 'élection partielle', cefr: 'B2', also: ['by-elections'], ex: { en: 'A by-election was held after the MP resigned.', fr: 'Une élection partielle a eu lieu après la démission du député.' } },
@@ -150,5 +151,24 @@ export const THEME_POLITIQUE: Theme = {
     { w: 'martial law', pos: 'n', fr: 'loi martiale', cefr: 'B2', ex: { en: 'The government declared martial law after the coup.', fr: 'Le gouvernement a déclaré la loi martiale après le coup d\'État.' } },
     { w: 'power vacuum', pos: 'n', fr: 'vide de pouvoir', cefr: 'C1', also: ['power vacuums'], ex: { en: 'The resignation created a dangerous power vacuum.', fr: 'La démission a créé un dangereux vide de pouvoir.' } },
     { w: 'electioneering', pos: 'n', fr: 'propagande électorale', cefr: 'C2', ex: { en: 'Critics accused the minister of shameless electioneering.', fr: 'Les critiques ont accusé le ministre de propagande électorale éhontée.' } },
+    { w: 'political', pos: 'adj', fr: 'politique', cefr: 'A2', ex: { en: 'She has strong political views.', fr: 'Elle a des opinions politiques affirmées.' } },
+    { w: 'speech', pos: 'n', fr: 'discours', cefr: 'A2', also: ['speeches'], ex: { en: 'The president gave a speech on the economy.', fr: 'Le président a prononcé un discours sur l\'économie.' } },
+    { w: 'union', pos: 'n', fr: 'syndicat', cefr: 'B1', also: ['unions'], ex: { en: 'The union called for a strike.', fr: 'Le syndicat a appelé à la grève.' } },
+    { w: 'reform', pos: 'n', fr: 'réforme', cefr: 'B1', also: ['reforms'], ex: { en: 'The government announced a new reform.', fr: 'Le gouvernement a annoncé une nouvelle réforme.' } },
+    { w: 'assembly', pos: 'n', fr: 'assemblée', cefr: 'B2', also: ['assemblies'], ex: { en: 'The national assembly voted on the bill.', fr: 'L\'assemblée nationale a voté le projet de loi.' } },
+    { w: 'representative', pos: 'n', fr: 'représentant', cefr: 'B2', also: ['representatives'], ex: { en: 'A representative from each region attended.', fr: 'Un représentant de chaque région était présent.' } },
+    { w: 'autonomy', pos: 'n', fr: 'autonomie', cefr: 'B2', ex: { en: 'The region was granted greater autonomy.', fr: 'La région s\'est vu accorder une plus grande autonomie.' } },
+    { w: 'civil service', pos: 'n', fr: 'fonction publique', cefr: 'B2', ex: { en: 'He has worked in the civil service for years.', fr: 'Il travaille dans la fonction publique depuis des années.' } },
+    { w: 'constituent', pos: 'n', fr: 'électeur (d\'une circonscription)', cefr: 'B2', also: ['constituents'], ex: { en: 'The MP met with his constituents last week.', fr: 'Le député a rencontré ses électeurs la semaine dernière.' } },
+    { w: 'oversight', pos: 'n', fr: 'surveillance, contrôle', cefr: 'C1', ex: { en: 'The committee provides oversight of government spending.', fr: 'La commission assure le contrôle des dépenses publiques.' } },
+    { w: 'senate', pos: 'n', fr: 'sénat', cefr: 'B2', ex: { en: 'The bill was approved by the senate.', fr: 'Le projet de loi a été approuvé par le sénat.' } },
+    { w: 'chancellor', pos: 'n', fr: 'chancelier', cefr: 'C1', also: ['chancellors'], ex: { en: 'The chancellor presented the new budget.', fr: 'Le chancelier a présenté le nouveau budget.' } },
+    { w: 'partisan', pos: 'adj', fr: 'partisan', cefr: 'C1', ex: { en: 'The debate became increasingly partisan.', fr: 'Le débat est devenu de plus en plus partisan.' } },
+    { w: 'bipartisan', pos: 'adj', fr: 'bipartisan', cefr: 'C1', ex: { en: 'They reached a bipartisan agreement on immigration.', fr: 'Ils sont parvenus à un accord bipartisan sur l\'immigration.' } },
+    { w: 'quorum', pos: 'n', fr: 'quorum', cefr: 'C2', ex: { en: 'The meeting could not proceed without a quorum.', fr: 'La réunion ne pouvait pas se poursuivre sans quorum.' } },
+    { w: 'suffrage', pos: 'n', fr: 'droit de vote', cefr: 'B2', ex: { en: 'Women won universal suffrage in 1944 in France.', fr: 'Les femmes ont obtenu le droit de vote universel en 1944 en France.' } },
+    { w: 'plebiscite', pos: 'n', fr: 'plébiscite', cefr: 'C1', also: ['plebiscites'], ex: { en: 'The president called a plebiscite on the new constitution.', fr: 'Le président a convoqué un plébiscite sur la nouvelle constitution.' } },
+    { w: 'oligarchy', pos: 'n', fr: 'oligarchie', cefr: 'C1', also: ['oligarchies'], ex: { en: 'Critics say the country is ruled by a small oligarchy.', fr: 'Les critiques disent que le pays est dirigé par une petite oligarchie.' } },
+    { w: 'junta', pos: 'n', fr: 'junte', cefr: 'C2', also: ['juntas'], ex: { en: 'The military junta seized power after the coup.', fr: 'La junte militaire a pris le pouvoir après le coup d’État.' } },
   ],
 };

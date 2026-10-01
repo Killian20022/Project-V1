@@ -1,5 +1,6 @@
-// Pays, peuples & langues — 107 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// Pays, peuples & langues — 110 mots.
+// 110 repris du curriculum, 0 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_PAYS: Theme = {
@@ -116,5 +117,8 @@ export const THEME_PAYS: Theme = {
     { w: 'boundary', pos: 'n', fr: 'frontière', cefr: 'B2', also: ['boundaries'], ex: { en: 'The river forms a natural boundary between the two states.', fr: 'La rivière forme une frontière naturelle entre les deux États.' } },
     { w: 'domestic', pos: 'adj', fr: 'national, intérieur', cefr: 'B1', ex: { en: 'Domestic flights are cheaper than international ones.', fr: 'Les vols nationaux sont moins chers que les vols internationaux.' } },
     { w: 'indigenous', pos: 'adj', fr: 'autochtone', cefr: 'C1', ex: { en: 'The government recognised the rights of indigenous peoples.', fr: 'Le gouvernement a reconnu les droits des peuples autochtones.' } },
+    { w: 'worldwide', pos: 'adj', fr: 'mondial', cefr: 'B1', ex: { en: 'The brand has worldwide recognition.', fr: 'La marque bénéficie d\'une reconnaissance mondiale.' } },
+    { w: 'frontier', pos: 'n', fr: 'frontière', cefr: 'B2', also: ['frontiers'], ex: { en: 'The river marks the frontier between the two countries.', fr: 'Le fleuve marque la frontière entre les deux pays.' } },
+    { w: 'motherland', pos: 'n', fr: 'patrie', cefr: 'B2', ex: { en: 'Many soldiers died defending their motherland.', fr: 'De nombreux soldats sont morts en défendant leur patrie.' } },
   ],
 };

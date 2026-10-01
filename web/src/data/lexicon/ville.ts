@@ -1,5 +1,6 @@
-// La ville & les commerces — 114 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// La ville & les commerces — 158 mots.
+// 148 repris du curriculum, 10 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_VILLE: Theme = {
@@ -123,5 +124,49 @@ export const THEME_VILLE: Theme = {
     { w: 'skyline', pos: 'n', fr: 'silhouette urbaine', cefr: 'B1', also: ['skylines'], ex: { en: 'The city skyline looks amazing at sunset.', fr: 'La silhouette urbaine de la ville est magnifique au coucher du soleil.' } },
     { w: 'noise pollution', pos: 'n', fr: 'pollution sonore', cefr: 'B2', ex: { en: 'Noise pollution is a major problem near the airport.', fr: 'La pollution sonore est un problème majeur près de l’aéroport.' } },
     { w: 'one-way street', pos: 'n', fr: 'rue à sens unique', cefr: 'B1', also: ['one-way streets'], ex: { en: 'You can’t turn left, it’s a one-way street.', fr: 'Vous ne pouvez pas tourner à gauche, c’est une rue à sens unique.' } },
+    { w: 'cash register', pos: 'n', fr: 'caisse enregistreuse', cefr: 'A2', also: ['cash registers'], ex: { en: 'The cash register was empty after the robbery.', fr: 'La caisse enregistreuse était vide après le vol.' } },
+    { w: 'chemist', pos: 'n', fr: 'pharmacien, pharmacie', cefr: 'A2', also: ['chemists'], ex: { en: 'I bought some aspirin at the chemist\'s.', fr: 'J\'ai acheté de l\'aspirine à la pharmacie.' } },
+    { w: 'hairdresser', pos: 'n', fr: 'coiffeur, coiffeuse', cefr: 'A1', also: ['hairdressers'], ex: { en: 'She has an appointment at the hairdresser\'s.', fr: 'Elle a rendez-vous chez le coiffeur.' } },
+    { w: 'barber', pos: 'n', fr: 'barbier, coiffeur pour hommes', cefr: 'A2', also: ['barbers'], ex: { en: 'My father goes to the barber every month.', fr: 'Mon père va chez le barbier tous les mois.' } },
+    { w: 'dry cleaner', pos: 'n', fr: 'pressing', cefr: 'B1', also: ['dry cleaners'], ex: { en: 'I need to pick up my suit from the dry cleaner.', fr: 'Je dois récupérer mon costume au pressing.' } },
+    { w: 'launderette', pos: 'n', fr: 'laverie automatique', cefr: 'B1', also: ['launderettes'], ex: { en: 'There\'s a launderette on the corner of the street.', fr: 'Il y a une laverie automatique au coin de la rue.' } },
+    { w: 'high street', pos: 'n', fr: 'rue principale, grand-rue', cefr: 'A2', also: ['high streets'], ex: { en: 'Many shops have closed on the high street.', fr: 'Beaucoup de magasins ont fermé dans la rue principale.' } },
+    { w: 'convenience store', pos: 'n', fr: 'supérette, épicerie de proximité', cefr: 'A2', also: ['convenience stores'], ex: { en: 'I bought milk at the convenience store nearby.', fr: 'J\'ai acheté du lait à la supérette d\'à côté.' } },
+    { w: 'billboard', pos: 'n', fr: 'panneau publicitaire', cefr: 'B1', also: ['billboards'], ex: { en: 'A huge billboard advertised the new phone.', fr: 'Un immense panneau publicitaire vantait le nouveau téléphone.' } },
+    { w: 'neon sign', pos: 'n', fr: 'enseigne lumineuse au néon', cefr: 'B2', also: ['neon signs'], ex: { en: 'The neon sign flashed above the bar entrance.', fr: 'L\'enseigne au néon clignotait au-dessus de l\'entrée du bar.' } },
+    { w: 'business hours', pos: 'n', fr: 'heures d\'ouverture', cefr: 'A2', ex: { en: 'Please call during business hours only.', fr: 'Merci d\'appeler uniquement pendant les heures d\'ouverture.' } },
+    { w: 'taxi rank', pos: 'n', fr: 'station de taxis', cefr: 'A2', also: ['taxi ranks'], ex: { en: 'There\'s a taxi rank outside the station.', fr: 'Il y a une station de taxis devant la gare.' } },
+    { w: 'ticket machine', pos: 'n', fr: 'distributeur de billets (transport)', cefr: 'A2', also: ['ticket machines'], ex: { en: 'You can buy your fare at the ticket machine.', fr: 'Vous pouvez acheter votre billet au distributeur.' } },
+    { w: 'crowded', pos: 'adj', fr: 'bondé', cefr: 'A2', ex: { en: 'The subway is always crowded at rush hour.', fr: 'Le métro est toujours bondé aux heures de pointe.' } },
+    { w: 'noise', pos: 'n', fr: 'bruit', cefr: 'A2', ex: { en: 'The noise from the street kept me awake.', fr: 'Le bruit de la rue m\'a empêché de dormir.' } },
+    { w: 'graffiti', pos: 'n', fr: 'graffiti, tags', cefr: 'B1', ex: { en: 'Someone sprayed graffiti on the wall overnight.', fr: 'Quelqu\'un a tagué le mur pendant la nuit.' } },
+    { w: 'curb', pos: 'n', fr: 'bordure du trottoir', cefr: 'B1', also: ['curbs'], ex: { en: 'The taxi stopped right at the curb.', fr: 'Le taxi s’est arrêté juste à la bordure du trottoir.' } },
+    { w: 'window-shop', pos: 'v', fr: 'faire du lèche-vitrines', cefr: 'B1', also: ['window-shops', 'window-shopped', 'window-shopping'], ex: { en: 'We spent the afternoon window-shopping on Oxford Street.', fr: 'Nous avons passé l’après-midi à faire du lèche-vitrines sur Oxford Street.' } },
+    { w: 'shop sign', pos: 'n', fr: 'enseigne de magasin', cefr: 'A2', also: ['shop signs'], ex: { en: 'The shop sign was lit up at night.', fr: 'L’enseigne du magasin était illuminée la nuit.' } },
+    { w: 'self-checkout', pos: 'n', fr: 'caisse automatique', cefr: 'B2', also: ['self-checkouts'], ex: { en: 'I used the self-checkout to avoid the queue.', fr: 'J’ai utilisé la caisse automatique pour éviter la queue.' } },
+    { w: 'precinct', pos: 'n', fr: 'quartier piétonnier commerçant', cefr: 'B2', also: ['precincts'], ex: { en: 'The shopping precinct was crowded on Saturday.', fr: 'Le quartier piétonnier commerçant était bondé le samedi.' } },
+    { w: 'drugstore', pos: 'n', fr: 'pharmacie-droguerie', cefr: 'A2', also: ['drugstores'], ex: { en: 'I bought some aspirin at the drugstore.', fr: 'J’ai acheté de l’aspirine à la pharmacie-droguerie.' } },
+    { w: 'newsagent', pos: 'n', fr: 'marchand de journaux', cefr: 'B1', also: ['newsagents'], ex: { en: 'He bought a magazine at the newsagent.', fr: 'Il a acheté un magazine chez le marchand de journaux.' } },
+    { w: 'off-licence', pos: 'n', fr: 'magasin de vins et spiritueux', cefr: 'B2', also: ['off-licences'], ex: { en: 'She picked up a bottle of wine at the off-licence.', fr: 'Elle a pris une bouteille de vin au magasin de vins et spiritueux.' } },
+    { w: 'flyover', pos: 'n', fr: 'échangeur routier surélevé', cefr: 'B2', also: ['flyovers'], ex: { en: 'Traffic was heavy under the flyover.', fr: 'La circulation était dense sous l’échangeur routier surélevé.' } },
+    { w: 'street sweeper', pos: 'n', fr: 'balayeur de rue', cefr: 'B2', also: ['street sweepers'], ex: { en: 'The street sweeper cleaned the square early in the morning.', fr: 'Le balayeur de rue a nettoyé la place tôt le matin.' } },
+    { w: 'jaywalk', pos: 'v', fr: 'traverser hors des clous', cefr: 'B2', also: ['jaywalks', 'jaywalked', 'jaywalking'], ex: { en: 'He was fined for jaywalking across the avenue.', fr: 'Il a été verbalisé pour avoir traversé l’avenue hors des clous.' } },
+    { w: 'panhandler', pos: 'n', fr: 'mendiant', cefr: 'C1', also: ['panhandlers'], ex: { en: 'A panhandler asked for change near the subway entrance.', fr: 'Un mendiant a demandé de la monnaie près de l’entrée du métro.' } },
+    { w: 'tout', pos: 'n', fr: 'revendeur de billets au marché noir', cefr: 'C2', also: ['touts'], ex: { en: 'A tout offered us tickets outside the stadium.', fr: 'Un revendeur de billets au marché noir nous a proposé des places devant le stade.' } },
+    { w: 'storekeeper', pos: 'n', fr: 'commerçant, tenancier de magasin', cefr: 'B1', also: ['storekeepers'], ex: { en: 'The storekeeper greeted every customer by name.', fr: 'Le commerçant saluait chaque client par son nom.' } },
+    { w: 'town centre', pos: 'n', fr: 'centre-ville', cefr: 'A2', also: ['town centres'], ex: { en: 'The market is held in the town centre every Friday.', fr: 'Le marché a lieu dans le centre-ville tous les vendredis.' } },
+    { w: 'suburbia', pos: 'n', fr: 'la banlieue', cefr: 'B2', ex: { en: 'They moved from the city to suburbia.', fr: 'Ils ont quitté la ville pour la banlieue.' } },
+    { w: 'gentrify', pos: 'v', fr: 'embourgeoiser (un quartier)', cefr: 'C1', also: ['gentrifies', 'gentrified', 'gentrifying'], ex: { en: 'The old docks have been gentrified over the last decade.', fr: 'Les anciens docks ont été embourgeoisés au cours de la dernière décennie.' } },
+    { w: 'arcade', pos: 'n', fr: 'galerie marchande', cefr: 'B1', also: ['arcades'], ex: { en: 'We sheltered from the rain in the shopping arcade.', fr: 'Nous nous sommes abrités de la pluie dans la galerie marchande.' } },
+    { w: 'streetlight', pos: 'n', fr: 'réverbère', cefr: 'A2', also: ['streetlights'], ex: { en: 'The streetlight outside our house flickers at night.', fr: 'Le réverbère devant chez nous clignote la nuit.' } },
+    { w: 'footpath', pos: 'n', fr: 'sentier piétonnier', cefr: 'A2', also: ['footpaths'], ex: { en: 'A footpath runs along the river through the park.', fr: 'Un sentier piétonnier longe la rivière à travers le parc.' } },
+    { w: 'plaza', pos: 'n', fr: 'place', cefr: 'B1', also: ['plazas'], ex: { en: 'Tourists gather in the plaza to take photos.', fr: 'Les touristes se rassemblent sur la place pour prendre des photos.' } },
+    { w: 'high-rise', pos: 'n', fr: 'tour (immeuble)', cefr: 'B1', also: ['high-rises'], ex: { en: 'They live on the top floor of a high-rise.', fr: 'Ils habitent au dernier étage d’une tour.' } },
+    { w: 'urban', pos: 'adj', fr: 'urbain', cefr: 'B1', ex: { en: 'Urban areas are growing faster than rural ones.', fr: 'Les zones urbaines croissent plus vite que les zones rurales.' } },
+    { w: 'promenade', pos: 'n', fr: 'promenade (bord de mer)', cefr: 'B2', also: ['promenades'], ex: { en: 'We walked along the promenade at sunset.', fr: 'Nous avons marché le long de la promenade au coucher du soleil.' } },
+    { w: 'civic', pos: 'adj', fr: 'civique', cefr: 'B2', ex: { en: 'The new civic center hosts local council meetings.', fr: 'Le nouveau centre civique accueille les réunions du conseil municipal.' } },
+    { w: 'metropolis', pos: 'n', fr: 'métropole', cefr: 'B2', also: ['metropolises'], ex: { en: 'Tokyo is one of the world\'s busiest metropolises.', fr: 'Tokyo est l’une des métropoles les plus animées du monde.' } },
+    { w: 'tenement', pos: 'n', fr: 'immeuble vétuste (logements populaires)', cefr: 'C1', also: ['tenements'], ex: { en: 'The family lived in a crowded tenement downtown.', fr: 'La famille vivait dans un immeuble vétuste surpeuplé du centre-ville.' } },
+    { w: 'thoroughfare', pos: 'n', fr: 'voie de passage, artère', cefr: 'C2', also: ['thoroughfares'], ex: { en: 'This avenue is a major thoroughfare through the city.', fr: 'Cette avenue est une artère majeure de la ville.' } },
   ],
 };

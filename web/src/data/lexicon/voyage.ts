@@ -1,5 +1,6 @@
-// Les voyages & les transports — 157 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// Les voyages & les transports — 180 mots.
+// 179 repris du curriculum, 1 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_VOYAGE: Theme = {
@@ -161,10 +162,33 @@ export const THEME_VOYAGE: Theme = {
     { w: 'stand-by', pos: 'adj', fr: 'en attente, sans réservation confirmée', cefr: 'B2', ex: { en: 'They got a stand-by ticket for the next flight.', fr: 'Ils ont eu un billet en attente pour le vol suivant.' } },
     { w: 'hop on', pos: 'phr', fr: 'monter (rapidement) à bord', cefr: 'B1', also: ['hops on', 'hopped on', 'hopping on'], ex: { en: 'Just hop on the next bus.', fr: 'Monte simplement dans le prochain bus.' } },
     { w: 'get off', pos: 'phr', fr: 'descendre (d’un véhicule)', cefr: 'A2', also: ['gets off', 'got off', 'getting off'], ex: { en: 'We need to get off at the next stop.', fr: 'Nous devons descendre au prochain arrêt.' } },
-    { w: 'set off', pos: 'phr', fr: 'se mettre en route', cefr: 'B1', also: ['sets off', 'set off', 'setting off'], ex: { en: 'We set off early to avoid traffic.', fr: 'Nous nous sommes mis en route tôt pour éviter les embouteillages.' } },
+    { w: 'set off', pos: 'phr', fr: 'se mettre en route', cefr: 'B1', also: ['sets off', 'setting off'], ex: { en: 'We set off early to avoid traffic.', fr: 'Nous nous sommes mis en route tôt pour éviter les embouteillages.' } },
     { w: 'pack a bag', pos: 'phr', fr: 'faire sa valise', cefr: 'A2', also: ['packs a bag', 'packed a bag', 'packing a bag'], ex: { en: 'She packed a bag for the weekend trip.', fr: 'Elle a fait sa valise pour le week-end.' } },
     { w: 'disembark', pos: 'v', fr: 'débarquer', cefr: 'C1', also: ['disembarks', 'disembarked', 'disembarking'], ex: { en: 'Passengers began to disembark from the ship.', fr: 'Les passagers ont commencé à débarquer du navire.' } },
     { w: 'embark', pos: 'v', fr: 'embarquer', cefr: 'C1', also: ['embarks', 'embarked', 'embarking'], ex: { en: 'We embarked at dawn for the crossing.', fr: 'Nous avons embarqué à l’aube pour la traversée.' } },
     { w: 'road trip', pos: 'n', fr: 'voyage en voiture', cefr: 'A2', also: ['road trips'], ex: { en: 'We went on a road trip along the coast.', fr: 'Nous avons fait un voyage en voiture le long de la côte.' } },
+    { w: 'ride', pos: 'n', fr: 'trajet, balade', cefr: 'A1', also: ['rides'], ex: { en: 'We took a bus ride to the coast.', fr: 'Nous avons fait un trajet en bus jusqu\'à la côte.' } },
+    { w: 'tent', pos: 'n', fr: 'tente', cefr: 'A1', also: ['tents'], ex: { en: 'They set up the tent near the lake.', fr: 'Ils ont monté la tente près du lac.' } },
+    { w: 'camping', pos: 'n', fr: 'camping (l\'activité)', cefr: 'A1', ex: { en: 'We go camping every summer.', fr: 'Nous faisons du camping chaque été.' } },
+    { w: 'motorbike', pos: 'n', fr: 'moto', cefr: 'A1', also: ['motorbikes'], ex: { en: 'He travels to work on his motorbike.', fr: 'Il va au travail en moto.' } },
+    { w: 'cab', pos: 'n', fr: 'taxi', cefr: 'A2', also: ['cabs'], ex: { en: 'We took a cab to the airport.', fr: 'Nous avons pris un taxi pour l\'aéroport.' } },
+    { w: 'caravan', pos: 'n', fr: 'caravane', cefr: 'A2', also: ['caravans'], ex: { en: 'They spent the holidays in a caravan.', fr: 'Ils ont passé les vacances dans une caravane.' } },
+    { w: 'canoe', pos: 'n', fr: 'canoë', cefr: 'A2', also: ['canoes'], ex: { en: 'We paddled the canoe across the river.', fr: 'Nous avons traversé la rivière en canoë.' } },
+    { w: 'trunk', pos: 'n', fr: 'coffre (de voiture)', cefr: 'A2', also: ['trunks'], ex: { en: 'Put the suitcases in the trunk.', fr: 'Mets les valises dans le coffre.' } },
+    { w: 'transit', pos: 'n', fr: 'transit', cefr: 'B1', ex: { en: 'The passengers were in transit at Dubai airport.', fr: 'Les passagers étaient en transit à l\'aéroport de Dubaï.' } },
+    { w: 'container', pos: 'n', fr: 'conteneur', cefr: 'B1', also: ['containers'], ex: { en: 'The ship was loaded with shipping containers.', fr: 'Le navire était chargé de conteneurs.' } },
+    { w: 'pier', pos: 'n', fr: 'jetée, embarcadère', cefr: 'B1', also: ['piers'], ex: { en: 'The ferry departs from the pier every hour.', fr: 'Le ferry part de la jetée toutes les heures.' } },
+    { w: 'mileage', pos: 'n', fr: 'kilométrage', cefr: 'B1', ex: { en: 'The car has low mileage for its age.', fr: 'La voiture a un faible kilométrage pour son âge.' } },
+    { w: 'dashboard', pos: 'n', fr: 'tableau de bord', cefr: 'B1', also: ['dashboards'], ex: { en: 'A warning light appeared on the dashboard.', fr: 'Un voyant s\'est allumé sur le tableau de bord.' } },
+    { w: 'windscreen', pos: 'n', fr: 'pare-brise', cefr: 'B1', also: ['windscreens'], ex: { en: 'A stone cracked the windscreen on the motorway.', fr: 'Un caillou a fissuré le pare-brise sur l\'autoroute.' } },
+    { w: 'bumper', pos: 'n', fr: 'pare-chocs', cefr: 'B1', also: ['bumpers'], ex: { en: 'The rear bumper was damaged in the accident.', fr: 'Le pare-chocs arrière a été endommagé dans l\'accident.' } },
+    { w: 'trek', pos: 'n', fr: 'randonnée, trek', cefr: 'B1', also: ['treks'], ex: { en: 'They went on a trek through the mountains.', fr: 'Ils ont fait un trek à travers les montagnes.' } },
+    { w: 'freight', pos: 'n', fr: 'fret', cefr: 'B2', ex: { en: 'The goods are transported by rail freight.', fr: 'Les marchandises sont transportées par fret ferroviaire.' } },
+    { w: 'shipment', pos: 'n', fr: 'expédition, cargaison', cefr: 'B2', also: ['shipments'], ex: { en: 'The shipment arrived two days late.', fr: 'L\'expédition est arrivée avec deux jours de retard.' } },
+    { w: 'pothole', pos: 'n', fr: 'nid-de-poule', cefr: 'B2', also: ['potholes'], ex: { en: 'The road is full of potholes after winter.', fr: 'La route est pleine de nids-de-poule après l\'hiver.' } },
+    { w: 'legroom', pos: 'n', fr: 'espace pour les jambes', cefr: 'B2', ex: { en: 'This seat has more legroom than the others.', fr: 'Ce siège offre plus d\'espace pour les jambes que les autres.' } },
+    { w: 'kayak', pos: 'n', fr: 'kayak', cefr: 'B2', also: ['kayaks'], ex: { en: 'She paddled her kayak along the coastline.', fr: 'Elle a pagayé en kayak le long de la côte.' } },
+    { w: 'viaduct', pos: 'n', fr: 'viaduc', cefr: 'C1', also: ['viaducts'], ex: { en: 'The train crossed the valley on a tall viaduct.', fr: 'Le train a traversé la vallée sur un haut viaduc.' } },
+    { w: 'stowaway', pos: 'n', fr: 'passager clandestin', cefr: 'C1', also: ['stowaways'], ex: { en: 'The crew found a stowaway hidden in the cargo hold.', fr: 'L\'équipage a découvert un passager clandestin caché dans la cale.' } },
   ],
 };

@@ -1,5 +1,6 @@
-// L’argent, la banque & les impôts — 134 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// L’argent, la banque & les impôts — 168 mots.
+// 167 repris du curriculum, 1 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_ARGENT: Theme = {
@@ -143,5 +144,39 @@ export const THEME_ARGENT: Theme = {
     { w: 'windfall', pos: 'n', fr: 'gain inattendu', cefr: 'C2', also: ['windfalls'], ex: { en: 'The inheritance was a welcome windfall.', fr: 'L\'héritage a été un gain inattendu bienvenu.' } },
     { w: 'nest egg', pos: 'n', fr: 'pécule', cefr: 'C2', also: ['nest eggs'], ex: { en: 'They saved a nest egg for retirement.', fr: 'Ils ont mis de côté un pécule pour la retraite.' } },
     { w: 'piggy bank', pos: 'n', fr: 'tirelire', cefr: 'A2', also: ['piggy banks'], ex: { en: 'The child put coins in her piggy bank.', fr: 'L\'enfant a mis des pièces dans sa tirelire.' } },
+    { w: 'dollar', pos: 'n', fr: 'dollar', cefr: 'A1', also: ['dollars'], ex: { en: 'The ticket costs ten dollars.', fr: 'Le billet coûte dix dollars.' } },
+    { w: 'euro', pos: 'n', fr: 'euro', cefr: 'A1', also: ['euros'], ex: { en: 'She paid twenty euros for the book.', fr: 'Elle a payé vingt euros pour le livre.' } },
+    { w: 'rich', pos: 'adj', fr: 'riche', cefr: 'A1', ex: { en: 'Her uncle is very rich.', fr: 'Son oncle est très riche.' } },
+    { w: 'poor', pos: 'adj', fr: 'pauvre', cefr: 'A1', ex: { en: 'The family was very poor.', fr: 'La famille était très pauvre.' } },
+    { w: 'cent', pos: 'n', fr: 'centime', cefr: 'A2', also: ['cents'], ex: { en: 'The coin is worth fifty cents.', fr: 'La pièce vaut cinquante centimes.' } },
+    { w: 'penny', pos: 'n', fr: 'penny', cefr: 'A2', also: ['pennies', 'pence'], ex: { en: 'I found a penny on the ground.', fr: 'J’ai trouvé un penny par terre.' } },
+    { w: 'banknote', pos: 'n', fr: 'billet de banque', cefr: 'A2', also: ['banknotes'], ex: { en: 'The cashier checked the banknote carefully.', fr: 'La caissière a vérifié le billet de banque avec soin.' } },
+    { w: 'wealthy', pos: 'adj', fr: 'fortuné', cefr: 'B1', ex: { en: 'He comes from a wealthy family.', fr: 'Il vient d’une famille fortunée.' } },
+    { w: 'paycheck', pos: 'n', fr: 'salaire (le chèque de paie)', cefr: 'B1', also: ['paychecks'], ex: { en: 'She spends half her paycheck on rent.', fr: 'Elle dépense la moitié de son salaire en loyer.' } },
+    { w: 'payslip', pos: 'n', fr: 'bulletin de salaire', cefr: 'B1', also: ['payslips'], ex: { en: 'Check your payslip for any errors.', fr: 'Vérifiez votre bulletin de salaire pour détecter d’éventuelles erreurs.' } },
+    { w: 'spare change', pos: 'n', fr: 'petite monnaie', cefr: 'B1', ex: { en: 'Do you have any spare change for the bus?', fr: 'Tu as de la petite monnaie pour le bus ?' } },
+    { w: 'joint account', pos: 'n', fr: 'compte joint', cefr: 'B1', also: ['joint accounts'], ex: { en: 'They opened a joint account after the wedding.', fr: 'Ils ont ouvert un compte joint après le mariage.' } },
+    { w: 'teller', pos: 'n', fr: 'guichetier', cefr: 'B1', also: ['tellers'], ex: { en: 'The teller counted the cash twice.', fr: 'Le guichetier a compté l’argent deux fois.' } },
+    { w: 'estimate', pos: 'n', fr: 'devis', cefr: 'B1', also: ['estimates'], ex: { en: 'The plumber gave us a rough estimate.', fr: 'Le plombier nous a donné un devis approximatif.' } },
+    { w: 'cashback', pos: 'n', fr: 'remise en argent', cefr: 'B1', ex: { en: 'This card offers two percent cashback.', fr: 'Cette carte offre deux pour cent de remise en argent.' } },
+    { w: 'overcharge', pos: 'v', fr: 'surfacturer', cefr: 'B1', also: ['overcharges', 'overcharged', 'overcharging'], ex: { en: 'The mechanic overcharged us for the repair.', fr: 'Le mécanicien nous a surfacturé la réparation.' } },
+    { w: 'petty cash', pos: 'n', fr: 'petite caisse', cefr: 'B2', ex: { en: 'Use the petty cash for small office expenses.', fr: 'Utilisez la petite caisse pour les petites dépenses du bureau.' } },
+    { w: 'bookkeeping', pos: 'n', fr: 'comptabilité', cefr: 'B2', ex: { en: 'She handles the bookkeeping for small businesses.', fr: 'Elle s’occupe de la comptabilité de petites entreprises.' } },
+    { w: 'ledger', pos: 'n', fr: 'grand livre', cefr: 'B2', also: ['ledgers'], ex: { en: 'All transactions are recorded in the ledger.', fr: 'Toutes les transactions sont consignées dans le grand livre.' } },
+    { w: 'vault', pos: 'n', fr: 'coffre-fort', cefr: 'B2', also: ['vaults'], ex: { en: 'The gold is stored in a bank vault.', fr: 'L’or est conservé dans un coffre-fort de banque.' } },
+    { w: 'money order', pos: 'n', fr: 'mandat postal', cefr: 'B2', also: ['money orders'], ex: { en: 'He sent a money order to pay the rent.', fr: 'Il a envoyé un mandat postal pour payer le loyer.' } },
+    { w: 'direct deposit', pos: 'n', fr: 'virement automatique', cefr: 'B2', ex: { en: 'Her salary arrives by direct deposit.', fr: 'Son salaire arrive par virement automatique.' } },
+    { w: 'surplus', pos: 'n', fr: 'excédent', cefr: 'B2', also: ['surpluses'], ex: { en: 'The budget showed a small surplus this year.', fr: 'Le budget affichait un léger excédent cette année.' } },
+    { w: 'deficit', pos: 'n', fr: 'déficit', cefr: 'B2', also: ['deficits'], ex: { en: 'The government is trying to reduce the budget deficit.', fr: 'Le gouvernement essaie de réduire le déficit budgétaire.' } },
+    { w: 'trust fund', pos: 'n', fr: 'fonds fiduciaire', cefr: 'B2', also: ['trust funds'], ex: { en: 'She inherited money from a family trust fund.', fr: 'Elle a hérité d’argent d’un fonds fiduciaire familial.' } },
+    { w: 'overdrawn', pos: 'adj', fr: 'à découvert', cefr: 'B2', ex: { en: 'My account is overdrawn by two hundred euros.', fr: 'Mon compte est à découvert de deux cents euros.' } },
+    { w: 'black market', pos: 'n', fr: 'marché noir', cefr: 'B2', also: ['black markets'], ex: { en: 'Foreign currency is often traded on the black market.', fr: 'Les devises étrangères s’échangent souvent au marché noir.' } },
+    { w: 'remittance', pos: 'n', fr: 'transfert de fonds', cefr: 'C1', also: ['remittances'], ex: { en: 'Migrant workers send remittances to their families.', fr: 'Les travailleurs migrants envoient des transferts de fonds à leur famille.' } },
+    { w: 'solvent', pos: 'adj', fr: 'solvable', cefr: 'C1', ex: { en: 'The company remains solvent despite falling sales.', fr: 'L’entreprise reste solvable malgré la baisse des ventes.' } },
+    { w: 'insolvent', pos: 'adj', fr: 'insolvable', cefr: 'C1', ex: { en: 'The firm was declared insolvent last month.', fr: 'L’entreprise a été déclarée insolvable le mois dernier.' } },
+    { w: 'default', pos: 'v', fr: 'faire défaut (sur un paiement)', cefr: 'C1', also: ['defaults', 'defaulted', 'defaulting'], ex: { en: 'The country defaulted on its foreign debt.', fr: 'Le pays a fait défaut sur sa dette extérieure.' } },
+    { w: 'guarantor', pos: 'n', fr: 'garant', cefr: 'C1', also: ['guarantors'], ex: { en: 'You will need a guarantor to sign the lease.', fr: 'Il vous faudra un garant pour signer le bail.' } },
+    { w: 'treasury', pos: 'n', fr: 'trésor public', cefr: 'C1', ex: { en: 'The funds were transferred directly to the treasury.', fr: 'Les fonds ont été transférés directement au trésor public.' } },
+    { w: 'credit score', pos: 'n', fr: 'cote de crédit', cefr: 'B2', also: ['credit scores'], ex: { en: 'A low credit score made the loan harder to get.', fr: 'Une cote de crédit faible a rendu le prêt plus difficile à obtenir.' } },
   ],
 };

@@ -1,5 +1,6 @@
-// Candidature & entretien — 92 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// Candidature & entretien — 108 mots.
+// 93 repris du curriculum, 15 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_ENTRETIEN: Theme = {
@@ -101,5 +102,21 @@ export const THEME_ENTRETIEN: Theme = {
     { w: 'turn down', pos: 'phr', fr: 'refuser', cefr: 'B1', also: ['turns down', 'turned down', 'turning down'], ex: { en: 'She turned down the offer to stay with her current employer.', fr: 'Elle a refusé l\'offre pour rester chez son employeur actuel.' } },
     { w: 'headhunt', pos: 'v', fr: 'débaucher', cefr: 'C1', also: ['headhunts', 'headhunted', 'headhunting'], ex: { en: 'She was headhunted by a rival company.', fr: 'Elle a été débauchée par une entreprise concurrente.' } },
     { w: 'vetting', pos: 'n', fr: 'vérification des antécédents', cefr: 'C2', ex: { en: 'All new employees go through strict vetting.', fr: 'Tous les nouveaux employés passent par une vérification stricte des antécédents.' } },
+    { w: 'intern', pos: 'n', fr: 'stagiaire', cefr: 'B1', also: ['interns'], ex: { en: 'She worked as an intern last summer.', fr: 'Elle a travaillé comme stagiaire l\'été dernier.' } },
+    { w: 'career fair', pos: 'n', fr: 'forum de l\'emploi', cefr: 'A2', also: ['career fairs'], ex: { en: 'She met several recruiters at the career fair.', fr: 'Elle a rencontré plusieurs recruteurs au forum de l\'emploi.' } },
+    { w: 'job fair', pos: 'n', fr: 'salon de l\'emploi', cefr: 'A2', also: ['job fairs'], ex: { en: 'The university organizes a job fair every spring.', fr: 'L\'université organise un salon de l\'emploi chaque printemps.' } },
+    { w: 'hiring manager', pos: 'n', fr: 'responsable du recrutement', cefr: 'B1', also: ['hiring managers'], ex: { en: 'The hiring manager asked about her previous role.', fr: 'Le responsable du recrutement a posé des questions sur son poste précédent.' } },
+    { w: 'entry-level', pos: 'adj', fr: 'débutant, de premier échelon', cefr: 'B1', ex: { en: 'This is an entry-level position with full training.', fr: 'Il s\'agit d\'un poste pour débutant avec une formation complète.' } },
+    { w: 'soft skills', pos: 'n', fr: 'compétences comportementales', cefr: 'B1', ex: { en: 'Communication is one of the key soft skills employers want.', fr: 'La communication est une des principales compétences comportementales recherchées par les employeurs.' } },
+    { w: 'acceptance letter', pos: 'n', fr: 'lettre d\'acceptation', cefr: 'B1', also: ['acceptance letters'], ex: { en: 'He signed the acceptance letter and sent it back.', fr: 'Il a signé la lettre d\'acceptation et l\'a renvoyée.' } },
+    { w: 'rejection letter', pos: 'n', fr: 'lettre de refus', cefr: 'B1', also: ['rejection letters'], ex: { en: 'She received a rejection letter two weeks later.', fr: 'Elle a reçu une lettre de refus deux semaines plus tard.' } },
+    { w: 'application deadline', pos: 'n', fr: 'date limite de candidature', cefr: 'B1', also: ['application deadlines'], ex: { en: 'The application deadline is next Friday.', fr: 'La date limite de candidature est vendredi prochain.' } },
+    { w: 'hard skills', pos: 'n', fr: 'compétences techniques', cefr: 'B2', ex: { en: 'The job requires specific hard skills like coding.', fr: 'Le poste exige des compétences techniques spécifiques comme la programmation.' } },
+    { w: 'overqualified', pos: 'adj', fr: 'surqualifié', cefr: 'B2', ex: { en: 'They felt he was overqualified for the junior role.', fr: 'Ils ont estimé qu\'il était surqualifié pour ce poste junior.' } },
+    { w: 'underqualified', pos: 'adj', fr: 'sous-qualifié', cefr: 'B2', ex: { en: 'She was rejected for being underqualified for the role.', fr: 'Elle a été refusée car elle était sous-qualifiée pour le poste.' } },
+    { w: 'mock interview', pos: 'n', fr: 'entretien simulé', cefr: 'B2', also: ['mock interviews'], ex: { en: 'The career center offers free mock interviews.', fr: 'Le centre d\'orientation propose des entretiens simulés gratuits.' } },
+    { w: 'offer letter', pos: 'n', fr: 'lettre d\'offre d\'emploi', cefr: 'B2', also: ['offer letters'], ex: { en: 'The offer letter included salary and benefits details.', fr: 'La lettre d\'offre d\'emploi précisait le salaire et les avantages.' } },
+    { w: 'sign-on bonus', pos: 'n', fr: 'prime d\'embauche', cefr: 'C1', also: ['sign-on bonuses'], ex: { en: 'The company offered a generous sign-on bonus.', fr: 'L\'entreprise a proposé une prime d\'embauche généreuse.' } },
+    { w: 'relocation package', pos: 'n', fr: 'indemnité de déménagement', cefr: 'C1', also: ['relocation packages'], ex: { en: 'The relocation package covers moving costs and housing.', fr: 'L\'indemnité de déménagement couvre les frais de transport et le logement.' } },
   ],
 };

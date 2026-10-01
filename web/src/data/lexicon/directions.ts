@@ -1,5 +1,6 @@
-// S’orienter & demander son chemin — 79 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// S’orienter & demander son chemin — 89 mots.
+// 88 repris du curriculum, 1 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_DIRECTIONS: Theme = {
@@ -50,7 +51,7 @@ export const THEME_DIRECTIONS: Theme = {
     { w: 'go back', pos: 'phr', fr: 'retourner, revenir en arrière', cefr: 'A2', also: ['goes back', 'went back', 'gone back'], ex: { en: 'We need to go back the way we came.', fr: 'Nous devons retourner par où nous sommes venus.' } },
     { w: 'go up', pos: 'phr', fr: 'monter', cefr: 'A2', also: ['goes up', 'went up', 'gone up'], ex: { en: 'Go up this road to the top of the hill.', fr: 'Montez cette route jusqu’en haut de la colline.' } },
     { w: 'go down', pos: 'phr', fr: 'descendre', cefr: 'A2', also: ['goes down', 'went down', 'gone down'], ex: { en: 'Go down the stairs and turn left.', fr: 'Descendez les escaliers et tournez à gauche.' } },
-    { w: 'come back', pos: 'phr', fr: 'revenir', cefr: 'A2', also: ['comes back', 'came back', 'come back'], ex: { en: 'Come back to this corner if you get lost.', fr: 'Revenez à ce coin de rue si vous vous perdez.' } },
+    { w: 'come back', pos: 'phr', fr: 'revenir', cefr: 'A2', also: ['comes back', 'came back'], ex: { en: 'Come back to this corner if you get lost.', fr: 'Revenez à ce coin de rue si vous vous perdez.' } },
     { w: 'get to', pos: 'phr', fr: 'arriver à, rejoindre', cefr: 'A2', also: ['gets to', 'got to', 'gotten to'], ex: { en: 'How do I get to the train station?', fr: 'Comment est-ce que je peux rejoindre la gare ?' } },
     { w: 'reach', pos: 'v', fr: 'atteindre', cefr: 'B1', also: ['reaches', 'reached', 'reaching'], ex: { en: 'We finally reached the hotel at midnight.', fr: 'Nous avons finalement atteint l’hôtel à minuit.' } },
     { w: 'arrive', pos: 'v', fr: 'arriver', cefr: 'A1', also: ['arrives', 'arrived', 'arriving'], ex: { en: 'The bus arrives at nine o\'clock.', fr: 'Le bus arrive à neuf heures.' } },
@@ -88,5 +89,15 @@ export const THEME_DIRECTIONS: Theme = {
     { w: 'stop sign', pos: 'n', fr: 'panneau stop', cefr: 'A2', also: ['stop signs'], ex: { en: 'Stop completely at the stop sign.', fr: 'Arrêtez-vous complètement au panneau stop.' } },
     { w: 'GPS', pos: 'n', fr: 'GPS', cefr: 'B1', ex: { en: 'My GPS said to turn left ahead.', fr: 'Mon GPS a dit de tourner à gauche plus loin.' } },
     { w: 'wander', pos: 'v', fr: 'errer', cefr: 'B2', also: ['wanders', 'wandered', 'wandering'], ex: { en: 'We wandered around the old town for hours.', fr: 'Nous avons erré dans la vieille ville pendant des heures.' } },
+    { w: 'ahead', pos: 'adv', fr: 'devant, droit devant', cefr: 'A1', ex: { en: 'The station is just ahead.', fr: 'La gare est juste devant.' } },
+    { w: 'nearby', pos: 'adj', fr: 'proche, à proximité', cefr: 'A2', ex: { en: 'There is a parking lot nearby.', fr: 'Il y a un parking à proximité.' } },
+    { w: 'get lost', pos: 'phr', fr: 'se perdre', cefr: 'A2', also: ['gets lost', 'got lost', 'getting lost'], ex: { en: 'We got lost on the way to the hotel.', fr: 'Nous nous sommes perdus en allant à l’hôtel.' } },
+    { w: 'wrong way', pos: 'n', fr: 'mauvais sens, mauvaise direction', cefr: 'B1', ex: { en: 'You’re going the wrong way, it’s behind you.', fr: 'Vous allez dans le mauvais sens, c’est derrière vous.' } },
+    { w: 'turn around', pos: 'phr', fr: 'faire demi-tour', cefr: 'B1', also: ['turns around', 'turned around', 'turning around'], ex: { en: 'Turn around at the next intersection.', fr: 'Faites demi-tour au prochain carrefour.' } },
+    { w: 'head towards', pos: 'phr', fr: 'se diriger vers', cefr: 'B1', also: ['heads towards', 'headed towards', 'heading towards'], ex: { en: 'Head towards the church and turn left.', fr: 'Dirigez-vous vers l’église et tournez à gauche.' } },
+    { w: 'veer', pos: 'v', fr: 'obliquer', cefr: 'B2', also: ['veers', 'veered', 'veering'], ex: { en: 'The path veers left after the bridge.', fr: 'Le chemin oblique à gauche après le pont.' } },
+    { w: 'orientation', pos: 'n', fr: 'orientation', cefr: 'B2', ex: { en: 'Good orientation skills help you find your way.', fr: 'Un bon sens de l’orientation aide à trouver son chemin.' } },
+    { w: 'wayfinding', pos: 'n', fr: 'orientation spatiale (dans un lieu)', cefr: 'C2', ex: { en: 'The museum improved its wayfinding system last year.', fr: 'Le musée a amélioré son système d’orientation spatiale l’an dernier.' } },
+    { w: 'bend', pos: 'n', fr: 'virage', cefr: 'A2', also: ['bends'], ex: { en: 'Slow down, there\'s a sharp bend ahead.', fr: 'Ralentissez, il y a un virage serré devant.' } },
   ],
 };

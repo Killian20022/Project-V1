@@ -1,5 +1,6 @@
-// Les médias & l’information — 158 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// Les médias & l’information — 160 mots.
+// 158 repris du curriculum, 2 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_MEDIAS: Theme = {
@@ -167,5 +168,7 @@ export const THEME_MEDIAS: Theme = {
     { w: 'defamation', pos: 'n', fr: 'diffamation', cefr: 'C1', ex: { en: 'The newspaper faced a defamation lawsuit over the article.', fr: 'Le journal a fait face à un procès en diffamation à cause de l\'article.' } },
     { w: 'libel', pos: 'n', fr: 'diffamation écrite', cefr: 'C1', ex: { en: 'The magazine was sued for libel after publishing false claims.', fr: 'Le magazine a été poursuivi pour diffamation écrite après avoir publié des affirmations fausses.' } },
     { w: 'slander', pos: 'n', fr: 'diffamation orale', cefr: 'C1', ex: { en: 'He accused the broadcaster of slander during the interview.', fr: 'Il a accusé le diffuseur de diffamation orale pendant l\'interview.' } },
+    { w: 'hoax', pos: 'n', fr: 'canular', cefr: 'B2', also: ['hoaxes'], ex: { en: 'The bomb scare turned out to be a hoax.', fr: 'L\'alerte à la bombe s\'est révélée être un canular.' } },
+    { w: 'misinformation', pos: 'n', fr: 'désinformation', cefr: 'B2', ex: { en: 'The article warned about misinformation spreading online.', fr: 'L\'article alertait sur la désinformation qui se propage en ligne.' } },
   ],
 };

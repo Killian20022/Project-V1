@@ -1,5 +1,6 @@
-// Le caractère & la personnalité — 130 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// Le caractère & la personnalité — 140 mots.
+// 140 repris du curriculum, 0 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_CARACTERE: Theme = {
@@ -139,5 +140,15 @@ export const THEME_CARACTERE: Theme = {
     { w: 'warm-hearted', pos: 'adj', fr: 'chaleureux, généreux', cefr: 'B2', ex: { en: 'She\'s a warm-hearted person who always helps others.', fr: 'C’est une personne chaleureuse qui aide toujours les autres.' } },
     { w: 'self-centred', pos: 'adj', fr: 'égocentrique', cefr: 'C1', also: ['self-centered'], ex: { en: 'He\'s too self-centred to notice other people\'s feelings.', fr: 'Il est trop égocentrique pour remarquer les sentiments des autres.' } },
     { w: 'down-to-earth', pos: 'adj', fr: 'terre-à-terre, simple et pratique', cefr: 'B2', ex: { en: 'Despite her success, she remains very down-to-earth.', fr: 'Malgré son succès, elle reste très terre-à-terre.' } },
+    { w: 'clever', pos: 'adj', fr: 'intelligent, malin', cefr: 'A2', ex: { en: 'She\'s clever enough to solve it herself.', fr: 'Elle est assez intelligente pour le résoudre elle-même.' } },
+    { w: 'silly', pos: 'adj', fr: 'idiot, bête', cefr: 'A2', ex: { en: 'It was silly of me to forget the keys.', fr: 'C\'était bête de ma part d\'oublier les clés.' } },
+    { w: 'moody', pos: 'adj', fr: 'lunatique', cefr: 'B1', ex: { en: 'He\'s quite moody in the mornings.', fr: 'Il est assez lunatique le matin.' } },
+    { w: 'sensible', pos: 'adj', fr: 'raisonnable', cefr: 'B1', ex: { en: 'It\'s sensible to save some money each month.', fr: 'C\'est raisonnable d\'économiser un peu chaque mois.' } },
+    { w: 'bold', pos: 'adj', fr: 'audacieux', cefr: 'B1', ex: { en: 'She made a bold decision to quit her job.', fr: 'Elle a pris la décision audacieuse de quitter son emploi.' } },
+    { w: 'nosy', pos: 'adj', fr: 'curieux, fouineur', cefr: 'B2', ex: { en: 'Stop being so nosy about my personal life.', fr: 'Arrête d\'être aussi fouineur sur ma vie privée.' } },
+    { w: 'outspoken', pos: 'adj', fr: 'franc, qui dit ce qu\'il pense', cefr: 'B2', ex: { en: 'He\'s outspoken about his political views.', fr: 'Il est franc sur ses opinions politiques.' } },
+    { w: 'humorous', pos: 'adj', fr: 'plein d\'humour', cefr: 'B2', ex: { en: 'Her humorous remarks lightened the mood.', fr: 'Ses remarques pleines d\'humour ont détendu l\'atmosphère.' } },
+    { w: 'manipulative', pos: 'adj', fr: 'manipulateur', cefr: 'C1', ex: { en: 'He can be very manipulative when he wants something.', fr: 'Il peut être très manipulateur quand il veut quelque chose.' } },
+    { w: 'snobbish', pos: 'adj', fr: 'snob', cefr: 'C1', ex: { en: 'Her snobbish attitude annoyed everyone at the party.', fr: 'Son attitude snob a agacé tout le monde à la fête.' } },
   ],
 };

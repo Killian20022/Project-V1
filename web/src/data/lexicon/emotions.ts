@@ -1,5 +1,6 @@
-// Les émotions & les sentiments — 147 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// Les émotions & les sentiments — 158 mots.
+// 147 repris du curriculum, 11 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_EMOTIONS: Theme = {
@@ -156,5 +157,16 @@ export const THEME_EMOTIONS: Theme = {
     { w: 'empathy', pos: 'n', fr: 'empathie', cefr: 'B2', ex: { en: 'Good leaders show empathy toward their team.', fr: 'Les bons dirigeants font preuve d’empathie envers leur équipe.' } },
     { w: 'moved', pos: 'adj', fr: 'ému, touché', cefr: 'B1', ex: { en: 'She was deeply moved by his speech.', fr: 'Elle a été profondément émue par son discours.' } },
     { w: 'sentimental', pos: 'adj', fr: 'sentimental, affectif', cefr: 'B2', ex: { en: 'This old photo has great sentimental value to me.', fr: 'Cette vieille photo a une grande valeur sentimentale pour moi.' } },
+    { w: 'stressed', pos: 'adj', fr: 'stressé', cefr: 'A2', ex: { en: 'She feels stressed before every exam.', fr: 'Elle se sent stressée avant chaque examen.' } },
+    { w: 'touched', pos: 'adj', fr: 'touché, ému', cefr: 'B1', ex: { en: 'I was really touched by your letter.', fr: 'J’ai été vraiment touché par ta lettre.' } },
+    { w: 'homesick', pos: 'adj', fr: 'nostalgique du pays, mal du pays', cefr: 'B1', ex: { en: 'He felt homesick during his first month abroad.', fr: 'Il avait le mal du pays pendant son premier mois à l’étranger.' } },
+    { w: 'overjoyed', pos: 'adj', fr: 'transporté de joie', cefr: 'B1', ex: { en: 'They were overjoyed when the baby was born.', fr: 'Ils étaient transportés de joie à la naissance du bébé.' } },
+    { w: 'heartfelt', pos: 'adj', fr: 'sincère, venu du cœur', cefr: 'B2', ex: { en: 'He gave a heartfelt speech at the funeral.', fr: 'Il a prononcé un discours sincère lors des funérailles.' } },
+    { w: 'longing', pos: 'n', fr: 'désir ardent, nostalgie', cefr: 'B2', ex: { en: 'She felt a deep longing for her hometown.', fr: 'Elle ressentait une profonde nostalgie de sa ville natale.' } },
+    { w: 'nostalgic', pos: 'adj', fr: 'nostalgique', cefr: 'B2', ex: { en: 'This song makes me nostalgic for my childhood.', fr: 'Cette chanson me rend nostalgique de mon enfance.' } },
+    { w: 'bittersweet', pos: 'adj', fr: 'doux-amer', cefr: 'C1', ex: { en: 'Graduation day was a bittersweet moment for her.', fr: 'Le jour de la remise des diplômes fut un moment doux-amer pour elle.' } },
+    { w: 'wistful', pos: 'adj', fr: 'mélancolique, songeur', cefr: 'C1', ex: { en: 'He had a wistful look as he remembered his youth.', fr: 'Il avait un air mélancolique en se souvenant de sa jeunesse.' } },
+    { w: 'yearn', pos: 'v', fr: 'aspirer à, languir de', cefr: 'C1', also: ['yearns', 'yearned', 'yearning'], ex: { en: 'She yearned for a simpler life in the countryside.', fr: 'Elle aspirait à une vie plus simple à la campagne.' } },
+    { w: 'heartwarming', pos: 'adj', fr: 'touchant, réconfortant', cefr: 'C1', ex: { en: 'It was a heartwarming story about kindness.', fr: 'C’était une histoire touchante sur la gentillesse.' } },
   ],
 };

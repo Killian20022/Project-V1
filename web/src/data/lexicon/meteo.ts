@@ -1,5 +1,6 @@
-// La météo & les saisons — 72 mots.
-// Dédoublonné par `bun dedupe-lexicon.ts` : un mot ne vit que dans un seul thème.
+// La météo & les saisons — 98 mots.
+// 96 repris du curriculum, 2 rédigés par l'API puis relus
+// (vérification automatique + arbitrage des fiches signalées). Voir gen-lexicon-ai.ts.
 import type { Theme } from '../../lib/lexicon';
 
 export const THEME_METEO: Theme = {
@@ -81,5 +82,31 @@ export const THEME_METEO: Theme = {
     { w: 'sweltering', pos: 'adj', fr: 'suffocant, étouffant', cefr: 'C2', ex: { en: 'We struggled through the sweltering heat of August.', fr: 'Nous avons souffert dans la chaleur étouffante d’août.' } },
     { w: 'biting', pos: 'adj', fr: 'mordant, glacial', cefr: 'C2', ex: { en: 'A biting wind swept across the fields.', fr: 'Un vent glacial balayait les champs.' } },
     { w: 'changeable', pos: 'adj', fr: 'changeant, variable', cefr: 'C1', ex: { en: 'The weather here is very changeable in spring.', fr: 'Le temps ici est très changeant au printemps.' } },
+    { w: 'windy', pos: 'adj', fr: 'venteux', cefr: 'A1', ex: { en: 'It\'s too windy to fly a kite today.', fr: 'Il y a trop de vent pour faire voler un cerf-volant aujourd\'hui.' } },
+    { w: 'stormy', pos: 'adj', fr: 'orageux', cefr: 'A2', ex: { en: 'The sky looked stormy before the picnic.', fr: 'Le ciel paraissait orageux avant le pique-nique.' } },
+    { w: 'rainstorm', pos: 'n', fr: 'averse violente', cefr: 'A2', also: ['rainstorms'], ex: { en: 'A sudden rainstorm flooded the street.', fr: 'Une averse violente soudaine a inondé la rue.' } },
+    { w: 'snowfall', pos: 'n', fr: 'chute de neige', cefr: 'A2', also: ['snowfalls'], ex: { en: 'Heavy snowfall blocked the mountain roads.', fr: 'Une forte chute de neige a bloqué les routes de montagne.' } },
+    { w: 'damp', pos: 'adj', fr: 'humide', cefr: 'A2', ex: { en: 'The air felt damp after the rain.', fr: 'L\'air semblait humide après la pluie.' } },
+    { w: 'breezy', pos: 'adj', fr: 'légèrement venteux', cefr: 'A2', ex: { en: 'It\'s a breezy afternoon on the beach.', fr: 'C\'est un après-midi légèrement venteux à la plage.' } },
+    { w: 'sunburn', pos: 'n', fr: 'coup de soleil', cefr: 'A2', ex: { en: 'She got a bad sunburn on her shoulders.', fr: 'Elle a attrapé un mauvais coup de soleil sur les épaules.' } },
+    { w: 'chill', pos: 'n', fr: 'froid piquant', cefr: 'B1', ex: { en: 'There\'s a chill in the air this morning.', fr: 'Il y a un froid piquant dans l\'air ce matin.' } },
+    { w: 'moisture', pos: 'n', fr: 'humidité', cefr: 'B1', ex: { en: 'The plant needs more moisture in the soil.', fr: 'La plante a besoin de plus d\'humidité dans le sol.' } },
+    { w: 'muggy', pos: 'adj', fr: 'lourd et humide', cefr: 'B1', ex: { en: 'It was muggy all day before the storm broke.', fr: 'Il faisait lourd et humide toute la journée avant que l\'orage n\'éclate.' } },
+    { w: 'hazy', pos: 'adj', fr: 'brumeux', cefr: 'B1', ex: { en: 'The hills looked hazy in the distance.', fr: 'Les collines paraissaient brumeuses au loin.' } },
+    { w: 'seasonal', pos: 'adj', fr: 'saisonnier', cefr: 'B1', ex: { en: 'The shop sells seasonal fruit and vegetables.', fr: 'Le magasin vend des fruits et légumes de saison.' } },
+    { w: 'weather station', pos: 'n', fr: 'station météorologique', cefr: 'B1', also: ['weather stations'], ex: { en: 'The weather station recorded record rainfall.', fr: 'La station météorologique a enregistré des précipitations record.' } },
+    { w: 'nippy', pos: 'adj', fr: 'frisquet', cefr: 'B2', ex: { en: 'It\'s a bit nippy out, so wear a coat.', fr: 'Il fait un peu frisquet dehors, alors mets un manteau.' } },
+    { w: 'sunstroke', pos: 'n', fr: 'insolation', cefr: 'B2', ex: { en: 'He suffered sunstroke after hours in the heat.', fr: 'Il a souffert d\'une insolation après des heures dans la chaleur.' } },
+    { w: 'frostbite', pos: 'n', fr: 'gelure', cefr: 'B2', ex: { en: 'The climbers were treated for frostbite.', fr: 'Les grimpeurs ont été soignés pour des gelures.' } },
+    { w: 'meteorologist', pos: 'n', fr: 'météorologue', cefr: 'B2', also: ['meteorologists'], ex: { en: 'The meteorologist predicted a cold front tonight.', fr: 'Le météorologue a prédit un front froid ce soir.' } },
+    { w: 'condensation', pos: 'n', fr: 'condensation', cefr: 'B2', ex: { en: 'Condensation formed on the cold window.', fr: 'De la condensation s\'est formée sur la fenêtre froide.' } },
+    { w: 'evaporation', pos: 'n', fr: 'évaporation', cefr: 'B2', ex: { en: 'Evaporation increases in hot, dry weather.', fr: 'L\'évaporation augmente par temps chaud et sec.' } },
+    { w: 'air pressure', pos: 'n', fr: 'pression atmosphérique', cefr: 'B2', ex: { en: 'Low air pressure often brings rain.', fr: 'Une basse pression atmosphérique apporte souvent de la pluie.' } },
+    { w: 'precipitation', pos: 'n', fr: 'précipitations', cefr: 'C1', ex: { en: 'The region expects heavy precipitation this week.', fr: 'La région attend de fortes précipitations cette semaine.' } },
+    { w: 'cold front', pos: 'n', fr: 'front froid', cefr: 'C1', also: ['cold fronts'], ex: { en: 'A cold front will bring sudden temperature drops.', fr: 'Un front froid va provoquer des chutes de température soudaines.' } },
+    { w: 'warm front', pos: 'n', fr: 'front chaud', cefr: 'C1', also: ['warm fronts'], ex: { en: 'A warm front is moving in from the south.', fr: 'Un front chaud arrive du sud.' } },
+    { w: 'weather vane', pos: 'n', fr: 'girouette', cefr: 'C1', also: ['weather vanes'], ex: { en: 'The weather vane on the barn pointed north.', fr: 'La girouette sur la grange pointait vers le nord.' } },
+    { w: 'torrential', pos: 'adj', fr: 'torrentiel', cefr: 'B2', ex: { en: 'Torrential rain flooded the streets overnight.', fr: 'Une pluie torrentielle a inondé les rues pendant la nuit.' } },
+    { w: 'balmy', pos: 'adj', fr: 'doux et agréable', cefr: 'C1', ex: { en: 'We had dinner outside on a balmy evening.', fr: 'Nous avons dîné dehors par une soirée douce et agréable.' } },
   ],
 };

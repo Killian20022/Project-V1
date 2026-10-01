@@ -22,7 +22,7 @@ export const THEME_VETEMENTS: Theme = {
     { w: 'T-shirt', pos: 'n', fr: 'T-shirt', cefr: 'A1', also: ['T-shirts'], ex: { en: 'He bought a T-shirt with a funny picture.', fr: 'Il a acheté un T-shirt avec une image drôle.' } },
     { w: 'sweater', pos: 'n', fr: 'pull', cefr: 'A1', also: ['sweaters'], ex: { en: 'I wear a warm sweater in winter.', fr: 'Je porte un pull chaud en hiver.' } },
     { w: 'wear', pos: 'v', fr: 'porter (un vêtement)', cefr: 'A1', also: ['wears', 'wore', 'worn', 'wearing'], ex: { en: 'She wears glasses every day.', fr: 'Elle porte des lunettes tous les jours.' } },
-    { w: 'put on', pos: 'phr', fr: 'mettre (un vêtement)', cefr: 'A1', also: ['puts on', 'put on', 'putting on'], ex: { en: 'Put on your shoes before we leave.', fr: 'Mets tes chaussures avant qu\'on parte.' } },
+    { w: 'put on', pos: 'phr', fr: 'mettre (un vêtement)', cefr: 'A1', also: ['puts on', 'putting on'], ex: { en: 'Put on your shoes before we leave.', fr: 'Mets tes chaussures avant qu\'on parte.' } },
     { w: 'take off', pos: 'phr', fr: 'enlever (un vêtement)', cefr: 'A1', also: ['takes off', 'took off', 'taken off', 'taking off'], ex: { en: 'He took off his hat when he entered.', fr: 'Il a enlevé son chapeau en entrant.' } },
     { w: 'clothes', pos: 'n', fr: 'vêtements', cefr: 'A1', ex: { en: 'She hung her clothes in the closet.', fr: 'Elle a rangé ses vêtements dans le placard.' } },
     { w: 'scarf', pos: 'n', fr: 'écharpe', cefr: 'A2', also: ['scarves'], ex: { en: 'He wrapped a scarf around his neck.', fr: 'Il a enroulé une écharpe autour de son cou.' } },

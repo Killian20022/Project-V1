@@ -90,8 +90,14 @@ const FILLED: Record<string, Theme> = {
 /**
  * Les 36 thèmes, dans l'ordre du plan. Ceux qui ne sont pas encore écrits sortent avec une liste
  * de mots vide : la page les affiche « 0 / objectif » plutôt que de les cacher.
+ *
+ * Le PLAN fait foi pour les métadonnées (`label`, `blurb`, `domain`, `target`) ; le fichier de thème
+ * ne fournit que ses `words`. Ces champs sont déclarés dans les deux endroits — `Theme` les exige —
+ * et ils ont divergé : quatre thèmes affichaient « 127 / 120 » parce que leur fichier gardait
+ * l'objectif d'avant la rédaction, alors que le « / 5 000 » global, lui, additionnait le plan.
+ * Relever un objectif se fait donc dans `themes.ts`, à un seul endroit.
  */
-export const THEMES: readonly Theme[] = THEME_PLAN.map((plan) => FILLED[plan.key] ?? { ...plan, words: [] });
+export const THEMES: readonly Theme[] = THEME_PLAN.map((plan) => ({ ...plan, words: FILLED[plan.key]?.words ?? [] }));
 
 export function themeByKey(key: string): Theme | undefined {
   return THEMES.find((t) => t.key === key);
