@@ -18,6 +18,7 @@ export const EFFORT = {
   quest: 1, // une quête de campagne : 12 questions
   vocabStep: 1, // un palier de vocabulaire : 10 mots
   formula: 1, // une situation de la section Formules
+  drill: 1, // un entraînement de chapitre : 8 questions au format TOEIC
   exam: 3, // une épreuve blanche : 30 questions
 } as const;
 
@@ -47,13 +48,24 @@ export function effortBreakdown(state: GameState) {
   const quests = questsDone(state);
   const vocab = countPrefix(state, 'voc:');
   const formulas = countPrefix(state, 'biz:');
+  // Les entraînements de chapitre sont arrivés avec la campagne tissée (`lib/campaign.ts`). Les
+  // compter est conforme à la règle du fichier — on ajoute une source, le total ne peut que monter —
+  // et c'est nécessaire : sans ça, soixante-dix étapes de la campagne ne feraient rien pousser, ce
+  // qui est exactement le défaut qu'`effort.ts` avait été écrit pour corriger.
+  const drills = countPrefix(state, 'drill:');
   const exams = examsPassed(state);
   return {
     quests,
     vocab,
     formulas,
+    drills,
     exams,
-    total: quests * EFFORT.quest + vocab * EFFORT.vocabStep + formulas * EFFORT.formula + exams * EFFORT.exam,
+    total:
+      quests * EFFORT.quest +
+      vocab * EFFORT.vocabStep +
+      formulas * EFFORT.formula +
+      drills * EFFORT.drill +
+      exams * EFFORT.exam,
   };
 }
 

@@ -4,6 +4,7 @@ import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { completeBusiness, completeExam, completeLesson, completePractice, loadGameState, migrateState, saveGameState } from '@/lib/state';
+import { businessModules } from '@/lib/content';
 import type { GrammarEntry } from '@/lib/content';
 import { addCards, addWordCards, applyReview, countDue, dueCards } from '@/lib/srs';
 import { buildReviewQuestion, buildWordSession, shuffle } from '@/lib/exercises';
@@ -21,7 +22,9 @@ import { BossPage } from '@/pages/BossPage';
 import { ExamHubPage } from '@/pages/ExamHubPage';
 import { ExamPage } from '@/pages/ExamPage';
 import { VocabularyPage } from '@/pages/VocabularyPage';
-import { bankById, passageById } from '@/data/toeic';
+import { TOEIC_BANKS, bankById, passageById } from '@/data/toeic';
+import { DRILL_SIZE, drillItems } from '@/lib/campaign';
+import type { CampaignStep } from '@/lib/campaign';
 import { toQuestion } from '@/lib/toeic';
 import type { ToeicExam } from '@/lib/toeic';
 import { themeByKey } from '@/data/lexicon';
@@ -46,7 +49,10 @@ export default function App() {
   // Épreuve blanche en cours, et entraînement libre au format examen (qui, lui, réutilise le
   // moteur de leçon : ce sont des QCM ordinaires une fois le chrono retiré).
   const [exam, setExam] = useState<ToeicExam | null>(null);
-  const [drill, setDrill] = useState<{ bankId: string; questions: Question[] } | null>(null);
+  // `doneId` n'existe que pour les entraînements lancés DEPUIS la campagne : c'est lui qui, une fois
+  // la série réussie, coche l'étape du chapitre. L'entraînement libre du hub TOEIC n'en a pas et ne
+  // marque donc rien, comme avant.
+  const [drill, setDrill] = useState<{ bankId: string; questions: Question[]; doneId?: string; badge?: string } | null>(null);
   // Palier de vocabulaire en cours : les mots du palier + la séance construite à partir d'eux.
   const [vocab, setVocab] = useState<{ themeKey: string; step: number; words: WordEntry[]; questions: Question[] } | null>(null);
   const { user, isLoaded } = useUser();
@@ -174,6 +180,39 @@ export default function App() {
     setDrill({ bankId, questions: shuffle(bank.items).map((it) => toQuestion(it, passageById(it.passage))) });
   }
 
+  /**
+   * Ouvre une étape de chapitre autre qu'une leçon : palier de vocabulaire, entraînement au format
+   * TOEIC, ou module de formules. Les leçons passent par `onOpenLesson`, inchangé.
+   */
+  function openCampaignStep(level: Level, step: CampaignStep) {
+    if (step.kind === 'vocab' && step.themeKey && step.stepIndex !== undefined) {
+      startVocabStep(step.themeKey, step.stepIndex);
+      return;
+    }
+    if (step.kind === 'business' && step.bizId) {
+      const module = businessModules().find((m) => m.id === step.bizId);
+      if (module) openBusiness(module);
+      return;
+    }
+    if (step.kind !== 'toeic') return;
+
+    // Deux sortes d'entraînements : par ÉTIQUETTE (le point de grammaire de la leçon) ou par PARTIE
+    // entière découpée en séries (les chapitres de compréhension). `round` garantit que la série 2
+    // ne repose pas les questions de la série 1.
+    const pool = step.parts?.length
+      ? TOEIC_BANKS.filter((b) => step.parts!.includes(b.part)).flatMap((b) => b.items)
+      : drillItems(step.tags ?? []);
+    const from = (step.round ?? 0) * DRILL_SIZE;
+    const items = (step.parts?.length ? pool.slice(from, from + DRILL_SIZE) : shuffle(pool).slice(0, DRILL_SIZE));
+    if (!items.length) return;
+    setDrill({
+      bankId: 'campagne',
+      doneId: step.id,
+      badge: `🎓 ${step.label}`,
+      questions: shuffle(items).map((it) => toQuestion(it, passageById(it.passage))),
+      });
+  }
+
   // Lance un duel de boss pour un grade donné.
   function startBoss(level: Level) {
     setLesson(null);
@@ -299,9 +338,16 @@ export default function App() {
       <ExercisePage
         level={bankById(drill.bankId)?.items[0]?.cefr ?? 'B1'}
         reviewQuestions={drill.questions}
-        badge="🎓 Entraînement"
+        badge={drill.badge ?? '🎓 Entraînement'}
         onFinish={(correct, total, maxCombo) => {
-          setState((current) => completePractice(current, correct, total, maxCombo));
+          setState((current) => {
+            const next = completePractice(current, correct, total, maxCombo);
+            // L'étape ne se coche qu'à partir de 60 % — le même seuil qu'une épreuve blanche
+            // (`EXAM_PASS`). On récompense le travail, pas le fait d'avoir cliqué jusqu'au bout.
+            if (!drill.doneId || correct / Math.max(1, total) < 0.6) return next;
+            if (next.completed?.includes(drill.doneId)) return next;
+            return { ...next, completed: [...(next.completed ?? []), drill.doneId] };
+          });
           setDrill(null);
         }}
         onQuit={() => setDrill(null)}
@@ -417,6 +463,7 @@ export default function App() {
         selectedLevel={selectedLevel}
         onSelectLevel={setSelectedLevel}
         onOpenLesson={(level, index, selectedLesson) => setLesson({ level, index, lesson: selectedLesson })}
+        onOpenStep={openCampaignStep}
         onReview={(level) => startReview(level)}
         onBoss={(level) => startBoss(level)}
       />
