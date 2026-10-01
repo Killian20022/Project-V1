@@ -31,7 +31,16 @@ button { touch-action:manipulation; }
 .btn-pixel-red { background:#854e43; border-color:#854e43; }
 .btn-pixel-red:hover { background:#703f36; }
 .quest-shell { min-height:100dvh; }
-.quest-sidebar { position:fixed; inset:0 auto 0 0; z-index:30; width:230px; padding:35px 20px 25px; color:#c4cbbf; background:radial-gradient(ellipse at 0 100%,#2c4936,transparent 60%),#17352d; border-right:1px solid #bda57438; display:flex; flex-direction:column; }
+/* `overflow-y:auto` n'est pas cosmétique : la barre mesure ~1 084 px de contenu et elle est en
+   `position:fixed` sur toute la hauteur. Sans défilement, un portable 1366×768 (≈660 px utiles)
+   coupait purement les quatre dernières entrées — Royaume, Marché, Hauts faits, Grimoire — qui
+   devenaient INATTEIGNABLES, sans même une barre pour y descendre. `overscroll-behavior:contain`
+   évite qu'un défilement arrivé en bout de barre n'emporte la page derrière.
+   Les paliers `max-height` plus bas servent à ne pas avoir à s'en servir. */
+.quest-sidebar { position:fixed; inset:0 auto 0 0; z-index:30; width:230px; padding:35px 20px 25px; color:#c4cbbf; background:radial-gradient(ellipse at 0 100%,#2c4936,transparent 60%),#17352d; border-right:1px solid #bda57438; display:flex; flex-direction:column; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#bda57455 transparent; }
+.quest-sidebar::-webkit-scrollbar { width:7px; }
+.quest-sidebar::-webkit-scrollbar-thumb { background:#bda57455; border-radius:4px; }
+.quest-sidebar::-webkit-scrollbar-track { background:transparent; }
 .quest-brand { display:flex; align-items:center; gap:10px; text-align:left; color:#f2ead9; margin:0 0 48px; }
 .quest-brand>span:last-child { font-family:'Cormorant Garamond',Georgia,serif; font-size:23px; font-weight:600; white-space:nowrap; }
 .quest-brand small { display:block; color:#a9b5a6; font:8px 'DM Sans',sans-serif; letter-spacing:1.1px; margin-top:5px; }
@@ -169,6 +178,40 @@ button { touch-action:manipulation; }
 @media(min-width:1600px) { .quest-content { padding-top:45px; } .adventure-hero { min-height:400px; } .hero-copy { padding:46px; } .hero-copy h2 { font-size:55px; } }
 @media(max-width:1200px) { .quest-sidebar { width:205px; padding-left:15px; padding-right:15px; } .quest-brand>span:last-child { font-size:21px; } .quest-brand small { font-size:7px; } .quest-workspace { margin-left:205px; } .quest-content { padding:28px; } .quest-topbar { padding:14px 28px; } .quest-breadcrumb { display:none; } .quest-account { margin-left:auto; } .journey-stat { padding:0 12px; gap:8px; } .journey-rank { padding:0 12px; } .hero-copy { padding:30px 5px 28px 28px; } .rank-grid { gap:8px; } .rank-card { padding:12px 8px; } .rank-card>strong { font-size:17px; } .hero-actions { gap:12px; } }
 @media(max-width:1000px) { .quest-sidebar { position:sticky; top:0; width:100%; height:auto; flex-direction:row; align-items:center; justify-content:space-between; padding:13px 24px; } .quest-brand { margin:0; } .quest-brand>span:last-child { font-size:23px; } .quest-brand small { font-size:7px; } .brand-emblem { height:36px; } .quest-workspace { margin-left:0; } .sidebar-bottom { display:none; } .mobile-menu-toggle { display:grid; place-items:center; width:42px; height:42px; border:1px solid #c5b5884d; border-radius:5px; color:#e1d5b8; } .quest-navigation { display:none; position:absolute; top:100%; left:0; right:0; padding:20px; background:#17352d; border-bottom:1px solid #b69b63; box-shadow:0 15px 20px #17352d33; max-height:calc(100dvh - 80px); overflow-y:auto; } .quest-navigation.is-open { display:grid; grid-template-columns:1fr 1fr; gap:3px 15px; } .nav-caption { display:none; } .quest-topbar { min-height:60px; padding:10px 26px; } .quest-breadcrumb { display:flex; } .quest-shell-world { height:100dvh; display:flex; flex-direction:column; } .quest-shell-world .quest-workspace { flex:1; height:auto; min-height:0; } .skip-link { left:15px; } }
+/* ── Fenêtres BASSES ────────────────────────────────────────────────────────
+   Les requêtes ci-dessus raisonnent en largeur ; or le problème d'un portable est sa HAUTEUR. Un
+   1366×768 est trop large pour basculer en menu mobile (seuil à 1000 px) et trop court pour les
+   1 084 px de la barre : il tombait donc dans l'angle mort, et quatre entrées disparaissaient.
+   On rogne le DÉCOR d'abord — la phrase en serif, la ligne de rang, les espacements — et jamais la
+   navigation, qui est la fonction de cette barre.
+
+   Les deux paliers sont bornés à `min-width:1001px` : en dessous, la barre est déjà devenue un
+   bandeau horizontal avec un menu déroulant, qui a son propre `overflow-y` et ne souffre pas du
+   problème. Les y appliquer quand même écraserait ses marges pour rien. */
+@media(min-width:1001px) and (max-height:1100px) {
+  .quest-sidebar { padding:20px 20px 14px; }
+  .quest-brand { margin-bottom:26px; }
+  .nav-caption { margin-bottom:8px; }
+  .nav-divider { padding-top:16px; margin-top:14px; }
+  .quest-nav-item { padding:8px 14px; margin:1px 0; }
+  .sidebar-bottom { padding:18px 12px 0; }
+  .sidebar-bottom p { font-size:16px; margin:9px 0 12px; }
+}
+/* Sous 820 px, même compactée la barre ne rentre plus : on retire tout le bloc décoratif du bas.
+   Le bouton « Revoir l'entrée du royaume » qu'il contenait existe aussi dans la navigation
+   (`.replay-arrival-mobile`), on le réaffiche pour ne rien perdre de fonctionnel — avec un sélecteur
+   descendant, parce que la règle `display:none` de ce bouton vient PLUS LOIN dans la feuille et
+   gagnerait à spécificité égale. */
+@media(min-width:1001px) and (max-height:820px) {
+  .quest-sidebar { padding:14px 20px 10px; }
+  .quest-brand { margin-bottom:16px; }
+  .brand-emblem { height:36px; }
+  .sidebar-bottom { display:none; }
+  .quest-nav-item { padding:6px 14px; font-size:12.5px; }
+  .nav-divider { padding-top:11px; margin-top:9px; }
+  .quest-navigation .replay-arrival-mobile { display:flex; margin-top:14px; }
+}
+
 @media(max-width:680px) { .quest-content { padding:25px 18px; } .quest-topbar { padding:10px 15px; } .quest-account { gap:8px; width:100%; justify-content:flex-end; } .quest-breadcrumb { display:none; } .quest-account .streak-resource { margin-right:auto; } .resource-label { display:none; } .signup-button { display:none; } .quest-account button { font-size:11px; } .quest-sidebar { padding:11px 18px; } .quest-footer { margin:0 18px; } .quest-footer>span:nth-child(2) { font-size:8px; } .home-dashboard { gap:23px; } .page-intro h1 { font-size:27px; } .page-intro .eyebrow { font-size:8px; letter-spacing:1.1px; } .chapter-tag { display:none; } .adventure-hero { grid-template-columns:1fr; } .hero-copy { padding:28px 25px; } .hero-copy h2 { font-size:39px; } .hero-copy p { max-width:100%; } .hero-illustration { min-height:190px; } .hero-illustration:after { background:linear-gradient(180deg,#193d31,transparent 40%),linear-gradient(0deg,#193d31b0,transparent 55%); } .hero-illustration>img { object-position:50% 42%; } .map-caption { left:25px; bottom:18px; } .map-compass { top:10px; right:20px; } .journey-stats { grid-template-columns:1fr 1fr; padding:0; } .journey-stat { padding:20px; border-bottom:1px solid #e2ddcf; } .journey-stat:nth-child(2) { border-right:0; } .journey-stat:nth-child(3) { border-bottom:0; } .journey-rank { padding:14px 12px; } .journey-rank>img { width:40px; height:40px; } .dashboard-columns { grid-template-columns:1fr; gap:25px; } .section-heading h2 { font-size:27px; } .section-heading>span { font-size:7px; } .rank-grid { grid-template-columns:repeat(3,1fr); gap:10px; } .rank-card>strong { font-size:19px; } .rank-card>img { width:54px; height:54px; } .grimoire-strip { padding:20px; gap:12px; } .grimoire-strip strong { font-size:21px; } .grimoire-strip small { font-size:9px; } .text-link { font-size:9px; } .ribbon { font-size:29px; } }
 @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } *,*::before,*::after { animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; } }
 
